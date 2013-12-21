@@ -9,6 +9,7 @@
 \usepackage{tikz}
 \usepackage{listings}
 \usepackage{authblk}
+\usepackage{caption} % For margin top bottom
 
 \usetikzlibrary{patterns,shapes,positioning,calc}
 
@@ -19,7 +20,7 @@
 \author{Lars Kirkholt Melhus}
 \author{Rune Erlend Jensen}
 \affil{Norwegian University of Science and Technology}
-\title{Sources of Measurement Bias on Modern CPUs}
+\title{Sources of Measurement Bias in Modern CPUs}
 \date{} % This is a timeless piece
 
 \begin{document}
@@ -65,12 +66,12 @@ Because bias effects are intrinsically connected to various hardware features, t
 However, the bias sources we present has also been shown to behave similarly on previous Intel architectures as well.
 With a better understanding of intricate properties of the CPU, we show how one is able to not only predict, but also explicitly optimize for beneficial memory layouts. 
 
-In the paper appropriately named “Producing Wrong Data Without Doing Anything Obviously Wrong” by T. Mytkowicz et al. \cite{Mytkowicz:2009:WrongData}, the authors show how simple changes to the execution environment can have an impact on performance. 
+In the paper appropriately named “Producing Wrong Data Without Doing Anything Obviously Wrong” by T. Mytkowicz et al.~\cite{Mytkowicz:2009:WrongData}, the authors show how simple changes to the execution environment can have an impact on performance. 
 One of their examples is a program where performance varies significantly with changes to the environment variables. 
 Unix environment variables contain various information about the system, such as the name of the currently logged in user, home- and current directory path.
 This means that the length of your name -- by extension you user login -- could in principle be the tipping point between good and bad performance.
 
-Previous work focuses mostly on how to mitigate effects of bias, and avoid drawing the wrong conclusions based on misleading measurements \cite{Mytkowicz:2008:Easy, Mytkowicz:2009:WrongData}.
+Previous work focuses mostly on how to mitigate effects of bias, and avoid drawing the wrong conclusions based on misleading measurements~\cite{Mytkowicz:2008:Easy, Mytkowicz:2009:WrongData}.
 The goal of this paper is to show not only that bias exists, but also \emph{why} it occurs. 
 
 With more accurate models of how bias occur, we will not only be able to actively avoid in performance, but in some cases also gain a real speedup on average.
@@ -106,7 +107,7 @@ To measure statistics with n bytes added to the environment, a dummy variable is
 Cache conflicts can in many cases be a potential explanation for bias effects observed by changing memory layout.
 Although cache is often a likely explanation of performance variations, bias caused by cache issues is well understood and \emph{not} the focus of this paper.
 Cache related metrics are monitored in order to rule out cache as the underlying cause of bias. 
-The hit rates of micro-ops for each level of cache can be monitored by performance counters \cite{Intel:2012:OptimizationManual}.
+The hit rates of micro-ops for each level of cache can be monitored by performance counters~\cite{Intel:2012:OptimizationManual}.
 
 
 \section{4K Address Aliasing}
@@ -126,17 +127,18 @@ The number of times this happens can be counted by the following performance cou
   Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.
 \end{description}
 Performance implications of 4K aliasing is discussed to some extent in the optimization manual from Intel. 
-There are even some concrete suggestions for how avoid aliasing cases to improve performance (Rule 8 and 9) \cite{Intel:2012:OptimizationManual}.
+There are even some concrete suggestions for how avoid aliasing cases to improve performance (Rule 8 and 9)~\cite{Intel:2012:OptimizationManual}.
 In the following sections, we look at how address aliasing can explain some instances of measurement bias.
 
 \subsection{Bias from Environment Size}
 Variations in performance with bias towards certain environment sizes has been observed by other authors.
 Unless the program explicitly accesses environment variables, it is not the environment variables themselves that are important, but rather the effect their total size has on the alignment of stack. 
-Figure \ref{fig:stack} shows the relative positions of some important sections of memory at run time, assuming a 64 bit process mapped to virtual memory. 
+Figure \ref{fig:virtualmemory} shows the relative positions of some important sections of memory at run time, assuming a 64 bit process mapped to virtual memory. 
 
 \pgfplotstableread{resources/stack-offset.dat}{\stackoffsettable}
 \begin{figure*}[t]
-  \caption{Bias from environment size}
+  \caption{Bias from environment size for program in Listing~\ref{lst:loopkernel}. Measure of average 100 cycle counts for 512 different environments, spread over two 4K periods. Compiled with no optimization.}
+  \label{fig:envbias}
   \begin{tikzpicture}
     \begin{axis}[
         width = \textwidth,
@@ -166,12 +168,9 @@ There is still some level of stack alignment happening, independent of environme
 The compiler can enforce alignment to some number of zero bits.
 As long as this number is less than 12, environment size can impact addresses of automatic variables $\bmod 4096$.
 
-Text and data sections contain program code and static data respectively.
-These regions are mapped towards the low en of the address spectrum, and the virtual addresses of variables allocated here will not change with environment size. 
-
-Note that the initial position of stack will not depend on environment size this way when address randomization (ASLR) is enabled. (TODO: Does it offset from page boundary? That would be good, same alias behavior :)
-
-\begin{figure}
+\begin{figure}[float=h]
+  \caption{Important sections of virtual memory on a 64 bit process}
+  \label{fig:virtualmemory}
   \begin{tikzpicture}[font=\footnotesize]
 
     % See page 453 in pgf manual
@@ -206,29 +205,50 @@ Note that the initial position of stack will not depend on environment size this
       { \scriptsize{0x400000} } ;
 
   \end{tikzpicture}
-  \caption{Important sections of virtual memory on a 64 bit process}
-  \label{fig:stack}
 \end{figure}
+
+Text and data sections contain program code and static data respectively.
+These regions are mapped towards the low en of the address spectrum, and the virtual addresses of variables allocated here will not change with environment size. 
+
+Note that the initial position of stack will not depend on environment size this way when address randomization (ASLR) is enabled. (TODO: Does it offset from page boundary? That would be good, same alias behavior :)
 
 Addresses of stack allocated variables can vary depending on environment size, while other segments of memory such as text and data remain constant over all environments.
 
-To illustrate how this can cause bias, we revisit the example first presented in \cite{Mytkowicz:2009:WrongData}.
-Their program contains five variables, two of which are stack allocated and i, j and k that are statically allocated.
+To illustrate how this can cause bias, we revisit the example first presented in~\cite{Mytkowicz:2009:WrongData}, shown in Listing~\ref{lst:loopkernel}. 
+This example is interesting for several reasons. 
+The bias effects are significant and easily reproducible, while the example code is simple and easy to analyze.
+Still, no satisfactory explanation as to what causes bias was given in the original paper.
 
-\begin{lstlisting}[language=C]
+\begin{lstlisting}[float=h, language=C, caption={Microkernel succeptible to aliasing between static variables and automatic variables for certain environment sizes}, label={lst:loopkernel}, frame=lines]
 static int i, j, k;
 int main() {
-  int g = 0, inc = 1;
-  for(; g < 65536; g++) {
-    i += inc;
-    j += inc;
-    k += inc; 
-  }
-  return 0;
+    int g = 0, inc = 1;
+    for (; g < 65536; g++) {
+        i += inc;
+        j += inc;
+        k += inc; 
+    }
+    return 0;
 }
 \end{lstlisting}
 
-Measuring all available performance counters for this program under different environment sizes.
+Their program contains five variables, two of which are stack allocated and i, j and k that are statically allocated.
+Performance counter measurements of cycle counts are shown for 512 different environment sizes in Figure~\ref{fig:envbias}.
+Sampling is done for every 16 byte increment of environment size, covering two 4K periods of addresses.
+A finer sampling is not necessary, because the stack is by default aligned to 16 byte.
+The program is compiled with GCC using no optimization.
+Any optimization would likely disregard most of the function as redundant code, and reduce it to return zero immediately.
+
+There are clearly two worst cases, indicated by significant spikes around the 3100 and 7100 byte offsets.
+We analyzed these cases by sampling an extensive set of performance counters and correlating them with cycle counts.
+The results show a high number of resource stalls when the spikes occur, indicated by high values for performance counters RESOURCE\_STALLS.ANY, CYCLE\_ACTIVITY.CYCLES\_LDM\_PENDING, CYCLE\_ACTIVITY.CYCLE\_NO\_EXECUTE and RESOURCE\_STALLS.RS.
+We also find that LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS correlates almost perfectly with cycle count, which can explain the high number of resource stalls with false dependency from aliasing.
+
+A small amount of assembly code was used to calculate the addresses of each stack allocated variable and output them directly using system calls, without impacting run time addresses.
+We find that the spike in cycle count occurs when the address of g and inc alias with i and j, respectively.
+Resource stalls are generated because of false dependencies between the addresses of (g, i) and (inc, j), resulting in worse performance.
+Worst case occurs for precisely one out of 256 possible initial stack addresses in every 4K segment.
+The program is \emph{biased} towards environment sizes that avoids this specific stack alignment.
 
 
 \subsection{Heap Address Aliasing}
@@ -240,19 +260,37 @@ Acquiring dynamic memory at run time is usually done by calling malloc, which ta
 A typical malloc implementation uses two different strategies for how to allocate memory.
 The \emph{heap} area in virtual memory is used for smaller allocations.
 Programs are initially given a small heap area, which the allocator can increase by calling brk or sbrk.
-For larger allocations, it is typically faster to call mmap instead of increasing the ``normal'' heap.
+For larger allocations, it is typically faster to use anonymous memory mapping by calling mmap, instead of growing the ``normal'' heap.
 The heap starts at a low address close to the data section and grows towards higher addresses. 
 Mmap allocates much closer to the stack.
 While heap addresses can look like 0x16e30a0 or 0x1723020, pointers returned by mmap can for example be 0x7f0318a8f010 or 0x7f03105d2010.
 This distinction is of course unimportant for application developers, as everything is conceptually the same ``heap''.
 However, mmap has an interesting property in that allocations will always be page aligned.
-The page size is 4096 bytes, meaning two pointers returned by mmap will \emph{always} alias.\footnote{Libc's version of malloc adds 16 bytes of medatada at the beginning, thus every mmap'ed address ends with 0x010}
+The page size is 4096 bytes, meaning two pointers returned by mmap will \emph{always} alias.\footnote{libc's version of malloc adds 16 bytes of medatada at the beginning, thus every mmap'ed address ends with 0x010}
 
-Consider the function shown in Listing [alg:convolution].
+Consider the function shown in Listing~\ref{lst:conv}.
 It computes the convolution between an input array and a fixed five-element kernel, writing the result to another array.
 For simplicity, endpoints are not handled.
 
-\begin{lstlisting}[language=C]
+\pgfplotstableread{bin/convolution.dat}{\convolutiontable}
+\begin{figure}[t]
+  \caption{Cycle and alias counts for different offsets between input and output arrays in Listing~\ref{lst:conv}. Offset 0 means equal 12 bit address suffix, which default behavior for mmap allocations. Array size $n=2^{20}$, compiled with -O3. }
+  \label{fig:heapalias}
+  \begin{tikzpicture}
+    \begin{axis}[
+        font = \small,
+        xlabel=Offset in \lstinline!sizeof(float)! bytes,
+        cycle list name=black white
+      ]
+      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convolutiontable ;
+      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \convolutiontable ;
+      \addlegendentry{cycles:u} ;
+      \addlegendentry{r0107:u} ;
+    \end{axis}
+  \end{tikzpicture}
+\end{figure}
+
+\begin{lstlisting}[float=h, language=C, caption={Naive implementation of convolution. Highly sensitive to aliasing between input and output arrays.}, label={lst:conv}, frame=lines]
 static float k[5]={0.1,0.25,0.3,0.25,0.1};
 void conv(int n, float *in, float *out)
 {
@@ -265,22 +303,13 @@ void conv(int n, float *in, float *out)
 }
 \end{lstlisting}
 
-\pgfplotstableread{bin/convolution.dat}{\convolutiontable}
-\begin{figure}[t]
-  \caption{Offseting arrays}
-  \begin{tikzpicture}
-    \begin{axis}[
-        font = \small,
-        xlabel=Number of float (4B) offset,
-        cycle list name=black white
-      ]
-      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convolutiontable ;
-      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \convolutiontable ;
-      \addlegendentry{cycles:u} ;
-      \addlegendentry{r0107:u} ;
-    \end{axis}
-  \end{tikzpicture}
-\end{figure}
+
+Figure \ref{fig:heapalias} shows ...
+
+Using malloc to allocate input and output float arrays of size n, they will alias if mmap is used internally.
+For sufficiently large values of n, this will always be the case.
+Compiling with optimization O3 and n=$2^{20}$, a very large number of alias events and resource stalls are generated compared to cycle count.
+
 
 \section{The Loop Stream Detector}
 Typical software spends most of the time executing the same instructions repeatedly in loops, where the same instructions are fetched, decoded and executed many times. 
@@ -301,7 +330,7 @@ The Loop Stream Detector is dependent on code layout, which can change with exte
 Interacting with the alignment and position of instructions in memory, the LSD can cause performance differences for programs with otherwise \emph{identical} instruction sequences.
 
 Some effort has been made to model properties of the LSD on previous Intel architectures, as an aid in low-level optimization. 
-Hundt et. al. \cite{Hundt:2011:MAO} looks at assembly rewrite rules for optimizing agains the Core 2 LSD.
+Hundt et. al.~\cite{Hundt:2011:MAO} looks at assembly rewrite rules for optimizing agains the Core 2 LSD.
 For loops to be recognized, they have to fit within a set of restrictions imposed by the hardware implementation that tries to detect them. 
 For instance, because the LSD cache is of fixed size there will be a maximum number of instructions a loop can contain for it to be recognized.
 The capabilities of the LSD has improved with newer micro-architectures.
@@ -347,7 +376,7 @@ Any interaction that affects code layout can potentially trigger performance cli
 \section{Conclusions}
 
 
-\onecolumn
+%\onecolumn
 
 \bibliographystyle{plain}
 \bibliography{references}
