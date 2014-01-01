@@ -1,18 +1,28 @@
 
-.PHONY: all paper disable-aslr clean
+.PHONY: all paper data disable-aslr clean
 
-# Default to generating just the paper
+# Default to generating just the paper, given existing data in resources.
 all: paper
 
+# Compile examples and perform all measurements needed. Everyting is put in bin
+# folder, so if you actually want to update things in the article it has to be 
+# copied manually to the resources folder.
+data: bin/stack-offset.csv bin/convolution.csv
 
 paper: bin/paper.pdf
 
-# Files needed for TikZ plots
-plotdata = resources/motivation.dat resources/stack-offset.dat bin/convolution.dat
+disable-aslr:
+	@echo "Disabling address randomization ..."
+	sudo bash -c "echo 0 > /proc/sys/kernel/randomize_va_space"
 
-#
-# Build in root to avoid trouble with pgfplots and output directories
-bin/paper.pdf: paper.tex references.bib $(plotdata)
+clean:
+	rm -f bin/*
+
+
+plotfiles = bin/convolution.dat bin/stack-offset.dat
+
+# Build in root to avoid trouble with pgfplots and output directories.
+bin/paper.pdf: paper.tex references.bib $(plotfiles)
 	latex paper.tex
 	bibtex paper
 	latex paper.tex
@@ -21,39 +31,31 @@ bin/paper.pdf: paper.tex references.bib $(plotdata)
 	mv paper.pdf $@
 	rm -f paper.log paper.dvi paper.aux paper.bbl paper.blg
 
-# Resources for TikZ
-# Things in resources are assumed to be checked in to version control
-# TODO: This should be in bin as well
-resources/%.dat: resources/%.csv
+# Generate TiKz plot format from raw performance counter results. Nothing in
+# resources is generated, and must be updated manually.
+bin/%.dat: resources/%.csv
 	cat $+ | util/pgfpconv > $@
 
-# New style
-bin/%.dat: bin/%.csv
-	cat $+ | util/pgfpconv > $@
 
+
+# Section that produces resource files and raw data used in the article
 #
-# Performance counter measurements
-bin/stack-offset.csv: code/loop/loop
-	util/lperf $+ -e cycles:u,r0107:u,r01a2:u,r02a3:u -n 512 -r 100 --env-increment 16 > $@
 
-bin/convolution.csv: bin/convolution
-	util/lperf $+ -e cycles:u,r0107:u -n 32 -r 100 --arg-increment 1 --env-increment 0 > $@
+bin/stack-offset.csv: disable-aslr bin/loop
+	util/lperf -e cycles:u,r0107:u,r01a2:u,r02a3:u -n 512 -r 100 --env-increment 16 bin/loop > $@
 
+# Hard-coded offset that hits around worst case on our machine. Warning: This 
+# takes a long time.
+bin/stack-offset-all.csv: disable-aslr bin/loop
+	util/lperf -e all -n 300 -r 100 --env-increment 1 --env-offset 3100 bin/loop > $@
 
-#
-# Build microkernel code
+bin/loop: code/env-alias/loop.c
+	cc $+ -o $@
+
+bin/convolution.csv: disable-aslr bin/convolution
+	util/lperf -e cycles:u,r0107:u -n 32 -r 100 --env-increment 0 --enumerate bin/convolution > $@
+
 bin/convolution: code/heap-alias/convolution.c
 	cc -O3 $+ -o $@
 
-
-# Make sure stack, mmap and heap sections have fixed addresses between each run.
-# Needed for reproducible measurements when measuring impact of environment size.
-disable-aslr:
-	@echo "Disabling address randomization"
-	sudo bash -c "echo 0 > /proc/sys/kernel/randomize_va_space"
-
-#
-# Remove every auto-generated file
-clean:
-	rm -f bin/*
 

@@ -1,4 +1,4 @@
-\documentclass[a4paper,11pt,twocolumn,twoside]{article}
+\documentclass[a4paper,10pt,twocolumn,twoside]{article}
 \usepackage{fullpage}
 \usepackage{graphicx}
 \usepackage{pgfplots}
@@ -123,7 +123,7 @@ mov ($0x604010) %rbx
 Situations like these causes the pipeline to stall and wait for the operations to finish in proper order.
 The number of times this happens can be counted by the following performance counter:
 \begin{description}
-  \item{LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS}\marginpar{\small{Evnt Mask \\ 0x07 0x01}} \hfill \\
+  \item{LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS}\marginpar{\vspace{0.0pt}\footnotesize\begin{tabular}{@{} l @{\hskip 2pt} l }Event & Mask \\ 0x07 & 0x01\end{tabular}} \hfill \\
   Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.
 \end{description}
 Performance implications of 4K aliasing is discussed to some extent in the optimization manual from Intel. 
@@ -135,7 +135,7 @@ Variations in performance with bias towards certain environment sizes has been o
 Unless the program explicitly accesses environment variables, it is not the environment variables themselves that are important, but rather the effect their total size has on the alignment of stack. 
 Figure \ref{fig:virtualmemory} shows the relative positions of some important sections of memory at run time, assuming a 64 bit process mapped to virtual memory. 
 
-\pgfplotstableread{resources/stack-offset.dat}{\stackoffsettable}
+\pgfplotstableread{bin/stack-offset.dat}{\stackoffsettable}
 \begin{figure*}[t]
   \caption{Bias from environment size for program in Listing~\ref{lst:loopkernel}. Measure of average 100 cycle counts for 512 different environments, spread over two 4K periods. Compiled with no optimization.}
   \label{fig:envbias}
@@ -175,33 +175,35 @@ As long as this number is less than 12, environment size can impact addresses of
 
     % See page 453 in pgf manual
     \node [
-      rectangle split, rectangle split parts=9, 
-      rectangle split part fill={white, lightgray, white, lightgray, white, lightgray, white},
+      rectangle split, rectangle split parts=10, 
+      rectangle split part fill={white, white, lightgray, white, lightgray, white, lightgray, white},
       draw, anchor=center, text width=2cm
-    ] (m)  
+    ] (m)
       {
         \nodepart{one}
+          environment
+        \nodepart{two}
           stack
-        \nodepart{three}
+        \nodepart{four}
           mmap area
-        \nodepart{five}
+        \nodepart{six}
           heap
-        \nodepart{seven}
-          bss
         \nodepart{eight}
-          data
+          bss
         \nodepart{nine}
+          data
+        \nodepart{ten}
           text
       };
 
-    \draw [decorate, decoration={brace, amplitude=5pt}] (m.south west) -- (m.six split west) 
+    \draw [decorate, decoration={brace, amplitude=5pt}] (m.south west) -- (m.seven split west) 
       node [black, midway, xshift=-1.5cm, text width=2.0cm] 
         { Program code and static data } ;
 
-    \node[below right] at (m.north east)
+    \node[right] at (m.north east)
       { \scriptsize{0x7fff'ffffffff} } ;
 
-    \node[above right] at (m.south east)
+    \node[right] at (m.south east)
       { \scriptsize{0x400000} } ;
 
   \end{tikzpicture}
@@ -241,8 +243,8 @@ Any optimization would likely disregard most of the function as redundant code, 
 
 There are clearly two worst cases, indicated by significant spikes around the 3100 and 7100 byte offsets.
 We analyzed these cases by sampling an extensive set of performance counters and correlating them with cycle counts.
-The results show a high number of resource stalls when the spikes occur, indicated by high values for performance counters RESOURCE\_STALLS.ANY, CYCLE\_ACTIVITY.CYCLES\_LDM\_PENDING, CYCLE\_ACTIVITY.CYCLE\_NO\_EXECUTE and RESOURCE\_STALLS.RS.
-We also find that LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS correlates almost perfectly with cycle count, which can explain the high number of resource stalls with false dependency from aliasing.
+The results show a high number of resource stalls when the spikes occur, indicated by high values for performance counters \small{RESOURCE\_STALLS.ANY}, \small{CYCLE\_ACTIVITY.CYCLES\_LDM\_PENDING}, \small{CYCLE\_ACTIVITY.CYCLE\_NO\_EXECUTE} and \small{RESOURCE\_STALLS.RS}.
+We also find that \small{LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS} correlates almost perfectly with cycle count, which can explain the high number of resource stalls with false dependency from aliasing.
 
 A small amount of assembly code was used to calculate the addresses of each stack allocated variable and output them directly using system calls, without impacting run time addresses.
 We find that the spike in cycle count occurs when the address of g and inc alias with i and j, respectively.
@@ -266,7 +268,7 @@ Mmap allocates much closer to the stack.
 While heap addresses can look like 0x16e30a0 or 0x1723020, pointers returned by mmap can for example be 0x7f0318a8f010 or 0x7f03105d2010.
 This distinction is of course unimportant for application developers, as everything is conceptually the same ``heap''.
 However, mmap has an interesting property in that allocations will always be page aligned.
-The page size is 4096 bytes, meaning two pointers returned by mmap will \emph{always} alias.\footnote{libc's version of malloc adds 16 bytes of medatada at the beginning, thus every mmap'ed address ends with 0x010}
+The page size is 4096 bytes, meaning two pointers returned by mmap will \emph{always} alias.\footnote{libc's version of malloc adds 16 bytes of medatada at the beginning, therefore every mmap'ed address ends with 0x010}
 
 Consider the function shown in Listing~\ref{lst:conv}.
 It computes the convolution between an input array and a fixed five-element kernel, writing the result to another array.
@@ -274,12 +276,12 @@ For simplicity, endpoints are not handled.
 
 \pgfplotstableread{bin/convolution.dat}{\convolutiontable}
 \begin{figure}[t]
-  \caption{Cycle and alias counts for different offsets between input and output arrays in Listing~\ref{lst:conv}. Offset 0 means equal 12 bit address suffix, which default behavior for mmap allocations. Array size $n=2^{20}$, compiled with -O3. }
+  \caption{Cycle and alias counts for different offsets between input and output arrays in Listing~\ref{lst:conv}. Offset 0 means equal 12 bit address suffix, which is default behavior for mmap allocations. Array size $n=2^{20}$, compiled with -O3. }
   \label{fig:heapalias}
   \begin{tikzpicture}
     \begin{axis}[
         font = \small,
-        xlabel=Offset in \lstinline!sizeof(float)! bytes,
+        xlabel=Relative offset in \lstinline!sizeof(float)! bytes,
         cycle list name=black white
       ]
       \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convolutiontable ;
@@ -292,23 +294,43 @@ For simplicity, endpoints are not handled.
 
 \begin{lstlisting}[float=h, language=C, caption={Naive implementation of convolution. Highly sensitive to aliasing between input and output arrays.}, label={lst:conv}, frame=lines]
 static float k[5]={0.1,0.25,0.3,0.25,0.1};
-void conv(int n, float *in, float *out)
-{
-  int i, j;
-  for (i = 2; i < n-2; ++i) {
-    out[i] = 0;
-    for (j = 0; j < 5; ++j)
-      out[i] += in[i-2+j] * k[j];
-  }
+void conv(int n, float *in, float *out) {
+    int i, j;
+    for (i = 2; i < n-2; ++i) {
+      out[i] = 0;
+      for (j = 0; j < 5; ++j)
+          out[i] += in[i-2+j] * k[j];
+    }
 }
 \end{lstlisting}
 
 
-Figure \ref{fig:heapalias} shows ...
+Figure \ref{fig:heapalias} shows how this function behaves when given input with different alignment.
+The default behavior for large heap allocations is that both arrays alias.
+To force different alignments, we allocate some extra bytes at the end and offset the output pointer argument.
 
-Using malloc to allocate input and output float arrays of size n, they will alias if mmap is used internally.
-For sufficiently large values of n, this will always be the case.
-Compiling with optimization O3 and n=$2^{20}$, a very large number of alias events and resource stalls are generated compared to cycle count.
+\begin{lstlisting}
+output = malloc(n * (sizeof(float) + offset));
+conv(n, input, output + offset);
+\end{lstlisting}
+
+Listing \ref{lst:conv}, together with a small main method handling the allocation and offset, is compiled with optimization O3 and input size n=$2^{20}$.
+Figure \ref{fig:heapalias} plots performance counter statistics for cycle count and 4K alias events over increasing amount of offset.
+This is an example of how false dependencies from address aliasing can cause a significant performance hit.
+Because large heap allocations always alias, the processor thinks memory accesses to input[i] potentially conflicts with output[i], stalling the pipeline.
+By manually adjusting the alignment of one input buffer, cycle count can be reduced by more than 50\% (verify).
+This is a speedup on top of compiler optimization O3, which is not able to account for aliasing effects.
+
+It is perhaps unfair to assume the compiler can fix this when only given a generic optimization flag, as aliasing effects is (presumably) an Intel-specific issue.
+You might also wamt to utilize the C99 keyword restrict to explicitly tell the compiler that the buffers are disjoint in memory.
+
+\begin{lstlisting}[language=C]
+void conv( int n,
+            const float * restrict in,
+            const float * restrict out );
+\end{lstlisting}
+
+Even with the updated signature compiled with -O3 -march=native, there is still room for improvement by inserting manual offsets.
 
 
 \section{The Loop Stream Detector}
@@ -318,11 +340,10 @@ A cache of decoded instructions is kept and analyzed for cyclic chains in the in
 When a loop is detected, can be fetched directly from a queue of already decoded micro operations.
 This enables some instruction decode logic in the processor front end to be temporarily disabled.
 The LSD is a power saving optimization, but can also improve performance in cases where the decode pipeline is a bottleneck.
-
 Utilization of the Loop Stream Detector can be measured by the following performance counter.
 \begin{description}
-  \item{LSD.UOPS}\marginpar{\small{Evnt Mask \\ 0xA8 0x01}} \hfill \\
-  Counts the number of micro-operations delivered by the LSD.
+  \item{LSD.UOPS\marginpar{\vspace{0.0pt}\footnotesize\begin{tabular}{@{} l @{\hskip 2pt} l }Event & Mask \\ 0xA8 & 0x01\end{tabular}}} \hfill \\
+  Counts the number of micro-operations delivered by the Loop Stream Detector.
 \end{description}
 
 The LSD has been suggested in previous work as a potential source of measurement bias [Mytkowicz:2009:WrongData].
@@ -330,8 +351,8 @@ The Loop Stream Detector is dependent on code layout, which can change with exte
 Interacting with the alignment and position of instructions in memory, the LSD can cause performance differences for programs with otherwise \emph{identical} instruction sequences.
 
 Some effort has been made to model properties of the LSD on previous Intel architectures, as an aid in low-level optimization. 
-Hundt et. al.~\cite{Hundt:2011:MAO} looks at assembly rewrite rules for optimizing agains the Core 2 LSD.
-For loops to be recognized, they have to fit within a set of restrictions imposed by the hardware implementation that tries to detect them. 
+Hundt et al.~\cite{Hundt:2011:MAO} looks at assembly rewrite rules for optimizing agains the Core 2 LSD.
+For loops to be recognized, they have to match a set of restrictions imposed by the hardware implementation that tries to detect them. 
 For instance, because the LSD cache is of fixed size there will be a maximum number of instructions a loop can contain for it to be recognized.
 The capabilities of the LSD has improved with newer micro-architectures.
 Some important limitations for Haswell's LSD are listed below.
@@ -347,6 +368,47 @@ Different link orders affect the relative position of code and static data withi
 More importantly, \emph{alignment} of code can be affected by link order.
 A loop that was aligned to 32 byte for one ordering might end up at 16 byte alignment in another. 
 Alignment is important for determining the number of 32 byte chunks a loop is spanning.
+
+\begin{lstlisting}[language=C, escapeinside=``, caption={Example of bias from link order. Instruction alignment of the loop changes with ordering. }]
+`loop.c`
+#define B22(n) b += i*i*a + 1
+volatile int i = 42;
+
+int loop(int a) {
+    register int b = i == 42 ? 1 : 0;
+    do {
+        // 10 bytes mov(6), test(2), jne(2)
+        if (!i) B22(1); 
+        if (!i) B22(2);
+        if (!i) B22(3);
+        if (!i) B22(4);
+        if (!i) B22(5);
+        if (!i) B22(6);
+        if (!i) B22(7);
+        if (!i) B22(8);
+        if (!i) B22(9);
+        if (!i) B22(10);
+        if (!i) B22(11);
+        // 27 bytes for increment and test
+    } while (i++ < 0x12345678);
+    return b;
+}
+`foo.c`
+int foo(int n) {
+    int a = 1;
+    return a;
+}
+`main.c`
+#include <stdio.h>
+int main() {
+    int i = loop(10);
+    int f = foo(10);
+    printf("Loop: %d\n", i);
+    printf("Foo: %d\n", f);
+    return 0;
+}
+\end{lstlisting}
+
 
 \subsection{Other Triggers of Bias Effects}
 The focus of previous work, and elaborated in this section, is measurement bias caused by altering link ordering.
@@ -374,6 +436,16 @@ Any interaction that affects code layout can potentially trigger performance cli
 
 
 \section{Conclusions}
+Any change to virtual memory layout of data can potentially introduce bias effects from address aliasing. 
+We find that compilers, even when provided with architecture specific optimization flags, still generates code that suffers from aliasing. 
+Typical heap allocators return page-aligned memory by default, which is the worst case with respect to aliasing for many algorithms.
+Despite recommendations from Intel, we are not aware of any allocators that specifically addresses this issue.
+
+The Loop Stream Detector can provide significant speedup, but subtle changes to code layout sometimes prevents this optimization to be utilized. 
+Programmers rarely care, or even know, about intricate details such as the addresses and alignment of code. 
+We expect, and probably rightfully so, that sensible compilers and linkers will organize code somewhat optimally. 
+In cases where this is not true, weird effects that might be categorized as “bias” occurs. 
+For developers, it is useful to be aware of the fact that any change to instruction addresses can potentially have a huge impact on performance.
 
 
 %\onecolumn
