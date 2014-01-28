@@ -44,12 +44,18 @@ bin/%.dat: resources/%.csv
 bin/stack-offset.csv: disable-aslr bin/loop
 	util/lperf -e cycles:u,r0107:u,r01a2:u,r02a3:u -n 512 -r 100 --env-increment 16 bin/loop > $@
 
+bin/loop-recursion-fix.csv: disable-aslr bin/loop-recursion-fix
+	util/lperf -e cycles:u,r0107:u,r01a2:u,r02a3:u -n 512 -r 100 --env-increment 16 bin/loop-recursion-fix > $@
+
 # Hard-coded offset that hits around worst case on our machine. Warning: This 
 # takes a long time.
 bin/stack-offset-all.csv: disable-aslr bin/loop
 	util/lperf -e all -n 300 -r 100 --env-increment 1 --env-offset 3100 bin/loop > $@
 
 bin/loop: code/env-alias/loop.c
+	cc $+ -o $@
+
+bin/loop-recursion-fix: code/env-alias/loop-recursion-fix.c
 	cc $+ -o $@
 
 bin/convolution.csv: disable-aslr bin/convolution

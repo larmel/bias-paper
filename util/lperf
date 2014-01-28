@@ -265,6 +265,9 @@ def benchmark(args):
             for counter in current:
                 data[counter]['count'][x] = int(process.stderr.readline().strip().split(',')[0])
 
+            for line in process.stdout:
+                sys.stderr.write(line)
+
             process.wait()
     
     numpy.seterr(invalid='ignore')
