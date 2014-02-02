@@ -13,7 +13,7 @@
 
 \usetikzlibrary{patterns,shapes,positioning,calc}
 
-\lstset{language=C, basicstyle=\ttfamily, columns=flexible}
+\lstset{language=C, basicstyle=\ttfamily\small, columns=flexible}
 
 \pgfplotsset{compat=1.8}
 
@@ -130,7 +130,7 @@ Performance implications of 4K aliasing is discussed to some extent in the optim
 There are even some concrete suggestions for how avoid aliasing cases to improve performance (Rule 8 and 9)~\cite{Intel:2012:OptimizationManual}.
 In the following sections, we look at how address aliasing can explain some instances of measurement bias.
 
-\subsection{Bias from Environment Size}
+\section{Bias from Environment Size}
 Variations in performance with bias towards certain environment sizes has been observed by other authors.
 Unless the program explicitly accesses environment variables, it is not the environment variables themselves that are important, but rather the effect their total size has on the alignment of stack. 
 Figure \ref{fig:virtualmemory} shows the relative positions of some important sections of memory at run time, assuming a 64 bit process mapped to virtual memory. 
@@ -247,13 +247,30 @@ The results show a high number of resource stalls when the spikes occur, indicat
 We also find that \small{LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS} correlates almost perfectly with cycle count, which can explain the high number of resource stalls with false dependency from aliasing.
 
 \subsection{Analysis}
-
+To be able to explain what is happening in this case we need to know the addresses of all variables at run time.
+For statically allocated data, memory allocation is decided at compile time.
+The location of variables i, j and k can be found by looking at the symbol table in the ELF executable.
+Below is an excerpt of \lstinline$readelf -s$.
+\begin{lstlisting}[float=h, basicstyle=\small]
+37: 000000000060103c    4  (...)  25 i
+38: 0000000000601040    4  (...)  25 j
+39: 0000000000601044    4  (...)  25 k
+\end{lstlisting}
 
 
 A small amount of assembly code was used to calculate the addresses of each stack allocated variable and output them directly using system calls, without impacting run time addresses.
-We find that the spike in cycle count occurs when the address of g and inc alias with i and j, respectively.
-Resource stalls are generated because of false dependencies between the addresses of (g, i) and (inc, j), resulting in worse performance.
+We find that the spike in cycle count occurs when the address of inc alias with i, where the first spike happens when inc is at 0x7fffffffe03c.
+Because the stack is aligned to 16 byte or 4 words, there are a couple of different scenarios that could have been observed here.
+Static area is fixed and covers 12 contiguous bytes (3 words) \lstinline$[x|x| |x]$.
+Automatic variables occupies 8 contiguous bytes on stack (2 words) [ | |x|x]. 
+The space of possible addresses for (inc, g) in this case is (0x7fffffffe03c, 0x7fffffffe038) - n*4096. 
+In this scenario, g will never alias with any of the static variables -- as it always covers the 0x8 slot not occupied by either of i, j or k.
+An even worse case with respect to the number of alias events is if allocation of static data allows collisions with both stack allocated variables.
+This can be achieved by reserving 8 extra bytes to offset i, j into the 0x8, 0xc slots. 
+While this will give significantly more alias counts, it has little effect on the number of cycles executed.
+
 Worst case occurs for precisely one out of 256 possible initial stack addresses in every 4K segment.
+Resource stalls are generated because of false dependencies between stack and static data, resulting in worse performance.
 The program is \emph{biased} towards environment sizes that avoids this specific stack alignment.
 
 
@@ -266,28 +283,25 @@ If the addresses do alias, branch to an alternative but semantically equivalent 
 Allocate a new set of variables to avoid aliasing.
 
 \begin{lstlisting}[float=h, language=C, caption={Dynamically detect aliasing case, and avoid by pushing another stack frame.}, label={lst:loopkernel}, frame=lines]
+#define ALIAS(a, b) \
+    ((((long)&a)&0xfff)==(((long)&b)&0xfff))
 static int i, j, k;
-
 int main() {
     int g = 0, inc = 1;
-
-    if ((((long)&inc) & 0xfff) == (((long)&i) & 0xfff) || 
-        (((long)&g) & 0xfff) == (((long)&i) & 0xfff))
+    if (ALIAS(inc, i) || ALIAS(g, i))
         return main();
-
     for (; g < 65536*10; g++) {
         i += inc;
         j += inc;
         k += inc;
     }
-    
     return 0;
 }
 \end{lstlisting}
 
 
 
-\subsection{Heap Address Aliasing}
+\section{Bias from Heap Allocations}
 Address aliasing can be caused by conflicting pairs of load/store operations to any part of memory.
 The previous section looked specifically at an example of collision between stack variables and static data.
 Another scenario to consider is collisions in heap allocated memory.
@@ -366,6 +380,8 @@ void conv( int n,
 
 Even with the updated signature compiled with -O3 -march=native, there is still room for improvement by inserting manual offsets.
 
+\section{Aliasing in BLAS}
+Another test case, show numbers for ATLAS OR default blas in Ubuntu, or maybe both. Copy thesis more or less I guess.
 
 \section{Conclusions}
 Any change to virtual memory layout of data can potentially introduce bias effects from address aliasing. 

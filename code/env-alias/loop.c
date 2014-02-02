@@ -1,12 +1,3 @@
-/**
- * Copy of microkernel from the paper
- * "Producing Wrong Data Without Doing Anything Obviously Wrong!"
- * 
- * Interesting counters
- * cycles:u,r0107:u,r003c:u,r013c:u,r025c:u,r01a2:u,r02a3:u
- *
- */
-
 static int i, j, k;
 
 int main() {

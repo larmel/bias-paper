@@ -1,10 +1,13 @@
-/// Analyzing run-time addresses of automatic variables g and inc revealed
-/// that worst case performance happens when i alias with inc.
+#define ALIAS(a, b) \
+    ((((long)&a)&0xfff)==(((long)&b)&0xfff))
+
 static int i, j, k;
 
 int main() {
     int g = 0, inc = 1;
 
+    // Analyzing run-time addresses of automatic variables g and inc revealed
+    // that worst case performance happens when i alias with inc.
     // Offset by another call frame in case of alias. Note that which 
     // variables alias is compiler-dependent. For a different static allocation
     // of i, j, k, this case could be impossible due to alignment guarantees,
@@ -14,8 +17,7 @@ int main() {
     // Plot twist: The order inc and g is allocated on stack depends on the check
     // performed here, causing this approach to fail when only checking one
     // pair for collision => the other pair will collide instead.
-    if ((((long)&inc) & 0xfff) == (((long)&i) & 0xfff) || 
-        (((long)&g) & 0xfff) == (((long)&i) & 0xfff))
+    if (ALIAS(inc, i) || ALIAS(g, i))
         return main();
 
     for (; g < 65536*10; g++) {
@@ -23,6 +25,6 @@ int main() {
         j += inc;
         k += inc;
     }
-    
+
     return 0;
 }
