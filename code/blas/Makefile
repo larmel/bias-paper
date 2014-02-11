@@ -5,15 +5,14 @@ LPERF := ../../util/lperf
 # default implementation, or 'atlas' that is installed.
 BLAS := blas
 
-.DEFAULT: bin/gemv
 .PHONY: benchmark
+
+bin/gemv: gemv.c
+	gcc -std=c99 $< -o $@ -l$(BLAS)
 
 disable-aslr:
 	@echo "Disabling address randomization ..."
 	sudo bash -c "echo 0 > /proc/sys/kernel/randomize_va_space"
-
-bin/gemv: gemv.c
-	gcc -std=c99 $< -o $@ -l$(BLAS)
 
 # Do three invocations of lperf to measure performance for different memory
 # addresses. Some tape and glue in bash to gather the results in a csv file
