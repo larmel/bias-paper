@@ -257,7 +257,7 @@ Below is an excerpt of \lstinline$readelf -s$.
 39: 0000000000601044    4  (...)  25 k
 \end{lstlisting}
 
-
+Need to observe run time addresses without introducing any observer effects.
 A small amount of assembly code was used to calculate the addresses of each stack allocated variable and output them directly using system calls, without impacting run time addresses.
 We find that the spike in cycle count occurs when the address of inc alias with i, where the first spike happens when inc is at 0x7fffffffe03c.
 Because the stack is aligned to 16 byte or 4 words, there are a couple of different scenarios that could have been observed here.
@@ -266,7 +266,7 @@ Automatic variables occupies 8 contiguous bytes on stack (2 words) [ | |x|x].
 The space of possible addresses for (inc, g) in this case is (0x7fffffffe03c, 0x7fffffffe038) - n*4096. 
 In this scenario, g will never alias with any of the static variables -- as it always covers the 0x8 slot not occupied by either of i, j or k.
 An even worse case with respect to the number of alias events is if allocation of static data allows collisions with both stack allocated variables.
-This can be achieved by reserving 8 extra bytes to offset i, j into the 0x8, 0xc slots. 
+This can be achieved by reserving an extra 8 bytes to offset i, j into the 0x8, 0xc slots. 
 While this will give significantly more alias counts, it has little effect on the number of cycles executed.
 
 Worst case occurs for precisely one out of 256 possible initial stack addresses in every 4K segment.
@@ -274,7 +274,7 @@ Resource stalls are generated because of false dependencies between stack and st
 The program is \emph{biased} towards environment sizes that avoids this specific stack alignment.
 
 
-\subsection{Avoid Aliasing -- A Proof of Concept}
+\subsection{Offset to Avoid Aliasing}
 Addresses of automatic variables can not be determined statically, because the position of stack at runtime is generally unknown. 
 In addition to being offset by environment variables, the stack address can also be perturbed by other factors such as address layout randomization. 
 Although one can not easily know if a collision is going to happen for a given environment, one can try to change the program to account for possible alias effects.
@@ -380,8 +380,75 @@ void conv( int n,
 
 Even with the updated signature compiled with -O3 -march=native, there is still room for improvement by inserting manual offsets.
 
-\section{Aliasing in BLAS}
-Another test case, show numbers for ATLAS OR default blas in Ubuntu, or maybe both. Copy thesis more or less I guess.
+
+\subsection{Bias from Heap Allocators}
+Addresses of dynamic memory at run time is governed by the particular heap allocator used.
+Like the contents of environment varialbes, the exact operation of heap allocation can typically not be known ahead of time.
+For the code examples we present in C, the dynamic linker will resolve malloc to whichever version of libc is available on the system.
+In other words, it is part of the environment, and a potential source of measurement bias.
+(table, todo)
+
+
+
+\section{Performance impacts in BLAS}
+
+Basic Linear Algebra Subroutines (BLAS), is the de facto standard API for high performance linear algebra routines.
+The functionality is divided into three categories: 
+
+\begin{description}
+  \item{Level 1} Scalar and vector operations, such as dot product and vector addition.
+  \item{Level 2} Matrix-vector operations, such as gemv for general matrix-vector multiplication.
+  \item{Level 3} Matrix-matrix operations, including the widely applied gemm routine for general matrix-matrix multiplication. 
+\end{description}
+
+Many highly optimized implementations of BLAS exists, ATLAS being a widely used and open source alternative. One of the key features of ATLAS is that it uses automatic tuning to optimize for cache efficiency [Whaley:2000:ATLAS]. 
+
+We use the currently latest version 3.10.1 of ATLAS, built as a shared library from source.
+The automatic tuning happens during the build process.
+A series of test programs are run to determine cache edges and other properties of the hardware, which in turn affects the resulting binary. 
+
+Carefully monitoring cache is particularly important in this case study, as BLAS performance heavily relies on cache efficiency.
+Relevant performance statistics for cache hit ratios will be considered to rule out cache as the cause of any bias effects.
+
+The idea is to reproduce similar scenarios to what we saw in Section ?, where aliasing was caused by linear accesses to pairs of aligned heap allocated data.
+Functions operating on vectors, from BLAS Level 1 or 2, seems most likely to have potential for similar characteristics.
+Using heap allocated memory, address aliasing is an artifact of the allocator used.
+With different versions or configurations of memory allocators, any performance impact from aliasing can qualify as measurement bias.
+In the following sections, we will study bias from address aliasing in the Level 2 function gemv specifically, which computes matrix-vector multiplication.
+
+\iffalse
+
+Consider matrix-vector multiplication of the form $\boldsymbol{y}=A\boldsymbol{x}$. Let A be of size M\times N, where M is the number of rows. 
+
+\left[\begin{array}{ccccc}
+a_{0,0} & a_{0,1} &  &  & a_{0,N}\\
+a_{1,0}\\
+ &  &  & \ddots\\
+a_{M,0} &  &  &  & a_{M,N}
+\end{array}\right]\left[\begin{array}{c}
+x_{0}\\
+x_{1}\\
+\vdots\\
+\\
+x_{N}
+\end{array}\right]=\left[\begin{array}{c}
+y_{0}\\
+y_{1}\\
+\vdots\\
+y_{M}
+\end{array}\right]
+
+The corresponding BLAS function is the level 2 gemv routine, computing the more general matrix-vector product given as
+
+$\boldsymbol{y}=\alpha\text{op}\left(A\right)\boldsymbol{x}+\beta\boldsymbol{y}$
+
+Here, \alpha and \beta are constants, and \text{op}\left(A\right) is an optional transpose or complex conjugate of the matrix.
+A typical invocation of this routine is shown in Listing [?].
+We set \alpha=1, \beta=0 and \text{op}\left(A\right)=A to reduce the formula to $\boldsymbol{y}=A\boldsymbol{x}$.
+Note that A is declared as CblasColMajor, meaning we impose a column major ordering of the data.
+The prefix indicates data type, in this case d for double precision. 
+
+\fi
 
 \section{Conclusions}
 Any change to virtual memory layout of data can potentially introduce bias effects from address aliasing. 
