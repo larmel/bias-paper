@@ -1,0 +1,26 @@
+
+.PHONY: loop test
+
+disable-aslr:
+	sudo bash -c "echo 0 > /proc/sys/kernel/randomize_va_space"
+
+# Print addresses for cases where aliasing occurs. Use assembly code to avoid
+# observer effects.
+
+loop: loop.s
+	cc $+ -o $@
+
+# Haswell
+# i -> 0x60103c
+# j -> 0x601040
+# k -> 0x601044
+
+
+# i, j, k is statically allocated (0x601028, 0x60102c, 0x601030)
+# With this offset, inc and g becomes (7fffffffe02c, 7fffffffe028)
+# Exact same results for c-version of the code -- no observer effect
+test: loop disable-aslr
+	perf stat -e cycles:u,r0107:u env -i ./loop
+	perf stat -e cycles:u,r0107:u env -i X=`head -c 3420 </dev/zero | tr '\0' '0'` ./loop
+
+

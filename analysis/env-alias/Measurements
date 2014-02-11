@@ -1,0 +1,26 @@
+
+
+
+sudo bash -c "echo 0 > /proc/sys/kernel/randomize_va_space"
+
+This command is useful for controlling environment size when running perf stat.
+The env size is 3200 + 3 (X, =, \0), plus whatever is added by perf. Variables
+added by perf includes PWD and PATH, about 170 B total for test config.
+
+Should be exactly the same behavior as starting with process.Popen(env={..}).
+
+
+
+lars@Berlin:~/bias-paper/code/env-alias$ env -i X=`head -c 3200 </dev/zero | tr '\0' '0'` perf stat -e cycles:u,r0107:u ./analysis
+7fffffffe03c 7fffffffe038 
+
+ Performance counter stats for './analysis':
+
+            835549 cycles:u                  #    0.000 GHz                    
+            327893 r0107:u                                                     
+
+
+
+
+
+
