@@ -246,7 +246,7 @@ We analyzed these cases by sampling an extensive set of performance counters and
 The results show a high number of resource stalls when the spikes occur, indicated by high values for performance counters \small{RESOURCE\_STALLS.ANY}, \small{CYCLE\_ACTIVITY.CYCLES\_LDM\_PENDING}, \small{CYCLE\_ACTIVITY.CYCLE\_NO\_EXECUTE} and \small{RESOURCE\_STALLS.RS}.
 We also find that \small{LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS} correlates almost perfectly with cycle count, which can explain the high number of resource stalls with false dependency from aliasing.
 
-\subsection{Analysis}
+\subsection{Finding Collisions}
 To be able to explain what is happening in this case we need to know the addresses of all variables at run time.
 For statically allocated data, memory allocation is decided at compile time.
 The location of variables i, j and k can be found by looking at the symbol table in the ELF executable.
@@ -301,7 +301,7 @@ int main() {
 
 
 
-\section{Bias from Heap Allocations}
+\section{Bias from Heap Allocators}
 Address aliasing can be caused by conflicting pairs of load/store operations to any part of memory.
 The previous section looked specifically at an example of collision between stack variables and static data.
 Another scenario to consider is collisions in heap allocated memory.
@@ -381,7 +381,7 @@ void conv( int n,
 Even with the updated signature compiled with -O3 -march=native, there is still room for improvement by inserting manual offsets.
 
 
-\subsection{Bias from Heap Allocators}
+\subsection{Behavior of other Allocators}
 Addresses of dynamic memory at run time is governed by the particular heap allocator used.
 Like the contents of environment varialbes, the exact operation of heap allocation can typically not be known ahead of time.
 For the code examples we present in C, the dynamic linker will resolve malloc to whichever version of libc is available on the system.
@@ -403,7 +403,7 @@ The functionality is divided into three categories:
 
 Many highly optimized implementations of BLAS exists, ATLAS being a widely used and open source alternative. One of the key features of ATLAS is that it uses automatic tuning to optimize for cache efficiency [Whaley:2000:ATLAS]. 
 
-We use the currently latest version 3.10.1 of ATLAS, built as a shared library from source.
+We use the currently latest stable version 3.10.1 of ATLAS, built as a shared library from source.
 The automatic tuning happens during the build process.
 A series of test programs are run to determine cache edges and other properties of the hardware, which in turn affects the resulting binary. 
 

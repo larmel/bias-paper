@@ -2,6 +2,15 @@
 Analysis of Aliasing in BLAS libraries
 ======================================
 
+
+Setup and Installation of ATLAS
+-------------------------------
+
+Source files were retrieved from [sourceforge](http://sourceforge.net/projects/math-atlas/files/). At the time of writing, the latest stable version is 3.10.1, which is the one used here. 
+
+
+
+
 Switching blas package
 ----------------------
 

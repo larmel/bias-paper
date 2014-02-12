@@ -33,13 +33,13 @@ benchmark: bin/gemv disable-aslr
 	@cut -d ',' -f 1 lperf.a.1.csv > counters.tmp
 	@cut -d ',' -f 2 lperf.a.1.csv > mnemonic.tmp
 
-	@cut -d ',' -f 4 lperf.a.1.csv > a.1.tmp
-	@cut -d ',' -f 4 lperf.b.1.csv > b.1.tmp
-	@cut -d ',' -f 4 lperf.c.1.csv > c.1.tmp
+	@cut -d ',' -f 3 lperf.a.1.csv > a.1.tmp
+	@cut -d ',' -f 3 lperf.b.1.csv > b.1.tmp
+	@cut -d ',' -f 3 lperf.c.1.csv > c.1.tmp
 
-	@cut -d ',' -f 4 lperf.a.100.csv > a.100.tmp
-	@cut -d ',' -f 4 lperf.b.100.csv > b.100.tmp
-	@cut -d ',' -f 4 lperf.c.100.csv > c.100.tmp
+	@cut -d ',' -f 3 lperf.a.100.csv > a.100.tmp
+	@cut -d ',' -f 3 lperf.b.100.csv > b.100.tmp
+	@cut -d ',' -f 3 lperf.c.100.csv > c.100.tmp
 
 	@paste -d ',' counters.tmp mnemonic.tmp a.1.tmp b.1.tmp c.1.tmp /dev/null a.100.tmp b.100.tmp c.100.tmp > benchmark.csv
 	@rm *.tmp
