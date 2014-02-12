@@ -233,7 +233,6 @@ def parseargs():
     parser.add_argument('--env-offset', type=int, default=0, help="Number of bytes initially added to environment")
     parser.add_argument('--env-increment', type=int, default=1, help="Number of characters added to environment each iteration")
     parser.add_argument('--enumerate', default=False, action='store_true', help="Iteration number as program argument")
-    parser.add_argument('--verbose', default=False, action='store_true', help="Write metadata to output")
     parser.add_argument('program')
     parser.add_argument('arg', nargs=argparse.REMAINDER)
     args = parser.parse_args()
@@ -241,6 +240,7 @@ def parseargs():
     if args.arg:
         args.program += " " + " ".join(args.arg)
     del args.arg
+    
     if not args.correlate in args.events:
         args.events.append(args.correlate)
 
@@ -281,15 +281,13 @@ if __name__ == '__main__':
     args = parseargs()
     data = benchmark(args)
 
-    if args.verbose:
-        args.outfile.write("# Performance counter statistics for `" + args.program + (" <iteration>`" if args.enumerate else "`") + "\n")
-        args.outfile.write("# --iterations " + str(args.iterations) + " ")
-        args.outfile.write("--repeat " + str(args.repeat) + " ")
-        args.outfile.write("--env-offset " + str(args.env_offset) + " ")
-        args.outfile.write("--env-increment " + str(args.env_increment) + "\n")
-        args.outfile.write("# First column shows correlation to " + args.correlate.name + "\n")
-        args.outfile.write("# Generated on " + str(datetime.datetime.now()) + "\n#\n")
+    args.outfile.write("Performance counter,Mnemonic,")
+    if args.iterations > 1:
+        args.outfile.write("Correlation,")
+    args.outfile.write(",".join(map(str, range(args.iterations))) + "\n")
 
     for event in args.events:
-        row = [event.name, event.mnemonic, data[event]['correlation']] + data[event]['count']
+        row = [event.name, event.mnemonic] + data[event]['count']
+        if args.iterations > 1:
+            row.insert(2, data[event]['correlation'])
         args.outfile.write(",".join(map(str, row)) + "\n")
