@@ -2,49 +2,54 @@
 #include <stdio.h>
 #include <cblas.h>
 
-// A is M x N -> rows x cols.
+// A is M rows x N cols
 #define M 8192
 #define N 8192
 
-// Matrix-vector multiplication, y = alpha*Ax + beta*y
-// As a relic from Fortran, BLAS prefers col-major order. 
-// When CblasNoTrans is set, an additional copy operation of A is done.
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     int offset1 = argc > 1 ? atoi(argv[1]) : 0;
     int offset2 = argc > 2 ? atoi(argv[2]) : 0;
     int iters   = argc > 3 ? atoi(argv[3]) : 1;
 
+    // Matrix-vector multiplication, y = alpha*Ax + beta*y
     const double alpha = 1.0, beta = 0.0;
+    double *A, *x, *y;
 
-    if (offset1) malloc(sizeof(char) * offset1);
+    // Ensure random numbers are deterministic. Fill matrix A and input vector
+    // x with non-zero values for a more realistic test scenario. However,
+    // the cycle count is significantly reduced by using zero input, reinforcing
+    // aliasing effects.
+    srand(0);
 
-    double *A = malloc(sizeof(double) * M * N);
-    for (int i = 0; i < M * N; ++i)
-        A[i] = (double) rand();
+    // The matrix is big and will be mmap allocated.
+    A = malloc(sizeof(double) * M * N);
+    for (int i = 0; i < M * N; A[i++] = (double) rand())
+        ;
 
-    double *x = malloc(sizeof(double) * N);
-    for (int i = 0; i < N; ++i)
-        x[i] = (double) rand();
+    // Offset to manipulate normal heap addresses.
+    if (offset1) malloc(offset1);
 
-    if (offset2) malloc(sizeof(char) * offset2);
+    // x and y are small and willb e allocated on normal heap.
+    x = malloc(sizeof(double) * N);
+    for (int i = 0; i < N; x[i++] = (double) rand())
+        ;
 
-    double *y = malloc(sizeof(double) * M);
+    // Offset to separate x and y addresses.
+    if (offset2) malloc(offset2);
 
-    printf("A:%p b:%p c:%p\n", A, x, y);
+    y = malloc(sizeof(double) * M);
 
     for (int i = 0; i < iters; ++i)
-    cblas_dgemv(CblasColMajor, 
-        CblasNoTrans, // Transpose A
-        M, N,         // rows, cols
-        alpha, 
-        A, M,         // lda (offset to next column with same row index)
-        x, 1, 
-        beta, 
-        y, 1
-    );
+        cblas_dgemv(CblasColMajor, 
+            CblasNoTrans, // Transpose A
+            M, N,         // rows, cols
+            alpha, 
+            A, M,         // lda (offset to next column with same row index)
+            x, 1, 
+            beta, 
+            y, 1
+        );
 
-    free(A), free(x), free(y);
-
+    printf("A:%p x:%p y:%p\n", A, x, y);
     return 0;
 }
