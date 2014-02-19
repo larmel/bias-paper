@@ -10,6 +10,7 @@
 \usepackage{listings}
 \usepackage{authblk}
 \usepackage{caption}
+\usepackage{mathtools}
 
 \usetikzlibrary{patterns,shapes,positioning,calc}
 
@@ -390,7 +391,7 @@ In other words, it is part of the environment, and a potential source of measure
 
 
 
-\section{Performance impacts in BLAS}
+\section{Performance Impact in Numeric Applications}
 
 Basic Linear Algebra Subroutines (BLAS), is the de facto standard API for high performance linear algebra routines.
 The functionality is divided into three categories: 
@@ -416,10 +417,9 @@ Using heap allocated memory, address aliasing is an artifact of the allocator us
 With different versions or configurations of memory allocators, any performance impact from aliasing can qualify as measurement bias.
 In the following sections, we will study bias from address aliasing in the Level 2 function gemv specifically, which computes matrix-vector multiplication.
 
-\iffalse
+Consider matrix-vector multiplication of the form $\boldsymbol{y} = A\boldsymbol{x} + \boldsymbol{b}$ . Let A be of size $M \times N$, where M is the number of rows. 
 
-Consider matrix-vector multiplication of the form $\boldsymbol{y}=A\boldsymbol{x}$. Let A be of size M\times N, where M is the number of rows. 
-
+$
 \left[\begin{array}{ccccc}
 a_{0,0} & a_{0,1} &  &  & a_{0,N}\\
 a_{1,0}\\
@@ -437,18 +437,82 @@ y_{1}\\
 \vdots\\
 y_{M}
 \end{array}\right]
+$
 
-The corresponding BLAS function is the level 2 gemv routine, computing the more general matrix-vector product given as
+The corresponding BLAS function is the level 2 gemv routine, computing the more general matrix-vector product given as $\boldsymbol{y} = \alpha\text{op}\left(A\right)\boldsymbol{x} + \beta\boldsymbol{y}$
+Here, $\alpha$ and $\beta$ are constants, and $\text{op}\left(A\right)$ is an optional transpose or complex conjugate of the matrix. 
+We set $\alpha = 1$, $\beta = 0$ and $\text{op} \left(A\right) = A$ to reduce the formula to $\boldsymbol{y}=A\boldsymbol{x}$.
 
-$\boldsymbol{y}=\alpha\text{op}\left(A\right)\boldsymbol{x}+\beta\boldsymbol{y}$
+To better be able to assess the effects of aliasing, the call to gemv needs to be isolated. 
+We make two benchmarks, one with iteration count $K = 1$ and another with $K = 101$.
+An approximation of the cost for a single invocation of dgemv can be expressed as 
+$$
+t_{\text{estimate}}=\frac{t_{K=101}-t_{K=1}}{100}
+$$
+where t represents some metric, such as the number of cycles.
+Subtracting the $K = 1$ run removes the constant overhead from the $K = 101$ run.
+Dividing by $100$ averages the values from the remaining iterations.
+Other iteration counts could have been used as well.
 
-Here, \alpha and \beta are constants, and \text{op}\left(A\right) is an optional transpose or complex conjugate of the matrix.
-A typical invocation of this routine is shown in Listing [?].
-We set \alpha=1, \beta=0 and \text{op}\left(A\right)=A to reduce the formula to $\boldsymbol{y}=A\boldsymbol{x}$.
-Note that A is declared as CblasColMajor, meaning we impose a column major ordering of the data.
-The prefix indicates data type, in this case d for double precision. 
+\begin{table*}[t]
+  \caption{Estimated cost of invoking cblas\_dgemv with a matrix size $8192 \times 8192$}
+  \label{tab:atlas8k}
+  \small
+  \centering
+  \begin{tabular}{l r r r}
+    \toprule
+      & (0x010, 0x010, 0x020) & (0x010, 0x010, 0x0b0) & (0x010, 0x140, 0x150) \\
+    \midrule
+    CPU\_CLK\_UNHALTED.THREAD\_P & 162,926,895 & 152,151,263 & 144,583,160 \\
+    LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS & \textbf{68,408,790} & \textbf{5,154,981} & \textbf{2,919} \\
 
-\fi
+    MEM\_UOPS\_RETIRED.ALL.LOADS & 100,701,777 & 100,702,138 & 100,701,752 \\
+    MEM\_LOAD\_UOPS\_RETIRED.HIT\_LFB & 31,628,539 & 32,495,287 & 29,853,850 \\
+    MEM\_LOAD\_UOPS\_RETIRED.L1\_HIT & 68,309,447 & 65,625,881 & 69,387,368 \\
+    MEM\_LOAD\_UOPS\_RETIRED.L2\_HIT & 711,973 & 1,540,956 & 864,720 \\
+    MEM\_LOAD\_UOPS\_RETIRED.L3\_HIT & 154,345 & 651,985 & 363,331 \\
+    MEM\_LOAD\_UOPS\_RETIRED.L3\_MISS & 106,313 & 350,449 & 295,235 \\
+    MEM\_UOPS\_RETIRED.ALL.STORES & 33,562,692 & 33,562,692 & 33,562,692 \\
+
+    LOAD\_HIT\_PRE.HW\_PF & 42,914,191 & 47,315,935 & 59,211,320 \\
+    \bottomrule
+  \end{tabular}
+\end{table*}
+
+Notes: 
+ - More BR\_INST.COND.TAKEN taken in case (a), but number of retired instructions are the same. Suggests replays of instructions.
+ - Inverse HW prefetch numbers from masters
+
+
+Estimated performance counter statistics for each of the three heap address configurations are shown in Table [?tab:gemv-estimate].
+In addition to cycle count and alias events, a number of relevant metrics related to cache activity are also included.
+Notice that almost all load micro-ops are served by either the line fill buffer or L1 cache in all cases.
+Only a small amount of loads come from L2, and almost none from L3.
+The hit rate for L1 actually decreases somewhat (considering LFB as well) with better execution time.
+This could be explained by less time for prefetchers to feed the L1 cache with data.
+The hardware prefetch counter indicates more hits in cases a and b.
+Again, we find that cache efficiency does not explain the performance cliffs we observe. 
+
+Our results show that address aliasing between matrix and vector heap buffers can significantly impact performance of dgemv in ATLAS.
+Variations in heap addresses alone can give a speedup of more than 30 \%.
+
+
+\subsection{Dealing with Aliasing}
+For the particular case we investigated, a good heuristic is to align heap segments “far apart” within the 4 KiB area of 12 bit suffixes.
+More specifically, it appears that address suffixes of A and $\boldsymbol{y}$ are the most important to separate.
+
+As discussed in section [x], aliasing cases like these can be accounted for in software using padding techniques.
+A possible run time solution to adjust heap addresses can be realized as follows:
+
+\begin{itemize}
+  \item Allocate some extra space for one of the vectors when calling malloc, for instance sizeof(double) * (M + 0x100) for $\boldsymbol{y}$.
+
+  \item Check the returned pointers for potential alias, i.e. the difference between \&A and \&y. Offset using pointer arithmetic into the array with extra padding at the end, i.e. y += 0x100. 
+\end{itemize}
+
+Another option is to explicitly account for “worst cases” in the implementation of routines that are vulnerable to aliasing.
+Addresses can be explicitly checked for potential conflicts in cblas\_dgemv, and if possible branch to code that will not suffer from aliasing. 
+
 
 \section{Conclusions}
 Any change to virtual memory layout of data can potentially introduce bias effects from address aliasing. 
