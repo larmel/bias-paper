@@ -18,11 +18,13 @@ disable-aslr:
 clean:
 	rm -f bin/*
 
+bin:
+	mkdir -p bin
 
 plotfiles = bin/convolution.dat bin/stack-offset.dat
 
 # Build in root to avoid trouble with pgfplots and output directories.
-bin/paper.pdf: paper.tex references.bib $(plotfiles)
+bin/paper.pdf: paper.tex references.bib $(plotfiles) | bin
 	latex paper.tex
 	bibtex paper
 	latex paper.tex
@@ -33,8 +35,9 @@ bin/paper.pdf: paper.tex references.bib $(plotfiles)
 
 # Generate TiKz plot format from raw performance counter results. Nothing in
 # resources is generated, and must be updated manually.
-bin/%.dat: resources/%.csv
+bin/%.dat: resources/%.csv | bin
 	cat $+ | util/pgfpconv > $@
+
 
 
 
