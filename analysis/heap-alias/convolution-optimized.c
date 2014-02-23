@@ -6,8 +6,6 @@
     #define OFFSET 0x00
 #endif
 
-// Hoard:    export LD_PRELOAD=~/Allocators/Hoard/libhoard.so
-// tcmalloc: libgoogle-perftools-dev, -ltcmalloc
 // cc -O3 convolution.c; cc -O3 convolution.c -S; perf stat -e cycles:u,r0107:u,r01a2:u,instructions:u -r 10 ./a.out
 // Best result with -O3 -std=c99 -march=native and no offset
 // -- Then we can save 250k alias and 300k RS with +0x30. Exact same instruction count (but sometimes slightly higher?)
