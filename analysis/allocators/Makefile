@@ -29,4 +29,4 @@ bin/hoard.csv: bin/heapalloc disable-aslr
 	LD_PRELOAD=bin/libhoard.so bin/heapalloc >> $@
 
 bin/malloc-comparison.csv: bin/ptmalloc.csv bin/tcmalloc.csv bin/jemalloc.csv bin/hoard.csv
-	paste $+ > $@
+	paste -d ',' $+ > $@
