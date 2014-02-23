@@ -1,24 +1,32 @@
-SHELL=/bin/bash
-.PHONY: all disable-aslr
-.DEFAULT: all
-
-all: disable-aslr default tcmalloc hoard
+.PHONY: test disable-aslr
+.DEFAULT: bin/heapalloc
 
 disable-aslr:
 	sudo bash -c 'echo 0 > /proc/sys/kernel/randomize_va_space'
 
-default:
-	cc address.c -o default
-	./default
+test: bin/malloc-comparison.csv
 
-tcmalloc:
-	cc address.c -o tcmalloc -ltcmalloc
-	./tcmalloc
+bin:
+	mkdir -p bin
 
-hoard:
-	(export LD_PRELOAD=~/Allocators/Hoard/libhoard.so; cc address.c -o hoard; ./hoard)
+bin/heapalloc: heapalloc.c | bin
+	cc heapalloc.c -o $@
 
-clean:
-	rm -f default tcmalloc hoard
+bin/ptmalloc.csv: bin/heapalloc disable-aslr
+	@echo "size,ptmalloc," > $@
+	bin/heapalloc >> $@
 
+bin/tcmalloc.csv: bin/heapalloc disable-aslr
+	@echo "size,tcmalloc," > $@
+	LD_PRELOAD=/usr/lib/libtcmalloc_minimal.so.4 bin/heapalloc >> $@
 
+bin/jemalloc.csv: bin/heapalloc disable-aslr
+	@echo "size,jemalloc," > $@
+	LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.1 bin/heapalloc >> $@
+
+bin/hoard.csv: bin/heapalloc disable-aslr
+	@echo "size,hoard," > $@
+	LD_PRELOAD=bin/libhoard.so bin/heapalloc >> $@
+
+bin/malloc-comparison.csv: bin/ptmalloc.csv bin/tcmalloc.csv bin/jemalloc.csv bin/hoard.csv
+	paste $+ > $@
