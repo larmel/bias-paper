@@ -30,13 +30,19 @@
   \begin{@twocolumnfalse}
     \maketitle
     \begin{abstract}
-    Seemingly innocuous properties of the execution context, such as the contents of system environment variables, or variations in link ordering, can impact the performance of computer programs. 
-    Variations in external properties like these can bias programs towards certain configurations. 
-    These effects have been shown to be a significant issue in performance analysis, but unpredictable and difficult to deal with.
+    Seemingly innocuous properties of the execution context, such as the contents of system environment variables, can impact the performance of computer programs.
+    Factors impacting performance that are not directly related to the subject being measured can introduce bias towards certain configurations.
+    Measurement bias has been shown to be a significant issue in performance analysis, appearing to be unpredictable and difficult to deal with.
 
-    Abstract This paper focuses on the underlying reasons for bias effects that can be experienced for example by changing environment variables, or using different link orders. 
-    Through experimentation and careful measurements using performance counters, we identify several potential sources of bias on the 4th generation Intel Core i7 architecture Haswell. 
-    Limitations imposed by the Loop Stream Detector is revealed, along with effects from 4K address aliasing. We show that bias is in fact not completely unpredictable, and discuss measures for avoiding it.
+    This paper focuses on the underlying reasons for bias effects that can be experienced for example by changing environment variables or using different dynamic allocation libraries.
+    Each alteration of the environment we look at has the effect of changing run time addresses of data or code.
+    Through experimentation and careful measurements using hardware performance counters, we identify that address aliasing on the low 12 bits between reads and writes can cause stalls in the execution pipeline.
+    Depending on initial memory layout at program start, this can be a common source of bias.
+    For some applications, performance penalties from unfavorable memory address allocations can be as high as double the cycle count.
+    In a case study of auto-tuned BLAS implementation ATLAS, we estimate a potential 30\% performance variation in one matrix-vector multiplication routine, depending on the location in memory of each buffer.
+    Note that these effects are not a result of cache issues, but a heuristic in the out of order engine found in recent Intel microarchitectures.
+
+    With an understanding of 4K aliasing, we show that bias is in fact not completely unpredictable, and discuss measures for avoiding it.
     \end{abstract}
     \bigskip
         
@@ -46,49 +52,40 @@
 
 \section{Introduction}
 Optimizing for performance is an important topic in computer science, and high performance computing (HPC) in particular. 
-A great amount of research and effort is put into designing better algorithms and compiler optimizations, in order to produce an “optimal” executable. 
-However, performance of computer programs is not just a function of the collection of machine instructions executed. 
+A great amount of research and effort is put into designing better algorithms and compiler optimizations in order to produce an ``optimal'' executable. 
+However, performance of computer programs is not just a function of the sequence of machine instructions executed. 
 Various external properties, such as the operating system and user environment, can have have an impact on how fast programs execute. 
-Characteristics of the operating system can decide things like the placement of code and data in memory, which in turn interacts with various hardware mechanisms. 
-Corner cases in hardware introduces potential performance cliffs; If for example a memory access happens to cross a page boundary, the cost of an additional TLB miss can be significant. 
-The set of conditions under which a program executes is called the execution context, which includes virtual memory layout in particular. 
+Characteristics of the operating system can affect things like the placement of code and data in memory, which in turn interacts with various hardware mechanisms at run time.
+Corner cases in hardware introduces potential performance cliffs; If for example a memory access happens to cross a page boundary, the cost of an additional TLB miss could be significant. 
+Modern microprocessors are extremely complex in design and functionality; Some features of recent Intel processors includes several layers of cache to camouflage slow memory, multiple prefetchers, speculative out-of-order execution and branch prediction, just to name a few.
+Hardware features and optimizations interact with memory layout of program code and data in various ways, and in certain worst cases one can observe a performance degradation.
+We will not look at things like cache efficiency, which often can be the reason for bad performance under certain memory contexts. 
+Instead, we look at effects from less known optimizations in the out-of-order execution engine and instructions fetch pipeline. 
+We will unveil characteristics about one specific microarchitectural feature known as 4K aliasing, showing how false dependencies in the out-of-order execution pipeline can bias performance towards certain memory contexts. 
+This effect can be triggered for example by changing stack position, and can explain bias from altering environment variables.
+With more accurate models of how bias occur, we will not only be able to actively avoid in performance, but in some cases also gain a real speedup on average.
+Because bias effects are intrinsically connected to various hardware features, this paper focuses on the 4th generation Intel® Core™ i7 ``Haswell'' architecture specifically. 
+However, the bias sources we present has also been shown to behave similarly on previous Intel architectures as well.
+
+
+\subsection{Background}
+The set of external, and a-priori unknown, conditions under which a program executes is called the execution context. 
 Variations within contexts can lead to programs being biased towards certain configurations. 
 Measuring performance of the same program on two machines with identical hardware can sometimes yield very different results, an effect known as measurement bias.
 
-Previous work has studied parameters such as the size of Unix environment variables and program link order. 
+Previous work has studied parameters such as the size of Unix environment variables and program link order \cite{Mytkowicz:2008:OE&MB}. 
 Both are found to potentially have a significant effect on performance, even in standardized benchmarks. 
-Unfortunately, the effects also appear to be unpredictable, and therefore difficult to deal with. 
+Unix environment variables contain various information about the system, such as the name of the currently logged in user, home- and current directory path.
+In the paper appropriately named ``Producing Wrong Data Without Doing Anything Obviously Wrong'' by T. Mytkowicz et al.~\cite{Mytkowicz:2009:WrongData}, the authors show an examples of a program where performance varies significantly by changing merely the size of the environment. 
+This means that the length of your name -- by extension you user login -- could in principle be the tipping point between good and bad performance.
+Unfortunately, the effects appear to be unpredictable, and therefore difficult to deal with. 
 This poses a problem for researchers and performance analysts, who will need to account for effects of measurement bias with more rigorous methodologies and statistical methods.
 
-Both the size of environment variables and link ordering ultimately has an effect on memory layout of running processes. 
-We will not look at things like cache efficiency, which often can be the reason for bad performance under certain memory contexts. 
-Instead, we look at effects from less known optimizations in the out-of-order execution engine and instructions fetch pipeline. 
-Because bias effects are intrinsically connected to various hardware features, this paper is focued on the Intel® Core™ i7 “Haswell” architecture specifically. 
-However, the bias sources we present has also been shown to behave similarly on previous Intel architectures as well.
-With a better understanding of intricate properties of the CPU, we show how one is able to not only predict, but also explicitly optimize for beneficial memory layouts. 
-
-In the paper appropriately named “Producing Wrong Data Without Doing Anything Obviously Wrong” by T. Mytkowicz et al.~\cite{Mytkowicz:2009:WrongData}, the authors show how simple changes to the execution environment can have an impact on performance. 
-One of their examples is a program where performance varies significantly with changes to the environment variables. 
-Unix environment variables contain various information about the system, such as the name of the currently logged in user, home- and current directory path.
-This means that the length of your name -- by extension you user login -- could in principle be the tipping point between good and bad performance.
-
-Previous work focuses mostly on how to mitigate effects of bias, and avoid drawing the wrong conclusions based on misleading measurements~\cite{Mytkowicz:2008:Easy, Mytkowicz:2009:WrongData}.
+In previous work, the focus has mostly been on how to mitigate effects of bias, and avoid drawing the wrong conclusions based on misleading measurements~\cite{Mytkowicz:2008:Easy, Mytkowicz:2009:WrongData}.
 The goal of this paper is to show not only that bias exists, but also \emph{why} it occurs. 
 
-With more accurate models of how bias occur, we will not only be able to actively avoid in performance, but in some cases also gain a real speedup on average.
 
-Modern microprocessors are extremely complex in design and functionality. 
-Some features of recent Intel processors includes several layers of cache to camouflage slow memory, multiple prefetchers, speculative out-of-order execution and branch prediction, just to name a few.
-Hardware features and optimizations interact with memory layout of program code and data in various ways.
-We will unveil characteristics about two different architectural features in recent Intel CPUs, and show how they can bias performance towards certain memory contexts. 
-
-First we will look at an aliasing effect between memory addresses of loads and stores, causing false dependencies in the out-of-order execution pipeline. 
-This effect can be triggered for example by changing stack position, and can explain bias from altering environment variables. 
-Secondly, we will look at the Loop Stream Detector, which in previous work on measurement bias has been suggested as a possible explanation.
-We therefore choose to study this particular optimization in detail, and show how measurement bias can occur from changing link order.
-
-
-\section{Methodology}
+\subsection{Methodology}
 When studying bias effects, carefully controlling all relevant properties of the environment is crucial. 
 Previous work on measurement bias and observer effect describes a set of best practices for how the measurement infrastructure should be configured \cite{Mytkowicz:2009:WrongData, Mytkowicz:2008:OE&MB}. 
 \begin{itemize}
@@ -97,18 +94,16 @@ Previous work on measurement bias and observer effect describes a set of best pr
   \item System load is kept at a minimum
   \item Automatic CPU frequency scaling is disabled
 \end{itemize}
-Our hardware configuration consists of an Intel® Core™ i7-4770K @ 3.50 GHz and 32 GB DDR3 @ 1600 MHz, running a 64-bit installation of Ubuntu 13.10. GCC version 4.8.1 is used as compiler toolchain.
+Experimental hardware configuration consists of an Intel® Core™ i7-4770K @ 3.50 GHz, 32 GiB DDR3 memory running at 1600 MHz, on a 64-bit installation of Ubuntu 13.10. GCC version 4.8.1 is used as compiler toolchain.
 
-We use perf to acquire statistics and measurements.
-Perf is a utility to interface with hardware performance counters, and available as part of the Linux kernel.
-Measurements are aggregated over several runs to collect all of the about 200 performance counters provided on our architecture [Intel:2013:Volume3B]. 
+We use perf to acquire hardware performance counter statistics.
+Measurements are aggregated over several runs to collect an extensice sample of about 200 performance counters and combinations provided on our architecture~\cite{Intel:2013:Volume3B}. 
 Unless otherwise specified, a minimal environment is used for all benchmarks. 
-To measure statistics with n bytes added to the environment, a dummy variable is set to \(0^{n}\) (repeated zero characters n times).
+To measure statistics with n bytes added to the environment, a dummy variable is set to \(0^{n}\) (repeated zero characters n times).\footnote{Because perf-stat adds a few variables, the environment will never be completely empty.}
 
 Cache conflicts can in many cases be a potential explanation for bias effects observed by changing memory layout.
 Although cache is often a likely explanation of performance variations, bias caused by cache issues is well understood and \emph{not} the focus of this paper.
-Cache related metrics are monitored in order to rule out cache as the underlying cause of bias. 
-The hit rates of micro-ops for each level of cache can be monitored by performance counters~\cite{Intel:2012:OptimizationManual}.
+Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{Intel:2012:OptimizationManual}.
 
 
 \section{4K Address Aliasing}
