@@ -29,20 +29,26 @@
 \twocolumn[
   \begin{@twocolumnfalse}
     \maketitle
-    \begin{abstract}
-    Seemingly innocuous properties of the execution context, such as the contents of system environment variables, can impact the performance of computer programs.
-    Factors impacting performance that are not directly related to the subject being measured can introduce bias towards certain configurations.
-    Measurement bias has been shown to be a significant issue in performance analysis, appearing to be unpredictable and difficult to deal with.
+    \begin{abstract} % Should be 150 -- 200 words max
+    % Motivation
+    Performance analysis in computer science is prone to measurement bias, where seemingly innocious properties of the execution context, such as the size of system environment variables, can impact performance in non-obvious ways.
+    Measurement bias has been shown to be a significant, but unpredictable and difficult to deal with.
+    In order to get reliable data for potentially biased programs, it might be necessary to average experiments over multiple environment configurations.
 
-    This paper focuses on the underlying reasons for bias effects that can be experienced for example by changing environment variables or using different dynamic allocation libraries.
-    Each alteration of the environment we look at has the effect of changing run time addresses of data or code.
-    Through experimentation and careful measurements using hardware performance counters, we identify that address aliasing on the low 12 bits between reads and writes can cause stalls in the execution pipeline.
-    Depending on initial memory layout at program start, this can be a common source of bias.
+    % Problem statement
+    Our goal is to identify some of the underlying mechanisms in the Intel ``Haswell'' processor architecture that causes measurement bias, and see how that can be accounted for in an attempt at optimization.
+
+    % Approach
+    Starting with the high level known causes of bias from previous work, we analyze a minimal C-program that exhibits bias from environment size.
+    In order to understand why performance varies, we use hardware performance counters to obtain detailed statistics for different environments.
+
+    % Results
+    We find that an effect known as 4K aliasing, causing resource stalls in the CPU execution pipeline, can be a common source of bias from external factors that alters run time addresses of program data.
     For some applications, performance penalties from unfavorable memory address allocations can be as high as double the cycle count.
-    In a case study of auto-tuned BLAS implementation ATLAS, we estimate a potential 30\% performance variation in one matrix-vector multiplication routine, depending on the location in memory of each buffer.
-    Note that these effects are not a result of cache issues, but a heuristic in the out of order engine found in recent Intel microarchitectures.
+    For ATLAS, an auto-tuned BLAS implementation, we estimate a potential 30\% performance variation in one matrix-vector multiplication routine, depending on the location in memory of each buffer.
 
-    With an understanding of 4K aliasing, we show that bias is in fact not completely unpredictable, and discuss measures for avoiding it.
+    % Conclusions
+    With an understanding of 4K aliasing, we show that bias is in fact not completely unpredictable, and discuss measures for avoiding bad performance because of it.
     \end{abstract}
     \bigskip
         
