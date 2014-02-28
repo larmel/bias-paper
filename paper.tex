@@ -79,9 +79,9 @@ The set of external, and a-priori unknown, conditions under which a program exec
 Variations within contexts can lead to programs being biased towards certain configurations. 
 Measuring performance of the same program on two machines with identical hardware can sometimes yield very different results, an effect known as measurement bias.
 
-Previous work has studied parameters such as the size of Unix environment variables and program link order \cite{Mytkowicz:2008:OE&MB}. 
+Previous work has studied parameters such as the size of system environment variables and program link order \cite{Mytkowicz:2008:OE&MB}. 
 Both are found to potentially have a significant effect on performance, even in standardized benchmarks. 
-Unix environment variables contain various information about the system, such as the name of the currently logged in user, home- and current directory path.
+Environment variables contain various information, such as the name of the currently logged in user, home- and current directory path.
 In the paper appropriately named ``Producing Wrong Data Without Doing Anything Obviously Wrong'' by T. Mytkowicz et al.~\cite{Mytkowicz:2009:WrongData}, the authors show an examples of a program where performance varies significantly by changing merely the size of the environment. 
 This means that the length of your name -- by extension you user login -- could in principle be the tipping point between good and bad performance.
 Unfortunately, the effects appear to be unpredictable, and therefore difficult to deal with. 
@@ -95,17 +95,17 @@ The goal of this paper is to show not only that bias exists, but also \emph{why}
 When studying bias effects, carefully controlling all relevant properties of the environment is crucial. 
 Previous work on measurement bias and observer effect describes a set of best practices for how the measurement infrastructure should be configured \cite{Mytkowicz:2009:WrongData, Mytkowicz:2008:OE&MB}. 
 \begin{itemize}
-  \item Address space layout randomization (ASLR) is disabled
-  \item Hyper-threading is disabled
-  \item System load is kept at a minimum
-  \item Automatic CPU frequency scaling is disabled
+  \item Address space layout randomization (ASLR) is disabled.
+  \item Hyper-threading is disabled.
+  \item System load is kept at a minimum.
+  \item Automatic CPU frequency scaling is disabled.
 \end{itemize}
 Experimental hardware configuration consists of an Intel® Core™ i7-4770K @ 3.50 GHz, 32 GiB DDR3 memory running at 1600 MHz, on a 64-bit installation of Ubuntu 13.10. GCC version 4.8.1 is used as compiler toolchain.
 
 We use perf to acquire hardware performance counter statistics.
 Measurements are aggregated over several runs to collect an extensice sample of about 200 performance counters and combinations provided on our architecture~\cite{Intel:2013:Volume3B}. 
 Unless otherwise specified, a minimal environment is used for all benchmarks. 
-To measure statistics with n bytes added to the environment, a dummy variable is set to \(0^{n}\) (repeated zero characters n times).\footnote{Because perf-stat adds a few variables, the environment will never be completely empty.}
+To measure statistics with n bytes added to the environment, a dummy variable is set to \(0^{n}\) (repeated zero characters n times).\footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
 
 Cache conflicts can in many cases be a potential explanation for bias effects observed by changing memory layout.
 Although cache is often a likely explanation of performance variations, bias caused by cache issues is well understood and \emph{not} the focus of this paper.
@@ -122,19 +122,19 @@ Doing only a partial compare, \emph{false} dependencies can be detected when the
 mov %rax ($0x601010)
 mov ($0x604010) %rbx
 \end{lstlisting}
-Situations like these causes the pipeline to stall and wait for the operations to finish in proper order.
+Situations like these can cause the pipeline to stall and wait for the operations to finish in proper order.
 The number of times this happens can be counted by the following performance counter:
 \begin{description}
   \item{LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS}\marginpar{\vspace{0.0pt}\footnotesize\begin{tabular}{@{} l @{\hskip 2pt} l }Event & Mask \\ 0x07 & 0x01\end{tabular}} \hfill \\
   Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.
 \end{description}
-Performance implications of 4K aliasing is discussed to some extent in the optimization manual from Intel. 
+Performance implications of 4K aliasing is discussed to some extent in the Intel optimization manual. 
 There are even some concrete suggestions for how avoid aliasing cases to improve performance (Rule 8 and 9)~\cite{Intel:2012:OptimizationManual}.
 In the following sections, we look at how address aliasing can explain some instances of measurement bias.
 
+
 \section{Bias from Environment Size}
-Variations in performance with bias towards certain environment sizes has been observed by other authors.
-Unless the program explicitly accesses environment variables, it is not the environment variables themselves that are important, but rather the effect their total size has on the alignment of stack. 
+Unless the program explicitly accesses environment variables, it is typically not the environment variables themselves that are important, but rather the effect their total size has on the alignment of stack. 
 Figure \ref{fig:virtualmemory} shows the relative positions of some important sections of memory at run time, assuming a 64 bit process mapped to virtual memory. 
 
 \pgfplotstableread{bin/stack-offset.dat}{\stackoffsettable}
