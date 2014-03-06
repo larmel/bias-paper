@@ -8,7 +8,7 @@ BLAS := atlas
 PERFCOUNTERS := all
 REPEAT := 10
 
-.PHONY: benchmark atlas default
+.PHONY: benchmark atlas default heatmap
 
 
 atlas:
@@ -63,4 +63,12 @@ benchmark: bin/gemv disable-aslr
 	mv *.csv *.out bin
 
 
+# Heatmap
 
+heatmap: disable-aslr bin/heatmap-alias.csv
+
+bin/gemv-grid: gemv-grid.c
+	gcc -std=c11 $< -o $@ -I/usr/local/atlas/include -L/usr/local/atlas/lib -lsatlas
+
+bin/heatmap-alias.csv: bin/gemv-grid
+	./heatmap.py > $@
