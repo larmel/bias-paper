@@ -64,11 +64,13 @@ benchmark: bin/gemv disable-aslr
 
 
 # Heatmap
-
-heatmap: disable-aslr bin/heatmap-alias.csv
+# Note: for this test, disabling ASLR is not necessary
 
 bin/gemv-grid: gemv-grid.c
 	gcc -std=c11 $< -o $@ -I/usr/local/atlas/include -L/usr/local/atlas/lib -lsatlas
 
 bin/heatmap-alias.csv: bin/gemv-grid
-	./heatmap.py > $@
+	script/heatmap-create.py $< -x 256 -y 256 > $@
+
+heatmap: bin/heatmap-alias.csv
+	script/heatmap-plot.py --input $<
