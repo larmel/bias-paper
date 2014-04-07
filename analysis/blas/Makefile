@@ -1,12 +1,8 @@
 SHELL := /bin/bash
 LPERF := ../../util/lperf
 
-# Specify what to provide linker, as -l$(BLAS). Use 'blas' for
-# default implementation, or 'atlas' that is installed.
-BLAS := atlas
-
 PERFCOUNTERS := all
-REPEAT := 10
+REPEAT := 4
 
 .PHONY: benchmark atlas default heatmap
 
@@ -63,11 +59,24 @@ benchmark: bin/gemv disable-aslr
 	mv *.csv *.out bin
 
 
-# Heatmap
-# Note: for this test, disabling ASLR is not necessary
 
+# axpy
+bin/axpy: axpy.c
+	cc -std=c11 $< -o $@ -I/usr/local/atlas/include -L/usr/local/atlas/lib -lsatlas
+
+bin/axpy.csv: bin/axpy
+	@echo "1 iteration" > $@
+	$(LPERF) -e cycles:u,r0107:u --enumerate -r 100 -n 256 $< 1 >> $@ 2> /dev/null
+	@echo "" >> $@
+	@echo "101 iterations" >> $@
+	$(LPERF) -e cycles:u,r0107:u --enumerate -r 100 -n 256 $< 101 >> $@ 2> /dev/null
+
+	# Then fix formula in Calc and plot result. Clear spikes and correlation.
+
+
+# Heatmap
 bin/gemv-grid: gemv-grid.c
-	gcc -std=c11 $< -o $@ -I/usr/local/atlas/include -L/usr/local/atlas/lib -lsatlas
+	gcc $< -o $@ -I/usr/local/atlas/include -L/usr/local/atlas/lib -lsatlas
 
 bin/heatmap-alias.csv: bin/gemv-grid
 	script/heatmap-create.py $< -x 256 -y 256 > $@

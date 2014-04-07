@@ -76,3 +76,70 @@ Some info on swithing in this [blogpost](http://www.stat.cmu.edu/~nmv/2013/07/09
 
  *  `libopenblas`
 
+
+Generating heatmap in R
+-----------------------
+
+install.packages("lattice")
+
+```
+library(lattice)
+trellis.par.set(canonical.theme(color = FALSE))
+tmp <- read.csv("heatmap-alias.csv", sep=",", header=FALSE)
+m <- as.matrix(tmp)
+setEPS()
+postscript("heatmap.eps", family="Computer Modern")
+levelplot(m, pretty=TRUE, scales=list(draw=F), xlab="x vector address offset times 0x10", ylab="y vector address offset times 0x10")
+dev.off()
+```
+
+With tikzDevice
+
+install.packages("tikzDevice")
+
+```
+library(lattice)
+require(tikzDevice)
+trellis.par.set(canonical.theme(color = FALSE))
+tmp <- read.csv("heatmap-alias.csv", sep=",", header=FALSE)
+m <- as.matrix(tmp)
+tikz("heatmap.tex", standAlone=TRUE, width=5, height=5)
+levelplot(m, pretty=TRUE, scales=list(draw=F), xlab="x vector address offset times 0x10", ylab="y vector address offset times 0x10")
+dev.off()
+```
+
+Then 150k lines of tikz commands. pdflatex gives up, can use luatex instead.
+
+
+
+Random notes on perf testing
+----------------------------
+
+Observed that aliasing in gemv-grid was not completely deterministic for seemingly "good" offsets. Ex. for dy = 0 sometimes spikes enormously (for 8192 x 8192). No issues with ASLR disabled.
+
+Need to understand startup cost of memory allocation better. Cycle count dramatically reduces when
+given -r option (For 64 x 64 matrix).
+
+    lars@Berlin:~/bias-paper/analysis/blas$ perf stat -e cycles:u,r0107:u -r 100 bin/gemv-grid 0 0 1
+
+     Performance counter stats for 'bin/gemv-grid 0 0 1' (100 runs):
+
+             2 209 440 cycles:u                  #    0,000 GHz                      ( +-  1,19% )
+                 5 175 r0107:u                                                       ( +-  0,60% )
+
+           0,001056276 seconds time elapsed                                          ( +-  3,63% )
+
+    lars@Berlin:~/bias-paper/analysis/blas$ perf stat -e cycles:u,r0107:u -r 1 bin/gemv-grid 0 0 1
+
+     Performance counter stats for 'bin/gemv-grid 0 0 1':
+
+             3 504 587 cycles:u                  #    0,000 GHz                    
+                 6 421 r0107:u                                                     
+
+           0,001660842 seconds time elapsed
+
+Ok, this actually solves it. No idea why. Warmup of branch prediction?
+
+    for i in {1..100}; do bin/gemv-grid; done && perf stat -e cycles:u,r0107:u -r 1 bin/gemv-grid 0 0 1
+
+
