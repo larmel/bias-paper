@@ -11,6 +11,7 @@
 \usepackage{authblk}
 \usepackage{caption}
 \usepackage{mathtools}
+\usepackage{underscore}
 
 \usetikzlibrary{patterns,shapes,positioning,calc}
 
@@ -23,6 +24,11 @@
 \affil{Norwegian University of Science and Technology}
 \title{Sources of Measurement Bias in Modern CPUs}
 \date{} % This is a timeless piece
+
+% Pretty printing of performance counter names
+\newcommand{\perfctr}[1] {
+  \small{\uppercase{#1}}
+}
 
 \begin{document}
 
@@ -303,7 +309,7 @@ int main() {
 
 
 
-\section{Bias from Heap Allocators}
+\section{Bias from Heap Allocation}
 Address aliasing can be caused by conflicting pairs of load/store operations to any part of memory.
 The previous section looked specifically at an example of collision between stack variables and static data.
 Another scenario to consider is collisions in heap allocated memory.
@@ -320,6 +326,7 @@ This distinction is of course unimportant for application developers, as everyth
 However, mmap has an interesting property in that allocations will always be page aligned.
 The page size is 4096 bytes, meaning two pointers returned by mmap will \emph{always} alias.\footnote{libc's version of malloc adds 16 bytes of medatada at the beginning, therefore every mmap'ed address ends with 0x010}
 
+\subsection{Aligned Sequential Access}
 Consider the function shown in Listing~\ref{lst:conv}.
 It computes the convolution between an input array and a fixed five-element kernel, writing the result to another array.
 For simplicity, endpoints are not handled.
@@ -342,7 +349,7 @@ For simplicity, endpoints are not handled.
   \end{tikzpicture}
 \end{figure}
 
-\begin{lstlisting}[float=t, language=C, caption={Naive implementation of convolution. Highly sensitive to aliasing between input and output arrays.}, label={lst:conv}, frame=lines]
+\begin{lstlisting}[float=h, language=C, caption={Naive implementation of convolution. Highly sensitive to aliasing between input and output arrays.}, label={lst:conv}, frame=lines]
 static float k[5]={0.1,0.25,0.3,0.25,0.1};
 void conv(int n, float *in, float *out) {
     int i, j;
@@ -353,7 +360,6 @@ void conv(int n, float *in, float *out) {
     }
 }
 \end{lstlisting}
-
 
 Figure \ref{fig:heapalias} shows how this function behaves when given input with different alignment.
 The default behavior for large heap allocations is that both arrays alias.
@@ -385,40 +391,73 @@ Even with the updated signature compiled with -O3 -march=native, there is still 
 
 \subsection{Behavior of other Allocators}
 Addresses of dynamic memory at run time is governed by the particular heap allocator used.
-Like the contents of environment varialbes, the exact operation of heap allocation can typically not be known ahead of time.
+Like the contents of environment variables, the exact operation of heap allocation can typically not be known ahead of time.
 For the code examples we present in C, the dynamic linker will resolve malloc to whichever version of libc is available on the system.
 In other words, it is part of the environment, and a potential source of measurement bias.
-(table, todo)
+
+\begin{table*}[t]
+  \caption{Addresses returned by different heap allocators when allocating pairs of equally sized buffers}
+  \label{tab:mallocompare}
+  \centering
+  \begin{tabular}{l r r r r}
+    \toprule
+      & ptmalloc & tcmalloc & jemalloc & Hoard \\
+    \midrule
+    64 B       & 0x602010 & 0xe0e000 & 0x2aaaabc0e040 & 0x2aaaaab20070 \\
+               & 0x602060 & 0xe0e080 & 0x2aaaabc0e080 & 0x2aaaaab200b0 \\
+    \midrule
+    1024 B     & 0x6020b0 & 0xe12000 & 0x2aaaabc0f400 & 0x2aaaaab30070 \\
+               & 0x6024c0 & 0xe12800 & 0x2aaaabc0f800 & 0x2aaaaab30470 \\
+    \midrule
+    5120 B     & 0x6028d0 & 0xe16000 & 0x2aaaabc1f000 & 0x2aaaaab40070 \\
+               & 0x603ce0 & 0xe18800 & 0x2aaaabc21000 & 0x2aaaaab42070 \\
+    \midrule
+    $2^{20}$ B & 0x2aaaaaaf3010 & 0xe64000 & 0x2aaaabc86000 & 0x2aaaabf40070 \\
+               & 0x2aaaab098010 & 0xf64000 & 0x2aaaabd86000 & 0x2aaaac060070 \\
+    \bottomrule
+  \end{tabular}
+\end{table*}
 
 
 
-\section{Performance Impact in Numeric Applications}
+Using heap allocated memory, address aliasing is an artifact of the allocator used.
+With different versions or configurations of memory allocators, any performance impact from aliasing can qualify as measurement bias.
 
+
+\section{Optimizing Alignment in BLAS}
+
+To illustrate how real world applications can be impacted by aliasing, we look at low level numerical applications.
+In this section we show that even highly optimized numerical libraries suffer performance degradation from aliasing.
 Basic Linear Algebra Subroutines (BLAS), is the de facto standard API for high performance linear algebra routines.
 The functionality is divided into three categories: 
 
 \begin{description}
-  \item{Level 1} Scalar and vector operations, such as dot product and vector addition.
-  \item{Level 2} Matrix-vector operations, such as gemv for general matrix-vector multiplication.
-  \item{Level 3} Matrix-matrix operations, including the widely applied gemm routine for general matrix-matrix multiplication. 
+  \item{Level~1} Scalar and vector operations, such as dot product and vector addition.
+  \item{Level~2} Matrix-vector operations, such as gemv for general matrix-vector multiplication.
+  \item{Level~3} Matrix-matrix operations, including the widely applied gemm routine for general matrix-matrix multiplication. 
 \end{description}
 
+Functions operating on vectors, from BLAS Level 1 or 2, intuitively appears the most likely to have potential for aliasing.
 Many highly optimized implementations of BLAS exists, ATLAS being a widely used and open source alternative. One of the key features of ATLAS is that it uses automatic tuning to optimize for cache efficiency [Whaley:2000:ATLAS]. 
 
 We use the currently latest stable version 3.10.1 of ATLAS, built as a shared library from source.
-The automatic tuning happens during the build process.
-A series of test programs are run to determine cache edges and other properties of the hardware, which in turn affects the resulting binary. 
+The automatic tuning happens during the build process; A series of test programs are run to determine cache edges and other properties of the hardware, which in turn affects the resulting binary. 
 
-Carefully monitoring cache is particularly important in this case study, as BLAS performance heavily relies on cache efficiency.
-Relevant performance statistics for cache hit ratios will be considered to rule out cache as the cause of any bias effects.
+Carefully monitoring cache metrics is particularly important in this case study, as BLAS performance heavily relies on cache efficiency.
+Relevant performance statistics for cache hit ratios was considered to rule out cache as the cause of any bias effects.
+In addition, we disable hardware prefetching in BIOS to further minimize cache impacts. 
+Note however that the same conclusions can be drawn independently of these measures.
 
-The idea is to reproduce similar scenarios to what we saw in Section ?, where aliasing was caused by linear accesses to pairs of aligned heap allocated data.
-Functions operating on vectors, from BLAS Level 1 or 2, seems most likely to have potential for similar characteristics.
-Using heap allocated memory, address aliasing is an artifact of the allocator used.
-With different versions or configurations of memory allocators, any performance impact from aliasing can qualify as measurement bias.
-In the following sections, we will study bias from address aliasing in the Level 2 function gemv specifically, which computes matrix-vector multiplication.
+\subsection{Aliasing in cblas\_daxpy}
+Found aliasing here as well. Two spikes, not sure why. Might want to test other BLAS libraries. Include or leave out? Too much handwaving and too little analysis maybe.
 
-Consider matrix-vector multiplication of the form $\boldsymbol{y} = A\boldsymbol{x} + \boldsymbol{b}$ . Let A be of size $M \times N$, where M is the number of rows. 
+
+
+
+\subsection{Matrix vector multiplication}
+
+Consider matrix-vector multiplication of the form $\boldsymbol{y} = A\boldsymbol{x} + \boldsymbol{b}$.
+Let A be of size $M \times N$, where M is the number of rows. 
 
 $
 \left[\begin{array}{ccccc}
@@ -440,20 +479,38 @@ y_{M}
 \end{array}\right]
 $
 
-The corresponding BLAS function is the level 2 gemv routine, computing the more general matrix-vector product given as $\boldsymbol{y} = \alpha\text{op}\left(A\right)\boldsymbol{x} + \beta\boldsymbol{y}$
+General matrix vector multiplication is implemented by the level 2 gemv routine, computing $\boldsymbol{y} = \alpha\text{op}\left(A\right)\boldsymbol{x} + \beta\boldsymbol{y}$
 Here, $\alpha$ and $\beta$ are constants, and $\text{op}\left(A\right)$ is an optional transpose or complex conjugate of the matrix. 
 We set $\alpha = 1$, $\beta = 0$ and $\text{op} \left(A\right) = A$ to reduce the formula to $\boldsymbol{y}=A\boldsymbol{x}$.
+[There are three memory buffers involved, and one might suspect that implementations are succeptible to aliasing between of $\boldsymbol{A}$, $\boldsymbol{x}$ or $\boldsymbol{y}$.]
+For the following discussion we look at a particular configuration where $A$ is of size $64\times64$.
 
-To better be able to assess the effects of aliasing, the call to gemv needs to be isolated. 
-We make two benchmarks, one with iteration count $K = 1$ and another with $K = 101$.
-An approximation of the cost for a single invocation of dgemv can be expressed as 
+In order to accurately measure any effects of aliasing, we need to isolate the actual function call from heap allocation and initialization code.
+This is done by running the program twice for each memory configuration, one where cblas\_dgemv is executed $K = 101$ times in a tight loop.
+An approximation of the cost for a single function invocation can be expressed as 
 $$
 t_{\text{estimate}}=\frac{t_{K=101}-t_{K=1}}{100}
 $$
 where t represents some metric, such as the number of cycles.
-Subtracting the $K = 1$ run removes the constant overhead from the $K = 101$ run.
-Dividing by $100$ averages the values from the remaining iterations.
+Subtracting the $K = 1$ run removes the constant overhead from the $K = 101$ run, and dividing by $100$ averages the values from the remaining iterations.
 Other iteration counts could have been used as well.
+
+Figure \ref{fig:heatmap} shows estimated number of alias events for every relevant memory configuration possible for cblas\_dgemv with matrix size 64 $\times$ 64. 
+While matrix A is kept fixed at address suffix 0x000, every reasonable variation of (\&x, \&y) is measured.
+Each increment represents an address offset of 16 bytes, which is the same granularity one would get from the default heap allocator.
+In a 4K address space, there are thus $4096/16 = 256$ possible address suffixes for $\boldsymbol{x}$ and $\boldsymbol{y}$ independently, resulting in a grid of $256^2$ values.
+
+\begin{figure}[h]
+  \caption{Estimated aliasing cost of invoking cblas\_dgemv with a matrix size $64 \times 64$ for different memory layouts. Axis show address offsets times 0x10 for vectors $\boldsymbol{x}$ and $\boldsymbol{y}$. Matrix $A$ has fixed to address suffix 0x000.}
+  \label{fig:heatmap}
+  \includegraphics[width=\columnwidth]{resources/heatmap.eps}
+\end{figure}
+
+It appears that aliasing is mostly dependent on the location of $\boldsymbol{y}$, in this case with 8 distinct worst case regions.
+This is consistent with false dependencies between $\boldsymbol{y}$ and specific rows in A. 
+The first bad region is where $\&y ~= 0$, matching the first row of A. 
+
+
 
 \begin{table*}[t]
   \caption{Estimated cost of invoking cblas\_dgemv with a matrix size $8192 \times 8192$}
@@ -464,18 +521,18 @@ Other iteration counts could have been used as well.
     \toprule
       & (0x010, 0x010, 0x020) & (0x010, 0x010, 0x0b0) & (0x010, 0x140, 0x150) \\
     \midrule
-    CPU\_CLK\_UNHALTED.THREAD\_P & 162,926,895 & 152,151,263 & 144,583,160 \\
-    LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS & \textbf{68,408,790} & \textbf{5,154,981} & \textbf{2,919} \\
+    \perfctr{cpu_clk_unhalted.thread_p} & 162,926,895 & 152,151,263 & 144,583,160 \\
+    \perfctr{ld_blocs_partial.address_alias} & \textbf{68,408,790} & \textbf{5,154,981} & \textbf{2,919} \\
 
-    MEM\_UOPS\_RETIRED.ALL.LOADS & 100,701,777 & 100,702,138 & 100,701,752 \\
-    MEM\_LOAD\_UOPS\_RETIRED.HIT\_LFB & 31,628,539 & 32,495,287 & 29,853,850 \\
-    MEM\_LOAD\_UOPS\_RETIRED.L1\_HIT & 68,309,447 & 65,625,881 & 69,387,368 \\
-    MEM\_LOAD\_UOPS\_RETIRED.L2\_HIT & 711,973 & 1,540,956 & 864,720 \\
-    MEM\_LOAD\_UOPS\_RETIRED.L3\_HIT & 154,345 & 651,985 & 363,331 \\
-    MEM\_LOAD\_UOPS\_RETIRED.L3\_MISS & 106,313 & 350,449 & 295,235 \\
-    MEM\_UOPS\_RETIRED.ALL.STORES & 33,562,692 & 33,562,692 & 33,562,692 \\
+    \perfctr{mem_uops_retired.all.loads} & 100,701,777 & 100,702,138 & 100,701,752 \\
+    \perfctr{mem_load_uops_retired.hit_lfb} & 31,628,539 & 32,495,287 & 29,853,850 \\
+    \perfctr{mem_load_uops_retired.l1_hit} & 68,309,447 & 65,625,881 & 69,387,368 \\
+    \perfctr{mem_load_uops_retired.l2_hit} & 711,973 & 1,540,956 & 864,720 \\
+    \perfctr{mem_load_uops_retired.l3_hit} & 154,345 & 651,985 & 363,331 \\
+    \perfctr{mem_load_uops_retired.l3_miss} & 106,313 & 350,449 & 295,235 \\
+    \perfctr{mem_load_uops_retired.all_stores} & 33,562,692 & 33,562,692 & 33,562,692 \\
 
-    LOAD\_HIT\_PRE.HW\_PF & 42,914,191 & 47,315,935 & 59,211,320 \\
+    \perfctr{load_hit_pre.hw_pf} & 42,914,191 & 47,315,935 & 59,211,320 \\
     \bottomrule
   \end{tabular}
 \end{table*}
@@ -484,6 +541,8 @@ Notes:
  - More BR\_INST.COND.TAKEN taken in case (a), but number of retired instructions are the same. Suggests replays of instructions.
  - Inverse HW prefetch numbers from masters
 
+\paragraph{Prefetching}
+Measurements repeated with prefetching disabled, giving similar results. 
 
 Estimated performance counter statistics for each of the three heap address configurations are shown in Table [?tab:gemv-estimate].
 In addition to cycle count and alias events, a number of relevant metrics related to cache activity are also included.

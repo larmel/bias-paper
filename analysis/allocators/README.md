@@ -1,4 +1,4 @@
-This is a small test scenario to look at the differences (if any) in the addresses returned by some common heap allocators. 
+This is a small test scenario to look at the differences in the addresses returned by some common heap allocators. 
 Replacements are injected using the LD\_PRELOAD environment variable. Paths of .so files might vary.
 
 
@@ -35,5 +35,4 @@ Replacements are injected using the LD\_PRELOAD environment variable. Paths of .
 	Download binary from [hoard.org](http://www.hoard.org/), extract libhoard.so in bin directory.
 
 	`LD_PRELOAD=bin/libhoard.so`
-
 

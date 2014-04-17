@@ -1,5 +1,8 @@
+SHELL := /bin/bash
 .PHONY: test disable-aslr
-.DEFAULT: bin/heapalloc
+
+bin/heapalloc: heapalloc.c | bin
+	cc heapalloc.c -o $@
 
 disable-aslr:
 	sudo bash -c 'echo 0 > /proc/sys/kernel/randomize_va_space'
@@ -8,9 +11,6 @@ test: bin/malloc-comparison.csv
 
 bin:
 	mkdir -p bin
-
-bin/heapalloc: heapalloc.c | bin
-	cc heapalloc.c -o $@
 
 bin/ptmalloc.csv: bin/heapalloc disable-aslr
 	@echo "size,ptmalloc," > $@
