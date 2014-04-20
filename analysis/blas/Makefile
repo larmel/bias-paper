@@ -62,7 +62,7 @@ benchmark: bin/gemv disable-aslr
 
 # axpy
 bin/axpy: axpy.c
-	cc -std=c11 $< -o $@ -I/usr/local/atlas/include -L/usr/local/atlas/lib -lsatlas
+	cc $< -o $@ -I/usr/local/atlas/include -L/usr/local/atlas/lib -lsatlas
 
 bin/axpy.csv: bin/axpy
 	@echo "1 iteration" > $@

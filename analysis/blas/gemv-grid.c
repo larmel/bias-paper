@@ -4,8 +4,8 @@
 #include <sys/mman.h>
 
 // M rows x N cols
-#define M 256
-#define N 256
+#define M 8192
+#define N 8192
 
 #define ALIGNED_ALLOC(n) \
     ((char*) mmap(NULL, n, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0))
@@ -22,36 +22,34 @@ int main(int argc, char **argv) {
     double *A, *x, *y;
 
     // Ensure page alignment as baseline. Keep matrix A at offset 0x000 even though
-    // for libc allocator it will by default always be 0x010. Have not observed any
-    // side effects of this.
-
-    // Easiest way to achieve this is probably mmap, so will just use that
+    // for libc allocator it will by default always be 0x010. Easiest way to 
+    // achieve this is probably mmap, so might as well use that.
     A = (double*) ALIGNED_ALLOC(M*N*sizeof(double));
     x = (double*) (ALIGNED_ALLOC(N*sizeof(double)+4096) + dx);
     y = (double*) (ALIGNED_ALLOC(M*sizeof(double)+4096) + dy);
 
-    // TODO: Check if use of aligned_alloc is actually sane, not mmaped?
-    //A = (double*) (aligned_alloc(4096, (M*N*sizeof(double)+4096) & -4096) + 0);
-    // Allocate an extra page for possible offset of x and y vectors
-    //x = (double*) (aligned_alloc(4096, (N*sizeof(double)+4096*2) & -4096) + dx);
-    //y = (double*) (aligned_alloc(4096, (M*sizeof(double)+4096*2) & -4096) + dy);
+    // Aliasing effects are slightly more visible for sparse (or zero) matrices, 
+    // resulting in fewer operations overall, while the number of alias events is 
+    // constant. Also keeps the example simple.
+    for (i = 0; i < N; ++i) {
+        A[i*N + i] = 1; 
+        x[i] = i;
+    }
 
-    srand(0);
-
-    for (i = 0; i < M*N; ++i) A[i] = (double) rand();
-    for (i = 0; i < N; ++i) x[i] = (double) rand();
-
+    // Repeat invocation to filter out constant overhead from allocation and
+    // initialization.
     for (i = 0; i < n; ++i)
-        cblas_dgemv(CblasColMajor, 
-            CblasNoTrans, // Transpose A
-            M, N, // rows, cols
+        cblas_dgemv(
+            CblasColMajor, 
+            CblasNoTrans,
+            M, N,
             alpha, 
-            A, M, // lda (offset to next column with same row index)
+            A, M,
             x, 1, 
             beta, 
             y, 1
         );
 
-    //printf("A:%p x:%p y:%p\n", A, x, y);
+    printf("A:%p x:%p y:%p\n", A, x, y);
     return 0;
 }

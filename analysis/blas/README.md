@@ -143,3 +143,6 @@ Ok, this actually solves it. No idea why. Warmup of branch prediction?
     for i in {1..100}; do bin/gemv-grid; done && perf stat -e cycles:u,r0107:u -r 1 bin/gemv-grid 0 0 1
 
 
+For gemv, matrix sizes of powers of 2 seems to be most prone to aliasing. Other sizes have more consistent alias across all offsets.
+
+Seems to be about 13 - 15 % difference in cycle count for sizes 1 - 8K. Only about 6 % for 64 x 64. 
