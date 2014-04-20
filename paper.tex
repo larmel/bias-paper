@@ -447,6 +447,8 @@ Using heap allocated memory, address aliasing is an artifact of the allocator us
 With different versions or configurations of memory allocators, any performance impact from aliasing can qualify as measurement bias.
 
 
+\iffalse
+
 \section{Optimizing Alignment in BLAS}
 
 To illustrate how real world applications can be impacted by aliasing, we look at low level numerical applications.
@@ -595,6 +597,8 @@ A possible run time solution to adjust heap addresses can be realized as follows
 
 Another option is to explicitly account for “worst cases” in the implementation of routines that are vulnerable to aliasing.
 Addresses can be explicitly checked for potential conflicts in cblas\_dgemv, and if possible branch to code that will not suffer from aliasing. 
+
+\fi
 
 
 \section{Conclusions}
