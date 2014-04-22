@@ -37,25 +37,29 @@
   \begin{@twocolumnfalse}
     \maketitle
     \begin{abstract} % Should be 150 -- 200 words max
+
     % Motivation
-    Performance analysis in computer science is prone to measurement bias, where seemingly innocious properties of the execution context, such as the size of system environment variables, can impact performance in non-obvious ways.
-    Measurement bias has been shown to be a significant, but unpredictable and difficult to deal with.
-    In order to get reliable data for potentially biased programs, it might be necessary to average experiments over multiple environment configurations.
+    % Seemingly innocious properties of the execution context can cause subtle interactions with the low level hardware boundaries.
+    % Because of the vast complexity of modern hardware, these effects are found to be unpredictable and difficult to deal with.
+    % Programs are said to be \emph{biased} towards certain machines and configurations in various ways, .
+
+    % Interaction with cache boundaries, branch prediction and other intricate details of the underlying hardware can make accurate performance measurements difficult. 
 
     % Problem statement
-    Our goal is to identify some of the underlying mechanisms in the Intel ``Haswell'' processor architecture that causes measurement bias, and see how that can be accounted for in an attempt at optimization.
+    In this paper we show how a lesser known optimization in the out-of-order execution engine can be a common cause of measurement bias on moderns Intel microarchitectures.
 
     % Approach
-    Starting with the high level known causes of bias from previous work, we analyze a minimal C-program that exhibits bias from environment size.
-    In order to understand why performance varies, we use hardware performance counters to obtain detailed statistics for different environments.
+    Our discovery stems from an analysis of a small program that was presented as a curiosity in previous work. The program shows clear bias in that for certain sizes of system environment variables, the performance is significantly worse than average. 
+    Using hardware performance counters we identify the source of bias to be resource stalls from falsely detected dependencies in the out-of-order execution pipeline, reported as 4K address aliasing.
 
     % Results
-    We find that an effect known as 4K aliasing, causing resource stalls in the CPU execution pipeline, can be a common source of bias from external factors that alters run time addresses of program data.
-    For some applications, performance penalties from unfavorable memory address allocations can be as high as double the cycle count.
-    For ATLAS, an auto-tuned BLAS implementation, we estimate a potential 30\% performance variation in one matrix-vector multiplication routine, depending on the location in memory of each buffer.
+    We show how address aliasing can cause measurement bias for two particular external properties; environment variable size and dynamically linked heap allocation libraries.
+    Using a constructed example, we find that performance penalties from unfavorable memory address allocations can be as high as double the cycle count.
+    Furthermore, the dynamic memory allocation pattern for common libraries like libc tends to give worst case performance by default for large allocations.
 
     % Conclusions
-    With an understanding of 4K aliasing, we show that bias is in fact not completely unpredictable, and discuss measures for avoiding bad performance because of it.
+    % In principle anything that can alter run time addresses of program data can potentially result in bias from aliasing.
+    % We show that bias caused by address aliasing is in fact not completely unpredictable, and should be taken into account by optimizing 
     \end{abstract}
     \bigskip
         
@@ -602,15 +606,17 @@ Addresses can be explicitly checked for potential conflicts in cblas\_dgemv, and
 
 
 \section{Conclusions}
-We have studied how address aliasing can affect program performance under different memory layouts. 
-This effect is caused by the way speculative and out-of-order memory operations are handled by the CPU, only considering the last 12 address bits to resolve conflicts load and store operations.
+In this paper we have looked at how address aliasing can affect program performance under different memory layouts, and how it can explain certain cases of measurement bias. 
+The effect is caused by the way speculative and out-of-order memory operations are handled by the CPU, only considering the last 12 address bits to resolve conflicts load and store operations.
 
-We have shown how aliasing can be the root cause of measurement bias from variations in environment size. 
-Analyzing the example provided in \ref{Mytkowicz:2009:WrongData}, we determined that collisions between stack variables and static data caused aliasing for certain stack positions.
-Variations in environment size changes virtual addresses of stack allocated data, and measurement bias observed by this can in some cases be attributed to address aliasing.
+Analyzing the example originally presented by Mytkowicz et al. \cite{Mytkowicz:2009:WrongData}, we determined that collisions between stack variables and static data resulted in aliasing for certain stack positions.
+In this case, the external trigger of bias is variations in environment size, which in turn offset the virtual addresses of stack allocated variables.
+
 
 In general, any change to virtual memory layout of data can potentially introduce bias effects from address aliasing. 
 We present a code example with extreme sensitivity of data alignment, with more than 50 \% performance variation between different memory layouts.
+
+
 We find that compilers, even when provided with architecture specific optimization flags, still generates code that suffers from aliasing. 
 Typical heap allocators return page-aligned memory by default, which is the worst case with respect to aliasing for many algorithms.
 Despite recommendations from Intel, we are not aware of any allocators that specifically addresses this issue. 
