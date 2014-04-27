@@ -37,29 +37,21 @@
   \begin{@twocolumnfalse}
     \maketitle
     \begin{abstract} % Should be 150 -- 200 words max
+    % Motivation -- Problem statement -- Approach -- Results -- Conclusions
 
-    % Motivation
-    % Seemingly innocious properties of the execution context can cause subtle interactions with the low level hardware boundaries.
-    % Because of the vast complexity of modern hardware, these effects are found to be unpredictable and difficult to deal with.
-    % Programs are said to be \emph{biased} towards certain machines and configurations in various ways, .
+    In this paper we show how an optimization in the out-of-order execution engine on modern Intel microarchtectures can affect performance depending on run-time memory layout. 
 
-    % Interaction with cache boundaries, branch prediction and other intricate details of the underlying hardware can make accurate performance measurements difficult. 
+    We analyse a small program that was presented as a curiosity in previous work on \emph{measurement bias};
+    Code that for unexplained reasons performs significantly worse than average for certain configurations of system environment variables.
 
-    % Problem statement
-    In this paper we show how a lesser known optimization in the out-of-order execution engine can be a common cause of measurement bias on moderns Intel microarchitectures.
+    Using hardware performance counters, we identify a strong correlation with resource stalls, ultimately caused by address aliasing events.
+    The CPU uses an optimistic strategy when issuing operations out of order.
+    Only the last 12 address bits are compared to determine if there was a conflict, sometimes resulting in performance penalties from false dependencies.
 
-    % Approach
-    Our discovery stems from an analysis of a small program that was presented as a curiosity in previous work. The program shows clear bias in that for certain sizes of system environment variables, the performance is significantly worse than average. 
-    Using hardware performance counters we identify the source of bias to be resource stalls from falsely detected dependencies in the out-of-order execution pipeline, reported as 4K address aliasing.
-
-    % Results
-    We show how address aliasing can cause measurement bias for two particular external properties; environment variable size and dynamically linked heap allocation libraries.
-    Using a constructed example, we find that performance penalties from unfavorable memory address allocations can be as high as double the cycle count.
+    We show how address aliasing can cause measurement bias for two particular external properties; environment variable size, and dynamically linked heap allocation libraries.
+    Performance penalties from unfavorable memory address allocations can be more than double the cycle count, even for real world applications.
     Furthermore, the dynamic memory allocation pattern for common libraries like libc tends to give worst case performance by default for large allocations.
 
-    % Conclusions
-    % In principle anything that can alter run time addresses of program data can potentially result in bias from aliasing.
-    % We show that bias caused by address aliasing is in fact not completely unpredictable, and should be taken into account by optimizing 
     \end{abstract}
     \bigskip
         
@@ -68,14 +60,105 @@
 
 
 \section{Introduction}
+\iffalse
+- Measurement bias in systems research
+  - What is measurement bias
+    - fundamentally anything external
+    - Room temperature
+  - Studied before
+    - External properties that affect memory layout
+      - link order (not really)
+      - env size
+  - Has been shown to be significant and commonplace
+    - But difficult to deal with
+    - Need to apply statistical methods to experiments
+      - randomization of experimental setups
+- Want to look at flipside: understand what why bias occurs
+  - Use for optimization
+  - Find interesting cases
+  - Known causes: cache alignment, ignore.
+- Analysis: 
+  - Use known example that exhibit bias
+  - Find lesser known source in address aliasing
+- Results:
+  - Applicable general knowledge about Intel architecture
+  - Useful for optimization
+  - Libraries and compilers fail to account for it in reality.
+\fi
+
+How fast does an algorithm run?
+Is program A faster than program B on my machine?
+These types of questions are, perhaps surprisingly, not always trivial to answer.
+The usual approach to quantify performance is to simply measure some metric, such as the wall time or number of cycles executed.
+However, performance is not just a function of the collection of instructions in an executable, but also dependent on various \emph{external} factors.
+In other fields of science, accounting for sampling bias is well understood.
+Trying to determine the political opinion of a country just by sampling a narrow geographical area will probably not be very accurate.
+The same concept applies for software; measuring a metric once is analogous to sampling only a tiny geographical area in the set of possible system configurations.
+
+A number of external variables has the potential to affect system performance.
+In particular, anything that has the potential to offset memory addresses of code or data at run-time can be significant.
+Memory accesses interacts with low level hardware buffers, which can heavily favor certain memory layouts over others.
+Consequentially, any environmental factor that can alter memory layout has a potential performance impact.
+Failing to account for these effects lead to \emph{measurement bias}. 
+
+Measurement bias has been shown to be commonplace and significant in real applications.
+Previous work looks at environmental factors such as the size of Unix environment variables, which affects memory by offseting the initial position of stack.
+Because of the enormous complexety of modern hardware, it is often impossible to predict exactly how seemingly innocious things such as environment variables ultimately affect program execution.
+In fact, the best one can do to accurately assess performance is generally to average over a large sample set of execution contexts. \cite{Mytkowicz:2008:OE&MB, Mytkowicz:2009:WrongData, Mytkowicz:2008:Easy}-
+
+Effects of bias has been shown to be commonplace and significant, yet unpredictable and difficult to deal with.
+Previous work focuses mostly of how to account for bias by proper sampling, using randomization of execution contexts and statistical methods.
+Our approach is instead to try to understand some of the underlying reasons to why bias can occur. 
+Usually, the root explanation will be that different memory layouts interact with various hardware buffers.
+Certain mechanisms such as cache contention or branch misprediction are already well understood.
+In this paper, we show how a much lesser known, presumably Intel specific, optimization on the out-of-order execution pipeline can be the cause of measurement bias.
+Analyzing a program that exhibits strong bias from environment size, we find a correlation with resource stalls from \emph{address aliasing}.
+The CPU uses a conservative heuristic for determining whether memory accesses can be retired out of order, comparing only the last 12 address bits.
+False dependencies can incur performance penalties, which can explain many common cases of measurement bias.
+
+In addition to environment variables, we look at dynamic heap allocation libraries as an external bias trigger.
+Heap allocation turns out to be interesting in that most libraries tend to produce worst case behavior by default with respect to aliasing.
+We show that the cost of address aliasing can be significant, and usually beyond the reach of optimizing compilers to take into account.
+However, with an understanding of the underlying mechanisms, measurement bias from address aliasing can often be quite accurately predicted.
+In fact, for some applications it might make sense for programmers to actively take aliasing into account for architecture specific optimization, as neither compilers nor heap allocators seem to handle it well.
+
+
+
+
+
+\subsection{Methodology}
+\iffalse
+ - Experimental setup
+  - Intel haswell architecture
+    - Restrict to a single cpu to limit scope
+ - Hardware performance counters
+   - MSR, architecture specific
+   - Closest thing to the CPU
+   - Use perf-stat
+ - Avoid observer effect
+ - Best practices for controlled experimental setup
+   - No ASLR, what it is
+   - No hyperthreading etc.
+\fi
+
+
+
+
+
+
+
+
+\iffalse
 Optimizing for performance is an important topic in computer science, and high performance computing (HPC) in particular. 
 A great amount of research and effort is put into designing better algorithms and compiler optimizations in order to produce an ``optimal'' executable. 
 However, performance of computer programs is not just a function of the sequence of machine instructions executed. 
 Various external properties, such as the operating system and user environment, can have have an impact on how fast programs execute. 
 Characteristics of the operating system can affect things like the placement of code and data in memory, which in turn interacts with various hardware mechanisms at run time.
-Corner cases in hardware introduces potential performance cliffs; If for example a memory access happens to cross a page boundary, the cost of an additional TLB miss could be significant. 
+Corner cases in hardware introduces potential \emph{performance cliffs}; If for example a memory access happens to cross a page boundary, the cost of an additional TLB miss could be significant. 
+
 Modern microprocessors are extremely complex in design and functionality; Some features of recent Intel processors includes several layers of cache to camouflage slow memory, multiple prefetchers, speculative out-of-order execution and branch prediction, just to name a few.
 Hardware features and optimizations interact with memory layout of program code and data in various ways, and in certain worst cases one can observe a performance degradation.
+
 We will not look at things like cache efficiency, which often can be the reason for bad performance under certain memory contexts. 
 Instead, we look at effects from less known optimizations in the out-of-order execution engine and instructions fetch pipeline. 
 We will unveil characteristics about one specific microarchitectural feature known as 4K aliasing, showing how false dependencies in the out-of-order execution pipeline can bias performance towards certain memory contexts. 
@@ -86,9 +169,12 @@ However, the bias sources we present has also been shown to behave similarly on 
 
 
 \subsection{Background}
-The set of external, and a-priori unknown, conditions under which a program executes is called the execution context. 
-Variations within contexts can lead to programs being biased towards certain configurations. 
-Measuring performance of the same program on two machines with identical hardware can sometimes yield very different results, an effect known as measurement bias.
+The set of external, and a-priori unknown, conditions under which a program executes is called the \emph{execution context}. 
+Performance variations within contexts lead to programs being biased towards certain configurations. 
+The same program under different contexts can sometimes yield very different results, an effect known as \emph{measurement bias}.
+
+A related concept of \emph{observer effect} also applies to computer systems.
+Any instrumentation or observation probes has the potential to alter the observed behavior.
 
 Previous work has studied parameters such as the size of system environment variables and program link order \cite{Mytkowicz:2008:OE&MB}. 
 Both are found to potentially have a significant effect on performance, even in standardized benchmarks. 
@@ -121,7 +207,7 @@ To measure statistics with n bytes added to the environment, a dummy variable is
 Cache conflicts can in many cases be a potential explanation for bias effects observed by changing memory layout.
 Although cache is often a likely explanation of performance variations, bias caused by cache issues is well understood and \emph{not} the focus of this paper.
 Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{Intel:2012:OptimizationManual}.
-
+\fi
 
 \section{4K Address Aliasing}
 An event known as “4K aliasing” can occur when the addresses of a store instruction followed by a load instruction differ by a multiple of 4 KiB.
@@ -129,9 +215,9 @@ On recent Intel architectures, only the last 12 address bits are used to determi
 This is a heuristic employed by the CPU to enable out of order execution of memory access operations.
 Independent pairs of loads and stores where the last address bits differ can then be reordered and issued out of order.
 Doing only a partial compare, \emph{false} dependencies can be detected when the addresses are equal $\bmod 4096$, as in the following example: 
-\begin{lstlisting}[language={[x86masm]Assembler}]
-mov %rax ($0x601010)
-mov ($0x604010) %rbx
+\begin{lstlisting}
+store (0x601010)
+load (0x604010)
 \end{lstlisting}
 Situations like these can cause the pipeline to stall and wait for the operations to finish in proper order.
 The number of times this happens can be counted by the following performance counter:
