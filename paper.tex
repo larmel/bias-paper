@@ -91,12 +91,13 @@ Is program A faster than program B on my machine?
 These types of questions are, perhaps surprisingly, not always trivial to answer.
 The usual approach to quantify performance is to simply measure some metric, such as the wall time or number of cycles executed.
 However, performance is not just a function of the collection of instructions in an executable, but also dependent on various \emph{external} factors.
+
 In other fields of science, accounting for sampling bias is well understood.
 Trying to determine the political opinion of a country just by sampling a narrow geographical area will probably not be very accurate.
 The same concept applies for software; measuring a metric once is analogous to sampling only a tiny geographical area in the set of possible system configurations.
 
-A number of external variables has the potential to affect system performance.
-In particular, anything that has the potential to offset memory addresses of code or data at run-time can be significant.
+There are many external variables that has the potential to affect system performance.
+In particular, anything which can offset memory addresses of code or data at run-time can be significant.
 Memory accesses interacts with low level hardware buffers, which can heavily favor certain memory layouts over others.
 Consequentially, any environmental factor that can alter memory layout has a potential performance impact.
 Failing to account for these effects lead to \emph{measurement bias}. 
@@ -104,23 +105,23 @@ Failing to account for these effects lead to \emph{measurement bias}.
 Measurement bias has been shown to be commonplace and significant in real applications.
 Previous work looks at environmental factors such as the size of Unix environment variables, which affects memory by offseting the initial position of stack.
 Because of the enormous complexety of modern hardware, it is often impossible to predict exactly how seemingly innocious things such as environment variables ultimately affect program execution.
-In fact, the best one can do to accurately assess performance is generally to average over a large sample set of execution contexts. \cite{Mytkowicz:2008:OE&MB, Mytkowicz:2009:WrongData, Mytkowicz:2008:Easy}-
+In fact, the best one can do to accurately assess performance is generally to average over a large sample set of execution contexts. \cite{Mytkowicz:2008:OE&MB, Mytkowicz:2009:WrongData, Mytkowicz:2008:Easy}
 
 Effects of bias has been shown to be commonplace and significant, yet unpredictable and difficult to deal with.
 Previous work focuses mostly of how to account for bias by proper sampling, using randomization of execution contexts and statistical methods.
-Our approach is instead to try to understand some of the underlying reasons to why bias can occur. 
+Our approach is instead to try to understand some of the underlying reasons to why bias can occur.
 Usually, the root explanation will be that different memory layouts interact with various hardware buffers.
 Certain mechanisms such as cache contention or branch misprediction are already well understood.
 In this paper, we show how a much lesser known, presumably Intel specific, optimization on the out-of-order execution pipeline can be the cause of measurement bias.
 Analyzing a program that exhibits strong bias from environment size, we find a correlation with resource stalls from \emph{address aliasing}.
-The CPU uses a conservative heuristic for determining whether memory accesses can be retired out of order, comparing only the last 12 address bits.
-False dependencies can incur performance penalties, which can explain many common cases of measurement bias.
+In short, the CPU uses a conservative heuristic for determining whether memory accesses can be retired out of order, comparing only the last 12 virtual address bits.
+False dependencies incur performance penalties, which can explain many common cases of measurement bias.
 
 In addition to environment variables, we look at dynamic heap allocation libraries as an external bias trigger.
-Heap allocation turns out to be interesting in that most libraries tend to produce worst case behavior by default with respect to aliasing.
-We show that the cost of address aliasing can be significant, and usually beyond the reach of optimizing compilers to take into account.
-However, with an understanding of the underlying mechanisms, measurement bias from address aliasing can often be quite accurately predicted.
-In fact, for some applications it might make sense for programmers to actively take aliasing into account for architecture specific optimization, as neither compilers nor heap allocators seem to handle it well.
+Heap allocation turns out to be particularly interesting for the following reason: most libraries tend to produce worst case behavior by default with respect to aliasing.
+We show that the cost of address aliasing can be significant, exemplified with a simple program yielding more than 50~\% speedup based on heap address alignment alone.
+Fortunately, with an understanding of the underlying mechanisms, measurement bias from address aliasing can often be quite accurately predicted.
+For some applications it might even make sense for programmers to actively take aliasing into account for architecture specific optimization, as neither compilers nor heap allocators seem to handle it well.
 
 
 
@@ -128,21 +129,47 @@ In fact, for some applications it might make sense for programmers to actively t
 
 \subsection{Methodology}
 \iffalse
- - Experimental setup
-  - Intel haswell architecture
-    - Restrict to a single cpu to limit scope
+ - Goal: Produce empirical data showing what causes bias
+ - Two pitfalls:
+  - Observer effect
+  - Measurement bias
  - Hardware performance counters
    - MSR, architecture specific
    - Closest thing to the CPU
    - Use perf-stat
- - Avoid observer effect
  - Best practices for controlled experimental setup
    - No ASLR, what it is
    - No hyperthreading etc.
+ - Experimental setup
+  - Intel haswell architecture
+    - Restrict to a single cpu to limit scope
+ - Control cache metrics
 \fi
+In order to understand bias behavior it is important to be able to do precise measurements.
+Besides measurement bias in itself, one must also consider \emph{observer effect}.
+Any kind of instrumentation added to the code, such as a counter variable for each invocation of a function, has the potential to produce misleading results.
+Instead, we use instrumentation provided directly by the hardware; in the form of performance counters. 
+Modern processors have a set of model specific registers (MSRs) that can be configured to \emph{count} various events, such as cycles executed, branch misses, instructions fetched, and so on.
+Recent Intel architectures have several hundred different available events, which can give a very detailed view of what happens inside the CPU.
 
+Performance counters are supported in the Linux kernel, and via a tool called \texttt{perf}. 
+We use the \texttt{perf-stat} command in all experiments, which accepts raw event codes listed in the reference manual \cite{Intel:2013:Volume3B}.
+A small python script is used to collect an exhaustive set of all available counters, which amounts to about 200 on our architecture.
+Metrics related to cache, such as hit rates for different levels, are closely monitored in order to exclude cache as the underlying cause of bias.
+We attempt to isolate interesting events by computing correlation to cycle count, measuring all counters over a series of execution contexts.
 
+Results are averaged over multiple runs, and all benchmarks are done on a machine under minimal load.
+Our setup consists of an Intel® Core™ i7-4770K CPU @ 3.50 GHz, 32 GiB DDR3 1600 Mhz memory, running a 64-bit installation of Ubuntu 13.10.
+Because bias can be hardware dependent, and to keep the scope of this work manageable, we choose to focus only on the Intel ``Haswell'' microarchitecture specifically.
+Code samples are compiled using the GCC toolchain, version 4.8.1.
 
+We also have to ensure we are not affected by measurement bias beyond what we are actually trying to observe.
+Most importantly, this means keeping the memory address space under control.
+For security reasons, addresses of stack, heap and dynamic libraries are often randomized at load time, a technique known as Address Space Layout Randomization.\cite{Shackham:2004:ASLR} % Should maybe have more generic reference
+By disabling ASLR, we are able to execute the same program multiple times with identical virtual address spaces.
+Bias from environment size is provoked by setting a dummy environment variable to $n$ number of zero characters, starting from a minimal environment. \footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
+
+Finally, we disable Hyper-threading, which reduces the possibility for resource contention in the CPU between threads.
 
 
 
