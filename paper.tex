@@ -60,31 +60,29 @@
 
 
 \section{Introduction}
-\iffalse
-- Measurement bias in systems research
-  - What is measurement bias
-    - fundamentally anything external
-    - Room temperature
-  - Studied before
-    - External properties that affect memory layout
-      - link order (not really)
-      - env size
-  - Has been shown to be significant and commonplace
-    - But difficult to deal with
-    - Need to apply statistical methods to experiments
-      - randomization of experimental setups
-- Want to look at flipside: understand what why bias occurs
-  - Use for optimization
-  - Find interesting cases
-  - Known causes: cache alignment, ignore.
-- Analysis: 
-  - Use known example that exhibit bias
-  - Find lesser known source in address aliasing
-- Results:
-  - Applicable general knowledge about Intel architecture
-  - Useful for optimization
-  - Libraries and compilers fail to account for it in reality.
-\fi
+% - Measurement bias in systems research
+%   - What is measurement bias
+%     - fundamentally anything external
+%     - Room temperature
+%   - Studied before
+%     - External properties that affect memory layout
+%       - link order (not really)
+%       - env size
+%   - Has been shown to be significant and commonplace
+%     - But difficult to deal with
+%     - Need to apply statistical methods to experiments
+%       - randomization of experimental setups
+% - Want to look at flipside: understand what why bias occurs
+%   - Use for optimization
+%   - Find interesting cases
+%   - Known causes: cache alignment, ignore.
+% - Analysis: 
+%   - Use known example that exhibit bias
+%   - Find lesser known source in address aliasing
+% - Results:
+%   - Applicable general knowledge about Intel architecture
+%   - Useful for optimization
+%   - Libraries and compilers fail to account for it in reality.
 
 How fast does an algorithm run?
 Is program A faster than program B on my machine?
@@ -128,35 +126,35 @@ For some applications it might even make sense for programmers to actively take 
 
 
 \subsection{Methodology}
-\iffalse
- - Goal: Produce empirical data showing what causes bias
- - Two pitfalls:
-  - Observer effect
-  - Measurement bias
- - Hardware performance counters
-   - MSR, architecture specific
-   - Closest thing to the CPU
-   - Use perf-stat
- - Best practices for controlled experimental setup
-   - No ASLR, what it is
-   - No hyperthreading etc.
- - Experimental setup
-  - Intel haswell architecture
-    - Restrict to a single cpu to limit scope
- - Control cache metrics
-\fi
+% - Goal: Produce empirical data showing what causes bias
+% - Two pitfalls:
+%  - Observer effect
+%  - Measurement bias
+% - Hardware performance counters
+%   - MSR, architecture specific
+%   - Closest thing to the CPU
+%   - Use perf-stat
+%   - Control cache metrics
+% - Best practices for controlled experimental setup
+%   - No ASLR, what it is
+%   - No hyperthreading, disable frequency scaling.
+% - Experimental setup
+%  - Intel haswell architecture
+%    - Restrict to a single cpu to limit scope
+
 In order to understand bias behavior it is important to be able to do precise measurements.
 Besides measurement bias in itself, one must also consider \emph{observer effect}.
-Any kind of instrumentation added to the code, such as a counter variable for each invocation of a function, has the potential to produce misleading results.
+Any kind of instrumentation added to the code, such as a counter variable for each invocation of a function, has the potential to produce misleading results~\cite{Mytkowicz:2008:OE&MB}.
 Instead, we use instrumentation provided directly by the hardware; in the form of performance counters. 
 Modern processors have a set of model specific registers (MSRs) that can be configured to \emph{count} various events, such as cycles executed, branch misses, instructions fetched, and so on.
 Recent Intel architectures have several hundred different available events, which can give a very detailed view of what happens inside the CPU.
 
-Performance counters are supported in the Linux kernel, and via a tool called \texttt{perf}. 
+Performance counters are supported in the Linux kernel, and via a tool called perf. 
 We use the \texttt{perf-stat} command in all experiments, which accepts raw event codes listed in the reference manual \cite{Intel:2013:Volume3B}.
 A small python script is used to collect an exhaustive set of all available counters, which amounts to about 200 on our architecture.
+Interesting events are isolated by computing correlation to cycle count, measuring all counters over a series of execution contexts.
+Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{Intel:2012:OptimizationManual}.
 Metrics related to cache, such as hit rates for different levels, are closely monitored in order to exclude cache as the underlying cause of bias.
-We attempt to isolate interesting events by computing correlation to cycle count, measuring all counters over a series of execution contexts.
 
 Results are averaged over multiple runs, and all benchmarks are done on a machine under minimal load.
 Our setup consists of an Intel® Core™ i7-4770K CPU @ 3.50 GHz, 32 GiB DDR3 1600 Mhz memory, running a 64-bit installation of Ubuntu 13.10.
@@ -167,8 +165,9 @@ We also have to ensure we are not affected by measurement bias beyond what we ar
 Most importantly, this means keeping the memory address space under control.
 For security reasons, addresses of stack, heap and dynamic libraries are often randomized at load time, a technique known as Address Space Layout Randomization.\cite{Shackham:2004:ASLR} % Should maybe have more generic reference
 By disabling ASLR, we are able to execute the same program multiple times with identical virtual address spaces.
-Bias from environment size is provoked by setting a dummy environment variable to $n$ number of zero characters, starting from a minimal environment. \footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
+Bias from environment size is provoked by setting a dummy environment variable to $n$ number of zero characters, starting from a minimal environment.\footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
 
+Frequency scaling is disabled, keeping the processor's clock speed fixed.
 Finally, we disable Hyper-threading, which reduces the possibility for resource contention in the CPU between threads.
 
 
@@ -236,11 +235,56 @@ Although cache is often a likely explanation of performance variations, bias cau
 Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{Intel:2012:OptimizationManual}.
 \fi
 
+
+
 \section{4K Address Aliasing}
-An event known as “4K aliasing” can occur when the addresses of a store instruction followed by a load instruction differ by a multiple of 4 KiB.
+% Discussed in Optimization manual (pp. 144, 403, 564, 583)
+% - Said to mean many things
+%   - "False store forwarding" -- Only checks last 12 bits. Does it attempt to forward?)
+%   - Loads that have partial address match with preceding stores, causing the load to be reissued. 
+%     Estimate 5 cycle cost
+%   - "False dependencies in MOB due to partial compare on address"
+%   - Very clear separate event in VTune Amplifier documentation online 
+% - Detected by LOAD_BLOCK.OVERLAP_STORE on previous architectures (pp. 599)
+% - Present event code and description
+% Optimization guidelines
+% - Has some cost associated with it
+% - Intel suggests measures for mitigating cost
+%   - Change offsets between input and output buffers
+% Potentially bias inducing
+% - Anything that affects memory layout
+%   - Stack variable offset from env size
+%   - Heap addresses from dynamic allocation libraries
+
+% User/Source Coding Rule 8. (H impact, ML generality) Consider using a special memory allocation
+% library with address offset capability to avoid aliasing. .................................................. 3-55
+% User/Source Coding Rule 9. (M impact, M generality) When padding variable declarations to avoid
+% aliasing, the greatest benefit comes from avoiding aliasing on second-level cache lines, suggesting
+% an offset of 128 bytes or more ................................................................................... 3-55
+
+% There seems to be two separate issues here
+% 1: store-to-load forwarding speculative, then discover that the addresses are not the same. (pp 500)
+% 2: store-load issuing the load first speculatively. WAR conflict in MOB, reissue load. VTune event "4K alias"
+%
+% MOB: "Accepts and processes all memory operations". pp 62
+%      Allows issue load before preceding store, speculatively
+
+
+
+An event known as “4K aliasing” can occur when the addresses of a store instruction followed by a load instruction differ by a multiple of 4 KiB, or in other words; when the last 12 address bits are the same.
+
 On recent Intel architectures, only the last 12 address bits are used to determine if operations refer to the same address \cite{Intel:2012:OptimizationManual}.
 This is a heuristic employed by the CPU to enable out of order execution of memory access operations.
 Independent pairs of loads and stores where the last address bits differ can then be reordered and issued out of order.
+But of course this can only happen if the memory accesses are known to not conflict -- probably determined by MOB as 12 bit address compare.
+If correct, this means that 4K aliasing implies lost opportunity for out-of-order execution.
+It also appears that this mechanism is used to determine if store forwarding should be performed, 4K aliasing implies that store forwarding can be performed.
+In optimization manual states that 4k aliasing causes the load to be reissued, period.
+Again, that has to mean the load was attempted and something went wrong.
+It could read data from a store buffer, when it really should have read from L1. 
+So not really sure this has anything to do with reordering, but rather a failed assumption that the load can read the MOB value from the store. 
+The dependency is later discovered by the MOB to be wrong before retirement, and the load has to be reissued.
+
 Doing only a partial compare, \emph{false} dependencies can be detected when the addresses are equal $\bmod 4096$, as in the following example: 
 \begin{lstlisting}
 store (0x601010)
@@ -282,7 +326,7 @@ Figure \ref{fig:virtualmemory} shows the relative positions of some important se
       \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \stackoffsettable ;
       %\addplot table[x expr = \thisrowno{0}*16, y = r0107:u ] \stackoffsettable ;
       \addlegendentry{cycles:u} ;
-      \addlegendentry{r0107:u} ;
+      %\addlegendentry{r0107:u} ;
     \end{axis}
   \end{tikzpicture}
 \end{figure*}
