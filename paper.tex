@@ -155,26 +155,28 @@ Instead, we use instrumentation provided directly by the hardware; in the form o
 Modern processors have a set of model specific registers (MSRs) that can be configured to \emph{count} various events, such as cycles executed, branch misses, instructions fetched, and so on.
 Recent Intel architectures have several hundred different available events, which can give a very detailed view of what happens inside the CPU.
 
-Performance counters are supported in the Linux kernel, and via a tool called perf. 
-We use the \texttt{perf-stat} command in all experiments, which accepts raw event codes listed in the reference manual \cite{Intel:2013:Volume3B}.
-A small python script is used to collect an exhaustive set of all available counters, which amounts to about 200 on our architecture.
-Interesting events are isolated by computing correlation to cycle count, measuring all counters over a series of execution contexts.
-Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{Intel:2012:OptimizationManual}.
-Metrics related to cache, such as hit rates for different levels, are closely monitored in order to exclude cache as the underlying cause of bias.
+Performance counters are supported in the Linux kernel, and we access them via a tool called \emph{perf}. 
+We use the \texttt{perf-stat} command in all experiments, which accepts raw event codes listed in the Intel reference manual \cite{Intel:2013:Volume3B}.
+A small python script is used to collect an exhaustive set of all available counters, which amounts to about 200 on our architecture. [Might add "and environmental sizes".]
+Interesting events are identified [isolated] by computing correlation to cycle count, measuring all counters over a series of execution contexts.
+[Both lines overlap:]
+Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of [micro-ops] for each level of cache~\cite{Intel:2012:OptimizationManual}.
+[Metrics related to cache, such as hit rates for different levels, are closely monitored in order to exclude cache as the underlying cause of bias.]
 
-Results are averaged over multiple runs, and all benchmarks are done on a machine under minimal load.
+Results are averaged [not median?] over multiple runs, and all benchmarks are done on a machine under minimal load.
 Our setup consists of an Intel® Core™ i7-4770K CPU @ 3.50 GHz, 32 GiB DDR3 1600 MHz memory, running a 64-bit installation of Ubuntu 13.10.
 Because bias can be hardware dependent, and to keep the scope of this work manageable, we choose to focus only on the Intel ``Haswell'' microarchitecture specifically.
-Code samples are compiled using the GCC toolchain, version 4.8.1.
+Code samples are compiled using the GCC toolchain, version 4.8.1 [Perhaps the full name? 4.4.6-11ubuntu2].
 
+[Add a link to a paper that lists good practice?: ] 
 We also have to ensure we are not affected by measurement bias beyond what we are actually trying to observe.
 Most importantly, this means keeping the memory address space under control.
 For security reasons, addresses of stack, heap and dynamic libraries are often randomized at load time, a technique known as Address Space Layout Randomization.\cite{Shackham:2004:ASLR} % Should maybe have more generic reference
-By disabling ASLR, we are able to execute the same program multiple times with identical virtual address spaces.
+By disabling \emph{ASLR}, we are able to execute the same program multiple times with identical virtual address spaces.
 Bias from environment size is provoked by setting a dummy environment variable to $n$ number of zero characters, starting from a minimal environment.\footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
 
-Frequency scaling is disabled, keeping the processor's clock speed fixed.
-Finally, we disable Hyper-threading, which reduces the possibility for resource contention in the CPU between threads.
+\emph{Frequency scaling} is disabled, keeping the processor's clock speed fixed.
+Finally, we disable \emph{Hyper-threading}, which reduces the possibility for resource contention [in the CPU] between threads.
 
 
 
@@ -182,7 +184,7 @@ Finally, we disable Hyper-threading, which reduces the possibility for resource 
 
 \iffalse
 Optimizing for performance is an important topic in computer science, and high performance computing (HPC) in particular. 
-A great amount of research and effort is put into designing better algorithms and compiler optimizations in order to produce an ``optimal'' executable. 
+A great amount of research and effort is put into designing better algorithms and compiler optimizations in order to produce an ``optimal'' executable]. 
 However, performance of computer programs is not just a function of the sequence of machine instructions executed. 
 Various external properties, such as the operating system and user environment, can have have an impact on how fast programs execute. 
 Characteristics of the operating system can affect things like the placement of code and data in memory, which in turn interacts with various hardware mechanisms at run time.
