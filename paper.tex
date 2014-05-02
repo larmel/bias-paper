@@ -171,69 +171,6 @@ Finally, we disable \emph{Hyper-threading}, which reduces the possibility for re
 
 
 
-\iffalse
-Optimizing for performance is an important topic in computer science, and high performance computing (HPC) in particular. 
-A great amount of research and effort is put into designing better algorithms and compiler optimizations in order to produce an ``optimal'' executable]. 
-However, performance of computer programs is not just a function of the sequence of machine instructions executed. 
-Various external properties, such as the operating system and user environment, can have have an impact on how fast programs execute. 
-Characteristics of the operating system can affect things like the placement of code and data in memory, which in turn interacts with various hardware mechanisms at run time.
-Corner cases in hardware introduces potential \emph{performance cliffs}; If for example a memory access happens to cross a page boundary, the cost of an additional TLB miss could be significant. 
-
-Modern microprocessors are extremely complex in design and functionality; Some features of recent Intel processors includes several layers of cache to camouflage slow memory, multiple prefetchers, speculative out-of-order execution and branch prediction, just to name a few.
-Hardware features and optimizations interact with memory layout of program code and data in various ways, and in certain worst cases one can observe a performance degradation.
-
-We will not look at things like cache efficiency, which often can be the reason for bad performance under certain memory contexts. 
-Instead, we look at effects from less known optimizations in the out-of-order execution engine and instructions fetch pipeline. 
-We will unveil characteristics about one specific microarchitectural feature known as 4K aliasing, showing how false dependencies in the out-of-order execution pipeline can bias performance towards certain memory contexts. 
-This effect can be triggered for example by changing stack position, and can explain bias from altering environment variables.
-With more accurate models of how bias occur, we will not only be able to actively avoid in performance, but in some cases also gain a real speedup on average.
-Because bias effects are intrinsically connected to various hardware features, this paper focuses on the 4th generation Intel® Core™ i7 ``Haswell'' architecture specifically. 
-However, the bias sources we present has also been shown to behave similarly on previous Intel architectures as well.
-
-
-\subsection{Background}
-The set of external, and a-priori unknown, conditions under which a program executes is called the \emph{execution context}. 
-Performance variations within contexts lead to programs being biased towards certain configurations. 
-The same program under different contexts can sometimes yield very different results, an effect known as \emph{measurement bias}.
-
-A related concept of \emph{observer effect} also applies to computer systems.
-Any instrumentation or observation probes has the potential to alter the observed behavior.
-
-Previous work has studied parameters such as the size of system environment variables and program link order \cite{Mytkowicz:2008:OE&MB}. 
-Both are found to potentially have a significant effect on performance, even in standardized benchmarks. 
-Environment variables contain various information, such as the name of the currently logged in user, home- and current directory path.
-In the paper appropriately named ``Producing Wrong Data Without Doing Anything Obviously Wrong'' by T. Mytkowicz et al.~\cite{Mytkowicz:2009:WrongData}, the authors show an examples of a program where performance varies significantly by changing merely the size of the environment. 
-This means that the length of your name -- by extension you user login -- could in principle be the tipping point between good and bad performance.
-Unfortunately, the effects appear to be unpredictable, and therefore difficult to deal with. 
-This poses a problem for researchers and performance analysts, who will need to account for effects of measurement bias with more rigorous methodologies and statistical methods.
-
-In previous work, the focus has mostly been on how to mitigate effects of bias, and avoid drawing the wrong conclusions based on misleading measurements~\cite{Mytkowicz:2008:Easy, Mytkowicz:2009:WrongData}.
-The goal of this paper is to show not only that bias exists, but also \emph{why} it occurs. 
-
-
-\subsection{Methodology}
-When studying bias effects, carefully controlling all relevant properties of the environment is crucial. 
-Previous work on measurement bias and observer effect describes a set of best practices for how the measurement infrastructure should be configured \cite{Mytkowicz:2009:WrongData, Mytkowicz:2008:OE&MB}. 
-\begin{itemize}
-  \item Address space layout randomization (ASLR) is disabled.
-  \item Hyper-threading is disabled.
-  \item System load is kept at a minimum.
-  \item Automatic CPU frequency scaling is disabled.
-\end{itemize}
-Experimental hardware configuration consists of an Intel® Core™ i7-4770K @ 3.50 GHz, 32 GiB DDR3 memory running at 1600 MHz, on a 64-bit installation of Ubuntu 13.10. GCC version 4.8.1 is used as compiler toolchain.
-
-We use perf to acquire hardware performance counter statistics.
-Measurements are aggregated over several runs to collect an extensive sample of about 200 performance counters and combinations provided on our architecture~\cite{Intel:2013:Volume3B}. 
-Unless otherwise specified, a minimal environment is used for all benchmarks. 
-To measure statistics with n bytes added to the environment, a dummy variable is set to \(0^{n}\) (repeated zero characters n times).\footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
-
-Cache conflicts can in many cases be a potential explanation for bias effects observed by changing memory layout.
-Although cache is often a likely explanation of performance variations, bias caused by cache issues is well understood and \emph{not} the focus of this paper.
-Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{Intel:2012:OptimizationManual}.
-\fi
-
-
-
 \section{4K Address Aliasing}
 % Discussed in Optimization manual (pp. 144, 403, 564, 583)
 % - Said to mean many things
