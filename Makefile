@@ -21,6 +21,13 @@ clean:
 bin:
 	mkdir -p bin
 
+# Print information about current platform, including version of various
+# software
+about:
+	uname -srvpi
+	gcc --version
+
+
 plotfiles = bin/convolution.dat bin/stack-offset.dat
 
 # Build in root to avoid trouble with pgfplots and output directories.
