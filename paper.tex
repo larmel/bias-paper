@@ -102,7 +102,7 @@ Consequentially, any environmental factor that can alter memory layout has a pot
 Failing to account for these effects lead to \emph{measurement bias}. 
 
 % This is basically former background section
-Measurement bias has been shown to be commonplace and significant in real applications \cite{Mytkowicz:2008:OE&MB, Mytkowicz:2009:WrongData, Mytkowicz:2008:Easy}.
+Measurement bias has been shown to be commonplace and significant in real applications~\cite{Mytkowicz:2008:OE&MB, Mytkowicz:2009:WrongData, Mytkowicz:2008:Easy}.
 Previous work looks at environmental factors such as the size of Unix environment variables, which affects memory by offsetting the initial position of stack.
 Because of the complexity of modern hardware, it is often impossible to predict exactly how seemingly innocuous things such as environment variables ultimately affect program execution.
 While effects of bias has been shown to be commonplace and significant, they are unpredictable and difficult to deal with.
@@ -158,15 +158,15 @@ Interesting events are identified by computing linear correlation to cycle count
 Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{Intel:2012:OptimizationManual}.
 Results are averaged over multiple runs to reduce potential random error, supplying the \texttt{-r} option to perf-stat. % Not median, good question. man perf-stat says average + std.dev. 
 
-Our setup consists of an Intel\textregistered{} Core\texttrademark{} i7-4770K CPU @ 3.50 GHz, running 64-bit Ubuntu 13.10.
-Because bias can be hardware dependent, and to keep the scope of this work manageable, we choose to focus only on this processor and the Intel ``Haswell'' microarchitecture specifically.
+Because bias can be hardware dependent, and to keep the scope of this work manageable, we choose to focus on the Intel ``Haswell'' microarchitecture specifically.
+Our setup consists of a 4th generation Intel\textsuperscript{\textregistered} Core\textsuperscript{\texttrademark} i7-4770K processor, running 64-bit Ubuntu 13.10.
 Code samples are compiled using the GCC toolchain, version 4.8.1-10ubuntu9.
 
-We also have to ensure we are not affected by measurement bias beyond what we are actually trying to observe, and in general follow best practices on gathering data \cite{Mytkowicz:2009:WrongData}.
+We also have to ensure we are not affected by measurement bias beyond what we are actually trying to observe, and in general follow best practices on gathering data~\cite{Mytkowicz:2009:WrongData}.
 Most importantly, this means keeping the memory address space under control.
-For security reasons, addresses of stack, heap and dynamic libraries are often randomized at load time, a technique known as Address Space Layout Randomization.\cite{Shackham:2004:ASLR} % Should maybe have more generic reference
-By disabling \emph{ASLR}, we are able to execute the same program multiple times with identical virtual address spaces.
-All benchmarks are done on a machine under minimal load, and \emph{Frequency scaling} is disabled to keep the processor's clock speed fixed.
+For security reasons, addresses of stack, heap and dynamic libraries are often randomized at load time, a technique known as \emph{Address Space Layout Randomization}~\cite{Shackham:2004:ASLR}. % Should maybe have more generic reference
+By disabling ASLR, we are able to execute the same program multiple times with identical virtual address spaces.
+All benchmarks are done on a machine under minimal load, and \emph{frequency scaling} is disabled to keep the CPU's clock speed fixed.
 Finally, we disable \emph{Hyper-threading}, which reduces the possibility for resource contention between threads.
 
 
