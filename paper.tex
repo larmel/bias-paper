@@ -45,7 +45,7 @@
     The magnitude of this performance bias has been shown to be significant, and can be as high as a factor two.
     
 
-    We analyse a small program that was presented as a curiosity in previous work on \emph{measurement bias};
+    We analyze a small program that was presented as a curiosity in previous work on \emph{measurement bias};
     Code that for unexplained reasons performs significantly worse than average for certain configurations of system environment variables.
 
     Using hardware performance counters, we identify a strong correlation with resource stalls, ultimately caused by address aliasing events.
@@ -89,7 +89,7 @@
 %   - Libraries and compilers fail to account for it in reality.
 
 How fast does an algorithm run?
-Is program A faster than program B on my machine?
+Is program A faster than program B on \emph{my} machine?
 These types of questions are, perhaps surprisingly, not always trivial to answer.
 The usual approach to quantify performance is to simply measure some metric, such as the wall time or number of cycles executed.
 However, performance is not just a function of the collection of instructions in an executable, but also dependent on various \emph{external} factors.
@@ -104,24 +104,26 @@ Memory accesses interacts with low level hardware buffers, which can heavily fav
 Consequentially, any environmental factor that can alter memory layout has a potential performance impact.
 Failing to account for these effects lead to \emph{measurement bias}. 
 
-Measurement bias has been shown to be commonplace and significant in real applications.
-Previous work looks at environmental factors such as the size of Unix environment variables, which affects memory by offseting the initial position of stack.
-Because of the enormous complexety of modern hardware, it is often impossible to predict exactly how seemingly innocious things such as environment variables ultimately affect program execution.
-In fact, the best one can do to accurately assess performance is generally to average over a large sample set of execution contexts. \cite{Mytkowicz:2008:OE&MB, Mytkowicz:2009:WrongData, Mytkowicz:2008:Easy}
+Measurement bias has been shown to be commonplace and significant in real applications [move cite here?].
+Previous work looks at environmental factors such as the size of Unix environment variables, which affects memory by offsetting the initial position of stack.
+Because of the [enormous] complexity of modern hardware, it is often impossible to predict exactly how seemingly innocuous things such as environment variables ultimately affect program execution.
+[In fact], the best one can do to accurately assess performance is generally to average over a large sample set of execution contexts [not selling our case here]. \cite{Mytkowicz:2008:OE&MB, Mytkowicz:2009:WrongData, Mytkowicz:2008:Easy}
 
-Effects of bias has been shown to be commonplace and significant, yet unpredictable and difficult to deal with.
+Effects of bias has been shown to be commonplace and significant, yet unpredictable and difficult to deal with [cite/ref].
 Previous work focuses mostly of how to account for bias by proper sampling, using randomization of execution contexts and statistical methods.
 Our approach is instead to try to understand some of the underlying reasons to why bias can occur.
 Usually, the root explanation will be that different memory layouts interact with various hardware buffers.
 Certain mechanisms such as cache contention or branch misprediction are already well understood.
-In this paper, we show how a much lesser known, presumably Intel specific, optimization on the out-of-order execution pipeline can be the cause of measurement bias.
+[We collect 200+ events using HW counters, and search for correlations.]
+[In this paper,] we show how a much lesser known, presumably Intel specific, optimization on the out-of-order execution pipeline can [be the] cause of measurement bias.
 Analyzing a program that exhibits strong bias from environment size, we find a correlation with resource stalls from \emph{address aliasing}.
-In short, the CPU uses a conservative heuristic for determining whether memory accesses can be retired out of order, comparing only the last 12 virtual address bits.
+In short, the CPU uses a [conservative] heuristic for determining whether memory accesses can be retired out of order, comparing only the last 12 virtual address bits.
 False dependencies incur performance penalties, which can explain many common cases of measurement bias.
 
-In addition to environment variables, we look at dynamic heap allocation libraries as an external bias trigger.
-Heap allocation turns out to be particularly interesting for the following reason: most libraries tend to produce worst case behavior by default with respect to aliasing.
+In addition to environment variables, we look at dynamic heap allocation libraries as an external bias trigger [amplifier?].
+We find that [Heap allocation turns out to be particularly interesting for the following reason:] most libraries tend to produce worst case behavior by default with respect to aliasing.
 We show that the cost of address aliasing can be significant, exemplified with a simple program yielding more than 50~\% speedup based on heap address alignment alone.
+[This next part might be added to the abstract in some form:] 
 Fortunately, with an understanding of the underlying mechanisms, measurement bias from address aliasing can often be quite accurately predicted.
 For some applications it might even make sense for programmers to actively take aliasing into account for architecture specific optimization, as neither compilers nor heap allocators seem to handle it well.
 
@@ -161,7 +163,7 @@ Cache related metrics are monitored in order to rule out cache as the underlying
 Metrics related to cache, such as hit rates for different levels, are closely monitored in order to exclude cache as the underlying cause of bias.
 
 Results are averaged over multiple runs, and all benchmarks are done on a machine under minimal load.
-Our setup consists of an Intel® Core™ i7-4770K CPU @ 3.50 GHz, 32 GiB DDR3 1600 Mhz memory, running a 64-bit installation of Ubuntu 13.10.
+Our setup consists of an Intel® Core™ i7-4770K CPU @ 3.50 GHz, 32 GiB DDR3 1600 MHz memory, running a 64-bit installation of Ubuntu 13.10.
 Because bias can be hardware dependent, and to keep the scope of this work manageable, we choose to focus only on the Intel ``Haswell'' microarchitecture specifically.
 Code samples are compiled using the GCC toolchain, version 4.8.1.
 
@@ -230,7 +232,7 @@ Previous work on measurement bias and observer effect describes a set of best pr
 Experimental hardware configuration consists of an Intel® Core™ i7-4770K @ 3.50 GHz, 32 GiB DDR3 memory running at 1600 MHz, on a 64-bit installation of Ubuntu 13.10. GCC version 4.8.1 is used as compiler toolchain.
 
 We use perf to acquire hardware performance counter statistics.
-Measurements are aggregated over several runs to collect an extensice sample of about 200 performance counters and combinations provided on our architecture~\cite{Intel:2013:Volume3B}. 
+Measurements are aggregated over several runs to collect an extensive sample of about 200 performance counters and combinations provided on our architecture~\cite{Intel:2013:Volume3B}. 
 Unless otherwise specified, a minimal environment is used for all benchmarks. 
 To measure statistics with n bytes added to the environment, a dummy variable is set to \(0^{n}\) (repeated zero characters n times).\footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
 
@@ -592,7 +594,7 @@ In addition to glibc's ptmalloc, we look at the following alternatives.
   \end{tabular}
 \end{table}
 
-Table \ref{tab:mallocompare} illustrates some differences that can be observed by swithing heap allocator. \footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}
+Table \ref{tab:mallocompare} illustrates some differences that can be observed by switching heap allocator. \footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}
 The addresses of two equally sized char buffers allocated with malloc are observed for size parameters 5120 and $2^{20}$ bytes. 
 We do not care about performance, only the actual memory addresses returned and whether they alias or not.
 
@@ -639,8 +641,7 @@ In addition, we disable hardware prefetching in BIOS to further minimize cache i
 Note however that the same conclusions can be drawn independently of these measures.
 
 \subsection{Aliasing in cblas\_daxpy}
-Found aliasing here as well. Two spikes, not sure why. Might want to test other BLAS libraries. Include or leave out? Too much handwaving and too little analysis maybe.
-
+Found aliasing here as well. Two spikes, not sure why. Might want to test other BLAS libraries. Include or leave out? Too much handwaving and too little analysis maybe. Depends on the target paper length as well?
 
 
 
