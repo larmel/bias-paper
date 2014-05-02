@@ -39,7 +39,11 @@
     \begin{abstract} % Should be 150 -- 200 words max
     % Motivation -- Problem statement -- Approach -- Results -- Conclusions
 
-    In this paper we show how an optimization in the out-of-order execution engine on modern Intel microarchtectures can affect performance depending on run-time memory layout. 
+	% Bad motivation start:
+    % In this paper we show how an optimization in the out-of-order execution engine on modern Intel microarchtectures can affect performance depending on run-time memory layout. 
+    In this paper we identify the underlying mechanics resulting in measurement bias on modern Intel microarchtectures. 
+    The magnitude of this performance bias has been shown to be significant, and can be as high as a factor two.
+    
 
     We analyse a small program that was presented as a curiosity in previous work on \emph{measurement bias};
     Code that for unexplained reasons performs significantly worse than average for certain configurations of system environment variables.
