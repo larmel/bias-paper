@@ -1,7 +1,5 @@
 # This is the output of compiling loop.c with no optimization, with the addition
 # of a small routine for printing the addresses of automatic variables g and inc.
-# Use this to cross-check with conclusion from analyzing with gdb. Hopefully not
-# even needed, gdb results are much cleaner. 
 
 	.file	"loop.c"
 	#.local	h
@@ -61,7 +59,7 @@ main:
 
 	# Writes contents of rax in human readable format. Placing code here does not 
 	# affect the location of static variables i, j, k, and does not introduce any
-	# observer effects either. Aliasing occurs at precisely the same environemtn
+	# observer effects. Aliasing occurs at precisely the same environment
 	# offsets from this program compared to the untampered one. 
 	# Credits to:
 	# http://stackoverflow.com/questions/10105871/why-cant-i-sys-write-from-a-register

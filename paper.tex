@@ -13,6 +13,7 @@
 \usepackage{mathtools}
 \usepackage{underscore}
 \usepackage{url}
+\usepackage{numprint}
 
 \usetikzlibrary{patterns,shapes,positioning,calc}
 
@@ -28,7 +29,7 @@
 
 % Pretty printing of performance counter names
 \newcommand{\perfctr}[1] {
-  \small{\uppercase{#1}}
+  \scriptsize{\uppercase{#1}}
 }
 
 \begin{document}
@@ -123,6 +124,21 @@ The cost of address aliasing can be significant, exemplified with a simple progr
 % [This next part might be added to the abstract in some form:] 
 Fortunately, with an understanding of the underlying mechanisms, measurement bias from address aliasing can often be quite accurately predicted.
 For some applications it might even make sense for programmers to actively take aliasing into account for architecture specific optimization, as neither compilers nor heap allocators seem to handle it well.
+
+% Include preview of aliasing program early to provike interest. 
+% Also lightly referenced in introduction/background
+\begin{lstlisting}[float=t, language=C, caption={Micro-kernel succeptible to aliasing between static and automatic variables depending on environment sizes}, label={lst:loopkernel}, frame=lines]
+static int i, j, k;
+int main() {
+    int g = 0, inc = 1;
+    for (; g < 65536; g++) {
+        i += inc;
+        j += inc;
+        k += inc; 
+    }
+    return 0;
+}
+\end{lstlisting}
 
 
 
@@ -244,7 +260,7 @@ If the load and store locations are the same, the value can be \emph{forwarded} 
 
 While optimizations such as these are good on the average case, there are corner cases. 
 In particular, an event known as ``4K aliasing'' can occur when the memory addresses of a store followed by a load differ by a multiple of 4096.
-A store to address 0x601020 followed by a load to address 0x821020 is an aliasing pair, because the 12 bit address suffix 0x020 is the same in both. 
+A store to address 0x601020 followed by a load to address 0x821020 is an aliasing pair, because the 12 bit address suffix of 0x020 is the same in both. 
 Dispite being independent, in these cases the memory order subsystem generates \emph{false} dependencies, and causing the load to be reissued.
 The number of times this happens can be counted by the following performance counter:
 \begin{description}
@@ -258,44 +274,42 @@ In the following sections, we show how performance penalties from address aliasi
 
 
 \section{Bias from Environment Size}
-Unless the program explicitly accesses environment variables, it is typically not the environment variables themselves that are important, but rather the effect their total size has on the alignment of stack. 
+% General intro on why environment triggers aliasing
+% - Image of memory organization, this can be generic.
+%   - Each area affected by randomization differently
+% - Default 16 bit stack alignment guarantee.
+% Analysis section
+% - Present data on correlation
+% - Plot graph of 2 x 4K areas. 
+% - Addresses of static variables from symbol table
+% - Addresses of automatic variables from asm output
+% - Outline different scenarios that can happen for aliasing with 1 or 2 variables
+% - Conclusion: was bias from false dependencies
+% Avoid aliasing for env size
+% - Show altered program
+% - Proof of concept, in theory possible for compilers to generate such code.
+
+Unless the program explicitly accesses environment variables, it is not the environment variables themselves that are important, but rather the effect their total size has on the alignment of stack.
+Environment variables and program arguments are allocated in the stack section of virtual memory, before the first call frame.
+Changing environment variables will therefore offset the addresses of stack, and consequently all stack allocated variables.
+
+% Generic intro to memory layout (with focus on stack/env interaction)
 Figure \ref{fig:virtualmemory} shows the relative positions of some important sections of memory at run time, assuming a 64 bit process mapped to virtual memory. 
-
-\pgfplotstableread{bin/stack-offset.dat}{\stackoffsettable}
-\begin{figure*}[t]
-  \caption{Bias from environment size for program in Listing~\ref{lst:loopkernel}. Measure of average 100 cycle counts for 512 different environments, spread over two 4K periods. Compiled with no optimization.}
-  \label{fig:envbias}
-  \begin{tikzpicture}
-    \begin{axis}[
-        width = \textwidth,
-        height = 6cm,
-        font = \small,
-        xlabel=Bytes added to environment,
-        domain = 0:8192,
-        xtick = {0,1024,...,8192},
-        xmin = 0,
-        xmax = 8192,
-        legend pos = outer north east,
-        cycle list name = exotic
-      ]
-      %\draw [<->, line width=0.8, color=red] (axis cs:0,8e5) -- (axis cs:4096,8e5) ;
-      \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \stackoffsettable ;
-      %\addplot table[x expr = \thisrowno{0}*16, y = r0107:u ] \stackoffsettable ;
-      \addlegendentry{cycles:u} ;
-      %\addlegendentry{r0107:u} ;
-    \end{axis}
-  \end{tikzpicture}
-\end{figure*}
-
-The stack is normally placed close to the upper address 0x7fff'ffffffff.\footnote{Modern processors do not actually use the full 64 bit space, only the low order 47 bits are used for addressing memory}
-Environment variables and program arguments are allocated in the stack section, before the first call frame.
-Changing environment variables will therefore offset the addresses of all stack allocated data.
+The stack is normally placed close to the upper address 0x7fff'ffffffff\footnote{Modern processors do not actually use the full 64 bit space, only the low order 47 bits are used for addressing memory}, but offset by environment variables.
 There is still some level of stack alignment happening, independent of environment offsets. 
-The compiler can enforce alignment to some number of zero bits.
-As long as this number is less than 12, environment size can impact addresses of automatic variables $\bmod 4096$.
+Normally, the stack is aligned to 16 bytes, which will be enforced by the compiler. % [ref]
+Within a span of 4096 bytes there are thus 256 possible initial addresses, each representing a different execution context.
+Any one of these contexts could trigger aliasing issues between stack and some other area of memory remaining unaffected by environment size.
+This includes dynamic memory allocateded on heap, memory mapped files, as well as statically allocated data. 
 
-\begin{figure}[float=h]
-  \caption{Important sections of virtual memory on a 64 bit process}
+Note that there is no clear relationship between environment size and stack location with address randomization enabled.
+However, there will still be as many execution contexts with respect to aliasing (considering stack only), making any occurences of measurement bias indeed random.
+% In addition to affecting stack, ASLR also randomizes location of dynamically linked files (memory mapped), and initial position of heap.
+% Moving to the lower end of the address space, we find the text, data and bss sections, which contains program code and statically allocated data.
+% The memory addresses of these sections are at compile time by the linker, and can be determined by inspecting the executable.
+
+\begin{figure}[float=t]
+  \caption{Organization of virtual memory for a 64 bit process.}
   \label{fig:virtualmemory}
   \begin{tikzpicture}[font=\footnotesize]
 
@@ -335,48 +349,91 @@ As long as this number is less than 12, environment size can impact addresses of
   \end{tikzpicture}
 \end{figure}
 
-Text and data sections contain program code and static data respectively.
-These regions are mapped towards the low en of the address spectrum, and the virtual addresses of variables allocated here will not change with environment size. 
+\subsection{Analysis of micro-kernel}
+To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!'' by T. Mytkowicz et. al.~\cite{Mytkowicz:2009:WrongData}, reproduced here in Listing~\ref{lst:loopkernel}. 
+This example is interesting for several reasons; the bias effects are significant and easily reproducible, while the example code is simple and straight forward to analyze.
+Still, no satisfactory explanation as to what actually causes bias was given in the original paper.
 
-Note that the initial position of stack will not depend on environment size this way when address randomization (ASLR) is enabled. (TODO: Does it offset from page boundary? That would be good, same alias behavior :)
+% Large plot of cycle count for two 4K stack sections.
+\pgfplotstableread{bin/stack-offset.dat}{\stackoffsettable}
+\begin{figure*}[t]
+  \caption{Bias from environment size for micro-kernel in Listing~\ref{lst:loopkernel}. Measured average of 100 cycle count samples for 512 different environments. Spikes show aliasing case, occurring once for each 4K period}
+  \label{fig:envbias}
+  \begin{tikzpicture}
+    \begin{axis}[
+        width = \textwidth,
+        height = 6cm,
+        font = \small,
+        xlabel=Bytes added to environment,
+        ylabel=Cycles,
+        domain = 0:8192,
+        xtick = {0,1024,...,8192},
+        xmin = 0,
+        xmax = 8192,
+        %legend pos = outer north east,
+        cycle list name = exotic
+      ]
+      %\draw [<->, line width=0.8, color=red] (axis cs:0,8e5) -- (axis cs:4096,8e5) ;
+      \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \stackoffsettable ;
+      %\addplot table[x expr = \thisrowno{0}*16, y = r0107:u ] \stackoffsettable ;
+      %\addlegendentry{cycles:u} ;
+      %\addlegendentry{r0107:u} ;
 
-Addresses of stack allocated variables can vary depending on environment size, while other segments of memory such as text and data remain constant over all environments.
+      % Could annotate area with correlation analysis, (spike - 50*16), + 100*16
+      % This is not correct atm, uses 100 samples with byte increment. 
+      %\draw [|<->|, gray] (axis cs:2392,720000)--(axis cs:3992,720000) node[right] {Analysis};
 
-To illustrate how this can cause bias, we revisit the example first presented in~\cite{Mytkowicz:2009:WrongData}, shown in Listing~\ref{lst:loopkernel}. 
-This example is interesting for several reasons. 
-The bias effects are significant and easily reproducible, while the example code is simple and easy to analyze.
-Still, no satisfactory explanation as to what causes bias was given in the original paper.
+    \end{axis}
+  \end{tikzpicture}
+\end{figure*}
 
-\begin{lstlisting}[float=h, language=C, caption={Microkernel succeptible to aliasing between static variables and automatic variables for certain environment sizes}, label={lst:loopkernel}, frame=lines]
-static int i, j, k;
-int main() {
-    int g = 0, inc = 1;
-    for (; g < 65536; g++) {
-        i += inc;
-        j += inc;
-        k += inc; 
-    }
-    return 0;
-}
-\end{lstlisting}
-
-Their program contains five variables, two of which are stack allocated and i, j and k that are statically allocated.
 Performance counter measurements of cycle counts are shown for 512 different environment sizes in Figure~\ref{fig:envbias}.
-Sampling is done for every 16 byte increment of environment size, covering two 4K periods of addresses.
+We measure every 16 byte increment of environment size, covering two 4K periods of initial stack addresses.
 A finer sampling is not necessary, because the stack is by default aligned to 16 byte.
-The program is compiled with GCC using no optimization.
-Any optimization would likely disregard most of the function as redundant code, and reduce it to return zero immediately.
+The program is compiled with \small{GCC} using no optimization, as any optimization would likely disregard most of the function as redundant code, reducing it to return zero immediately.
 
-There are clearly two worst cases, indicated by significant spikes around the 3100 and 7100 byte offsets.
-We analyzed these cases by sampling an extensive set of performance counters and correlating them with cycle counts.
+There are clearly two worst cases, indicated by significant spikes at the 3192 and 7288 byte offsets.
+We sampled an extensive set of performance counters around the first spike, incrementing environment size by 1 instead of 16 to capture the aliasing case multiple times.
+A total of 100 environment offsets were measured, ranging from 3142 to 3242 bytes added.
+Events with the highest (absolute value) correlation to cycle count is listed in Table \ref{tab:loopcorrelation}, values close to $1$ or $-1$ indicate strong correlation.
+
+% This table is a bit dubius, are correlation values really that interesting?
+\begin{table}[h]
+  \caption{Events with significant correlation to cycle count.}
+  \label{tab:loopcorrelation}
+  \npdecimalsign{.}
+  \nprounddigits{3}
+  \centering
+  \scriptsize
+  \begin{tabular}{|l|n{2}{3}|}
+    \toprule
+      LD_BLOCKS_PARTIAL.ADDRESS_ALIAS & 0.998961259046 \\ \midrule
+      CYCLE_ACTIVITY.CYCLES_LDM_PENDING & 0.998618840476 \\ \midrule
+      RESOURCE_STALLS.ANY & 0.998582438059 \\ \midrule
+      CPL_CYCLES.RING123 & 0.997305209986 \\ \midrule
+      UOPS_EXECUTED_PORT.PORT_2 & 0.995814514248 \\ \midrule
+      CYCLE_ACTIVITY.STALLS_L2_PENDING & 0.841261809569 \\ \midrule
+      UOPS_EXECUTED_PORT.PORT_3 & -0.9780404694 \\ \midrule
+      UOPS_EXECUTED_PORT.PORT_7 & -0.991034639943 \\ \midrule
+      UOPS_EXECUTED_PORT.PORT_4 & -0.995703596298 \\ \midrule
+      UOPS_EXECUTED_PORT.PORT_6 & -0.998681490923 \\ \midrule
+      UOPS_EXECUTED_PORT.PORT_0 & -0.998757079731 \\ \midrule
+      UOPS_EXECUTED_PORT.PORT_1 & -0.99886851364 \\ \midrule
+      UOPS_EXECUTED_PORT.PORT_5 & -0.998956858377 \\ \midrule
+      RESOURCE_STALLS.RS & -0.998963674679 \\
+    \bottomrule
+  \end{tabular}
+  \npnoround
+\end{table}
+
+% Todo: continue here
 The results show a high number of resource stalls when the spikes occur, indicated by high values for performance counters \small{RESOURCE\_STALLS.ANY}, \small{CYCLE\_ACTIVITY.CYCLES\_LDM\_PENDING}, \small{CYCLE\_ACTIVITY.CYCLE\_NO\_EXECUTE} and \small{RESOURCE\_STALLS.RS}.
 We also find that \small{LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS} correlates almost perfectly with cycle count, which can explain the high number of resource stalls with false dependency from aliasing.
 
-\subsection{Finding Collisions}
 To be able to explain what is happening in this case we need to know the addresses of all variables at run time.
+The program contains five variables, two of which are stack allocated, and \texttt{i}, \texttt{j} and \texttt{k} that are statically allocated.
 For statically allocated data, memory allocation is decided at compile time.
-The location of variables i, j and k can be found by looking at the symbol table in the ELF executable.
-Below is an excerpt of \lstinline$readelf -s$.
+We can find the location of variables i, j and k by looking at the symbol table in the ELF executable, below is an excerpt of \lstinline$readelf -s$.
 \begin{lstlisting}[float=h, basicstyle=\small]
 37: 000000000060103c    4  (...)  25 i
 38: 0000000000601040    4  (...)  25 j
