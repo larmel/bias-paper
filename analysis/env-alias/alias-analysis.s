@@ -57,10 +57,10 @@ main:
 	ret
 	.cfi_endproc
 
-	# Writes contents of rax in human readable format. Placing code here does not 
-	# affect the location of static variables i, j, k, and does not introduce any
-	# observer effects. Aliasing occurs at precisely the same environment
-	# offsets from this program compared to the untampered one. 
+	# Writes contents of rax in human readable format. The additional code is not 
+	# enough to affect the location of static variables i, j, k, and does not 
+	# introduce any observer effects. Aliasing occurs at precisely the same 
+	# environment offsets from this program compared to the untampered one. 
 	# Credits to:
 	# http://stackoverflow.com/questions/10105871/why-cant-i-sys-write-from-a-register
 write_address:

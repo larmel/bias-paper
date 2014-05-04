@@ -13,7 +13,6 @@
 \usepackage{mathtools}
 \usepackage{underscore}
 \usepackage{url}
-\usepackage{numprint}
 
 \usetikzlibrary{patterns,shapes,positioning,calc}
 
@@ -29,7 +28,7 @@
 
 % Pretty printing of performance counter names
 \newcommand{\perfctr}[1] {
-  \scriptsize{\uppercase{#1}}
+  {\lowercase{#1}}
 }
 
 \begin{document}
@@ -390,82 +389,126 @@ Still, no satisfactory explanation as to what actually causes bias was given in 
 Performance counter measurements of cycle counts are shown for 512 different environment sizes in Figure~\ref{fig:envbias}.
 We measure every 16 byte increment of environment size, covering two 4K periods of initial stack addresses.
 A finer sampling is not necessary, because the stack is by default aligned to 16 byte.
-The program is compiled with \small{GCC} using no optimization, as any optimization would likely disregard most of the function as redundant code, reducing it to return zero immediately.
+The program is compiled with {\small{GCC}} using no optimization, as any optimization would likely disregard most of the function as redundant code, reducing it to return zero immediately.
 
 There are clearly two worst cases, indicated by significant spikes at the 3192 and 7288 byte offsets.
 We sampled an extensive set of performance counters around the first spike, incrementing environment size by 1 instead of 16 to capture the aliasing case multiple times.
 A total of 100 environment offsets were measured, ranging from 3142 to 3242 bytes added.
-Events with the highest (absolute value) correlation to cycle count is listed in Table \ref{tab:loopcorrelation}, values close to $1$ or $-1$ indicate strong correlation.
+From this we extracted counters with clear correlation to cycle count.
+Table \ref{tab:loopcorrelation} shows numerical counter values for the average case of 3176 bytes added to the environment, compared to worst case of 3192 bytes.
+% Events with the highest (absolute value) correlation to cycle count is listed in Table \ref{tab:loopcorrelation}, values close to $1$ or $-1$ indicate strong correlation.
 
-% This table is a bit dubius, are correlation values really that interesting?
 \begin{table}[h]
   \caption{Events with significant correlation to cycle count.}
   \label{tab:loopcorrelation}
-  \npdecimalsign{.}
-  \nprounddigits{3}
   \centering
-  \scriptsize
-  \begin{tabular}{|l|n{2}{3}|}
+  \small
+  \newcolumntype{H}{>{\lrbox0}c<{\endlrbox}@{}}
+  \renewcommand{\tabcolsep}{2pt}
+  \begin{tabular}{lHrr}
     \toprule
-      LD_BLOCKS_PARTIAL.ADDRESS_ALIAS & 0.998961259046 \\ \midrule
-      CYCLE_ACTIVITY.CYCLES_LDM_PENDING & 0.998618840476 \\ \midrule
-      RESOURCE_STALLS.ANY & 0.998582438059 \\ \midrule
-      CPL_CYCLES.RING123 & 0.997305209986 \\ \midrule
-      UOPS_EXECUTED_PORT.PORT_2 & 0.995814514248 \\ \midrule
-      CYCLE_ACTIVITY.STALLS_L2_PENDING & 0.841261809569 \\ \midrule
-      UOPS_EXECUTED_PORT.PORT_3 & -0.9780404694 \\ \midrule
-      UOPS_EXECUTED_PORT.PORT_7 & -0.991034639943 \\ \midrule
-      UOPS_EXECUTED_PORT.PORT_4 & -0.995703596298 \\ \midrule
-      UOPS_EXECUTED_PORT.PORT_6 & -0.998681490923 \\ \midrule
-      UOPS_EXECUTED_PORT.PORT_0 & -0.998757079731 \\ \midrule
-      UOPS_EXECUTED_PORT.PORT_1 & -0.99886851364 \\ \midrule
-      UOPS_EXECUTED_PORT.PORT_5 & -0.998956858377 \\ \midrule
-      RESOURCE_STALLS.RS & -0.998963674679 \\
+       &  & 3176 & 3192 \\
+    \midrule
+      \perfctr{CPU_CLK_UNHALTED.THREAD_P} & cycles:u & 698,101 & 829,103 \\
+      \perfctr{CPU_CLK_THREAD_UNHALTED.REF_XCLK} & bus-cycles:u & 19,698 & 23,632 \\ 
+      \perfctr{LD_BLOCKS_PARTIAL.ADDRESS_ALIAS} & r0107:u & \bf{121} & \bf{327,908} \\ 
+      \perfctr{CYCLE_ACTIVITY.CYCLES_LDM_PENDING} & r02a3:u & 1,183,945 & 1,449,964 \\ 
+      \perfctr{RESOURCE_STALLS.ANY} & r01a2:u & 276,648 & 408,071 \\ 
+      \perfctr{CPL_CYCLES.RING123} & r025c:u & 690,895 & 832,806 \\ 
+      \perfctr{UOPS_EXECUTED_PORT.PORT_2} & r04a1:u & 336,035 & 345,766 \\ 
+      \perfctr{CYCLE_ACTIVITY.STALLS_L2_PENDING} & r05a3:u & 492,163 & 512,649 \\ 
+      %L2_RQSTS.RFO_MISS & r2224:u & 123 & 127 \\ 
+      %OFFCORE_REQUESTS.DEMAND_RFO & r04b0:u & 129 & 130 \\
+      %L2_RQSTS.ALL_RFO & re224:u & 245 & 245 \\ 
+      %OFFCORE_REQUESTS_OUTSTANDING.DEMAND_RFO & r0460:u & 120154 & 1067959 \\ % Completely random numbers
+      %L2_TRANS.RFO & r02f0:u & 249 & 250 \\ 
+      %DTLB_STORE_MISSES.STLB_HIT_4K & r2049:u & 294 & 294 \\ 
+      %L2_TRANS.L2_WB & r40f0:u & 402 & 395 \\ 
+
+      %L2_RQSTS.ALL_DEMAND_DATA_RD & re124:u & 1097 & 1091 \\ 
+      %MEM_LOAD_UOPS_RETIRED.L2_MISS & r10d1:u & 565 & 562 \\ 
+      %L2_RQSTS.RFO_HIT & r4224:u & 69 & 67 \\ 
+      %LSD.UOPS & r01a8:u & 1059131 & 1058564 \\ 
+
+      % Less extreme, but all ports change
+      \perfctr{UOPS_EXECUTED_PORT.PORT_3} & r08a1:u & 358,324 & 355,080 \\ 
+      \perfctr{UOPS_EXECUTED_PORT.PORT_7} & r80a1:u & 137,862 & 131,882 \\ 
+      \perfctr{UOPS_EXECUTED_PORT.PORT_4} & r10a1:u & 280,908 & 276,586 \\ 
+
+      \perfctr{UOPS_EXECUTED_PORT.PORT_6} & r40a1:u & 234,672 & 180,675 \\ 
+      \perfctr{UOPS_EXECUTED_PORT.PORT_0} & r01a1:u & 239,356 & 106,916 \\ 
+      \perfctr{UOPS_EXECUTED_PORT.PORT_1} & r02a1:u & 247,572 & 99,270 \\ 
+      \perfctr{UOPS_EXECUTED_PORT.PORT_5} & r20a1:u & 250,450 & 122,051 \\ 
+      \perfctr{RESOURCE_STALLS.RS} & r04a2:u & 272,833 & 135,900 \\ 
+
     \bottomrule
+
+    % \toprule
+    %   CPU_CLK_THREAD_UNHALTED.REF_XCLK & 0.99946409726 \\ \midrule
+    %   LD_BLOCKS_PARTIAL.ADDRESS_ALIAS & 0.998961259046 \\ \midrule
+    %   CYCLE_ACTIVITY.CYCLES_LDM_PENDING & 0.998618840476 \\ \midrule
+    %   RESOURCE_STALLS.ANY & 0.998582438059 \\ \midrule
+    %   CPL_CYCLES.RING123 & 0.997305209986 \\ \midrule
+    %   UOPS_EXECUTED_PORT.PORT_2 & 0.995814514248 \\ \midrule
+    %   CYCLE_ACTIVITY.STALLS_L2_PENDING & 0.841261809569 \\ \midrule
+    %   UOPS_EXECUTED_PORT.PORT_3 & -0.9780404694 \\ \midrule
+    %   UOPS_EXECUTED_PORT.PORT_7 & -0.991034639943 \\ \midrule
+    %   UOPS_EXECUTED_PORT.PORT_4 & -0.995703596298 \\ \midrule
+    %   UOPS_EXECUTED_PORT.PORT_6 & -0.998681490923 \\ \midrule
+    %   UOPS_EXECUTED_PORT.PORT_0 & -0.998757079731 \\ \midrule
+    %   UOPS_EXECUTED_PORT.PORT_1 & -0.99886851364 \\ \midrule
+    %   UOPS_EXECUTED_PORT.PORT_5 & -0.998956858377 \\ \midrule
+    %   RESOURCE_STALLS.RS & -0.998963674679 \\
+    % \bottomrule
   \end{tabular}
-  \npnoround
 \end{table}
 
-% Todo: continue here
-The results show a high number of resource stalls when the spikes occur, indicated by high values for performance counters \small{RESOURCE\_STALLS.ANY}, \small{CYCLE\_ACTIVITY.CYCLES\_LDM\_PENDING}, \small{CYCLE\_ACTIVITY.CYCLE\_NO\_EXECUTE} and \small{RESOURCE\_STALLS.RS}.
-We also find that \small{LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS} correlates almost perfectly with cycle count, which can explain the high number of resource stalls with false dependency from aliasing.
+Notice the most extreme change from average case to worst case is clearly the number of alias events.
+If we plot the graph for address aliasing, we see that it is near zero everywhere and spikes at exactly the points we observe bias. 
+The results show a high number of resource stalls and pending memory loads when the spikes occur, which is consistent with address aliasing issues.
+Some of the other counters are less interesting; for example, bus- and cpl cycles, which will naturally vary with the total cycle count.
 
-To be able to explain what is happening in this case we need to know the addresses of all variables at run time.
-The program contains five variables, two of which are stack allocated, and \texttt{i}, \texttt{j} and \texttt{k} that are statically allocated.
-For statically allocated data, memory allocation is decided at compile time.
-We can find the location of variables i, j and k by looking at the symbol table in the ELF executable, below is an excerpt of \lstinline$readelf -s$.
-\begin{lstlisting}[float=h, basicstyle=\small]
-37: 000000000060103c    4  (...)  25 i
-38: 0000000000601040    4  (...)  25 j
-39: 0000000000601044    4  (...)  25 k
-\end{lstlisting}
+% Need input here, does this make sense?
+On the other end we get a much lower number of reservation station (RS) stalls in the aliasing case, with a reduction from about 270'000 to about 135'000.
+The reservation station buffers micro-ops for scheduling to the execution units, and a stall event means that there are no free slots available~\cite[Table 19-2]{Intel:2013:Volume3B}.
+Fewer stalls in the aliasing case could indicate less contention on the reservation station.
+This probably has to do with the overall \emph{decrease} in the number of micro-ops executed per port events, as all but one of the in total 8 execution ports seem to have fever operations going in parallel.
+Note that the number of micro-ops \emph{retired} overall does not change, but for some reason the micro-ops stays in the execution pipeline for a shorter time.
+Our assumption is that this is a by-product of stalls generated from aliasing.
 
-Need to observe run time addresses without introducing any observer effects.
-A small amount of assembly code was used to calculate the addresses of each stack allocated variable and output them directly using system calls, without impacting run time addresses.
-We find that the spike in cycle count occurs when the address of inc alias with i, where the first spike happens when inc is at 0x7fffffffe03c.
-Because the stack is aligned to 16 byte or 4 words, there are a couple of different scenarios that could have been observed here.
-Static area is fixed and covers 12 contiguous bytes (3 words) \lstinline$[x|x| |x]$.
-Automatic variables occupies 8 contiguous bytes on stack (2 words) [ | |x|x]. 
-The space of possible addresses for (inc, g) in this case is (0x7fffffffe03c, 0x7fffffffe038) - n*4096. 
-In this scenario, g will never alias with any of the static variables -- as it always covers the 0x8 slot not occupied by either of i, j or k.
-An even worse case with respect to the number of alias events is if allocation of static data allows collisions with both stack allocated variables.
-This can be achieved by reserving an extra 8 bytes to offset i, j into the 0x8, 0xc slots. 
+% More deep dive section (maybe separate headline...)
+These numbers clearly points to address aliasing as a plausible explanation, thus the next step is to see exactly which memory accesses are aliasing. 
+For that we need to know the addresses of all variables at run time.
+The program contains five variables; \texttt{g} and \texttt{inc} which are stack allocated, and \texttt{i}, \texttt{j} and \texttt{k} which are statically allocated.
+Virtual memory layout of static data is decided at compile time, and we can find the location of these variables by looking at the symbol table in the ELF executable.
+We find the addresses to be \texttt{\&i} = 0x60103c, \texttt{\&j} = 0x601040, and \texttt{\&k} = 0x601044.\footnote{ELF symbol tables can be read using \texttt{readelf -s}}
+
+Observing addresses of stack allocated data at run time is more challenging, as we have to make sure to not introduce any observer effects that alters the addresses as we are observing them.
+A small amount of assembly code was used to calculate the addresses of \texttt{g} and \texttt{inc} and outputing to stdout direcly using syscall.
+The instrumented program has the exact same bias to environment size, making no change to the stack allocation instructions and not affecting the addresses of static variables.
+We find that the spike in cycle count occurs precicely when the address of \texttt{inc} alias with \texttt{i}, the first spike happening when \texttt{g} is at 0x7fffffffe038 and \texttt{inc} is at 0x7fffffffe{\underline{03c}}.
+
+Because the stack is aligned to 16 bytes, or 4 words, there are a couple of different scenarios that could have been observed here.
+Static variables are fixed and covers 12 contiguous bytes (3 words), in our case the addresses end in 0xc, 0x0 and 0x4, leaving the 0x8 slot free.
+Automatic variables occupies 8 contiguous bytes on stack (2 words), in our case the addresses will always fit in the 0x8 and 0xc slots..
+In this scenario, \texttt{g} will never alias with any of the static variables -- as it always covers the 0x8 slot not occupied by either of \texttt{i}, \texttt{j} or \texttt{k}.
+A less fortunate scenario with respect to the number of alias events occurs when there can be collisions with both stack allocated variables, which can be achieved for example by reserving an extra 8 bytes to offset \texttt{i}, \texttt{j} into the 0x8, 0xc slots. 
 While this will give significantly more alias counts, it has little effect on the number of cycles executed.
 
-Worst case occurs for precisely one out of 256 possible initial stack addresses in every 4K segment.
-Resource stalls are generated because of false dependencies between stack and static data, resulting in worse performance.
+In conclusion, we identified that address aliasing is the root cause of measurement bias from environment size for this program.
+Worst case occurs for precisely one out of 256 possible initial stack addresses in every 4K segment, where resource stalls are generated because of false dependencies between stack and static data.
 The program is \emph{biased} towards environment sizes that avoids this specific stack alignment.
 
 
 \subsection{Avoiding Aliasing}
 Addresses of automatic variables can not be determined statically, because the position of stack at runtime is generally unknown. 
 In addition to being offset by environment variables, the stack address can also be perturbed by other factors such as address layout randomization. 
-Although one can not easily know if a collision is going to happen for a given environment, one can try to change the program to account for possible alias effects.
-The following strategy is a proof of concept of how alias-free code can be generated in this particular case.
-If the addresses do alias, branch to an alternative but semantically equivalent code path.
-Allocate a new set of variables to avoid aliasing.
+Although one can not easily know if a collision is going to happen for a given environment, it is possible to change the program to account for possible alias effects.
+Shown in Listing \ref{lst:loopfixed} is a proof of concept of how alias-free code could be generated in this particular case.
+If the addresses do alias, a branch to an alternative but semantically equivalent code path is performed.
+Calling the function recursively will effectively allocate a new set of variables a bit further down the stack, and the alias condition is avoided.
 
-\begin{lstlisting}[float=h, language=C, caption={Dynamically detect aliasing case, and avoid by pushing another stack frame.}, label={lst:loopfixed}, frame=lines]
+\begin{lstlisting}[float=t, language=C, caption={Dynamically detect aliasing case, and avoid by pushing another stack frame.}, label={lst:loopfixed}, frame=lines]
 #define ALIAS(a, b) \
     ((((long)&a)&0xfff)==(((long)&b)&0xfff))
 static int i, j, k;
@@ -482,6 +525,8 @@ int main() {
 }
 \end{lstlisting}
 
+While this particular solution is clearly not something one would want to do in practice, it at least shows that compilers and programmers \emph{could} take measures to account for aliasing.
+This becomes much more enticing when the performance penalties are more significant, which we find is often the case for aliasing heap allocations.
 
 
 \section{Bias from Heap Allocation}
