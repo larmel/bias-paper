@@ -529,12 +529,44 @@ While this particular solution is clearly not something one would want to do in 
 This becomes much more enticing when the performance penalties are more significant, which we find is often the case for aliasing heap allocations.
 
 
+
 \section{Bias from Heap Allocation}
-Address aliasing can be caused by conflicting pairs of load/store operations to any part of memory.
+% Intro
+% - Bias from aliasing caused by accesses to any part of memory
+% - Dynamic memory usually from dynamically linked libs = bias
+% - More interesting: default behavior provokes aliasing 
+% Heap allocation alias by default
+% - Normal heap with brk/sbrk syscalls
+%   - Manage heap and increase on demand
+% - Different depending on size (and other parameters)
+%   - Use mmap for performance, usually large allocations
+%   - Posix function, anonymous memory mapping
+%   - Page aligned
+% - Normal addr. vs mmap addr.
+% - Makes no difference ++ everything is conceptually the same heap, but alias by default!
+% Aligned sequential access
+% - Intel warning, copy routine. 
+% - Trouble with aligned read/write buffers, creating constant conflicts in sliding window.
+% - More contrived example; convolution
+%   - Simple code disregarding endpoints
+%   - Manipulate start addresses by offseting pointers
+%   - Compiled with gcc O3, shows bad performance (graph) + discussion
+% - Table with lots of data points, showing actual numbers for each offset
+% Architectural optimization
+% - Modified example with restrict and -march=i7
+% - Other compilers: Clang (pretty easy), Icc (already used preview version I think...)
+% Bahavior of other Allocators
+% - Intro each allocator
+% - Present table
+% - Conclude; not good...
+
+Address aliasing can be caused by conflicting pairs of load and store operations to any part of memory.
 The previous section looked specifically at an example of collision between stack variables and static data.
 Another scenario to consider is collisions in heap allocated memory.
 In particular, code that operate on pairs of contiguous arrays can be vulnerable to 4K aliasing.
 Acquiring dynamic memory at run time is usually done by calling malloc, which takes a number of bytes to allocate and returns a pointer to that area.
+
+\subsection{\texttt{malloc} Alias by Default}
 A typical malloc implementation uses two different strategies for how to allocate memory.
 The \emph{heap} area in virtual memory is used for smaller allocations.
 Programs are initially given a small heap area, which the allocator can increase by calling brk or sbrk.
@@ -569,7 +601,7 @@ For simplicity, endpoints are not handled.
   \end{tikzpicture}
 \end{figure}
 
-\begin{lstlisting}[float=h, language=C, caption={Naive implementation of convolution. Highly sensitive to aliasing between input and output arrays.}, label={lst:conv}, frame=lines]
+\begin{lstlisting}[float=t, language=C, caption={Naive implementation of convolution. Highly sensitive to aliasing between input and output arrays.}, label={lst:conv}, frame=lines]
 static float k[5]={0.1,0.25,0.3,0.25,0.1};
 void conv(int n, float *in, float *out) {
     int i, j;
@@ -597,6 +629,8 @@ Because large heap allocations always alias, the processor thinks memory accesse
 By manually adjusting the alignment of one input buffer, cycle count can be reduced by more than 50\% (verify).
 This is a speedup on top of compiler optimization O3, which is not able to account for aliasing effects.
 
+
+\subsection{Architectural Optimization}
 It is perhaps unfair to assume the compiler can fix this when only given a generic optimization flag, as aliasing effects is (presumably) an Intel-specific issue.
 You might also want to utilize the C99 keyword restrict to explicitly tell the compiler that the buffers are disjoint in memory.
 
