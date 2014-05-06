@@ -1,76 +1,48 @@
 
-CLFLAGS=-std=c99 -march=corei7 -O3
-CCFLAGS=-std=c99 -march=native -O3
+lperf := ../../util/lperf
 
-all: perf-compilers
+# Don't delete intermediate csv files
+.SECONDARY: bin/%.csv
+.PHONY: disable-aslr
 
-.PHONY: perf-compilers graph graph-all bin/offsets-O3-gcc.eps
-
-
-
-# Default O3 only
-conv-O3-gcc: convolution-simple.c
-	gcc -O3 $+ -o $@
-
-# Plotting a few offsets on O3 with GCC
-bin/offsets-O3-gcc.csv: conv-O3-gcc
-	../lperf ./$+ -e cycles:u,r0107:u,r40d1:u,r01d1:u,r02d1:u,r04d1:u,r20d1:u,r024c:u -o $@ -n 21 -r 10 \
-		--environment-increment 0 --argument-increment 1
-
-#
-# Output: perf statistics for default and optimal offset, O3 only
-perf-offsets-O3: conv-O3-gcc
-	perf stat -e cycles:u,r0107:u,r01a2:u,instructions:u -r 10 ./$+ 0
-	perf stat -e cycles:u,r0107:u,r01a2:u,instructions:u -r 10 ./$+ 12
-	perf stat -e cycles:u,r0107:u,r01a2:u,instructions:u -r 10 ./$+ 16
-
-
-#
-# Figure: Plot over different offsets with GCC and only O3
-#         Show L1 hits, all other cache counters are trivially small (a couple of thousands)
-bin/offsets-O3-gcc.eps: bin/offsets-O3-gcc.csv
-	../lplot $+ -e cycles:u,r0107:u,r01d1:u --export $@ \
-		--legend 'upper right' \
-		--xlabel 'Padding elements added to output array' \
-		--labels 'Cycles, cycles:u' 'Address alias, r0107:u' 'L1 hit, r01d1:u'
+disable-aslr:
+	sudo bash -c "echo 0 > /proc/sys/kernel/randomize_va_space"
 
 
 
-#
-# All optimal compiler flags
-#
-conv-clang: convolution.c
-	# Best offset: 0x30
-	clang $(CLFLAGS) convolution.c -o $@
-	clang $(CLFLAGS) -S convolution.c -o $@.s
 
-conv-gcc: convolution.c
-	# Best offset: 0x30
-	gcc $(CCFLAGS) convolution.c -o $@
-	gcc $(CCFLAGS) -S convolution.c -o $@.s
+# Make binaries
 
-conv-icc: convolution.c
-	# Best offset: 0xa0
-	icc $(CCFLAGS) convolution.c-o $@
-	icc $(CCFLAGS) -S convolution.c -o $@.s
+bin/conv-gcc-0: convolution.c
+	cc $+ -o $@
 
-perf-compilers: conv-gcc conv-clang conv-icc
-	perf stat -e cycles:u,r0107:u,r01a2:u,instructions:u -r 10 ./conv-gcc
-	perf stat -e cycles:u,r0107:u,r01a2:u,instructions:u -r 10 ./conv-clang
-	perf stat -e cycles:u,r0107:u,r01a2:u,instructions:u -r 10 ./conv-icc
+bin/conv-gcc-3: convolution.c
+	cc -O3 $+ -o $@
+
+bin/conv-optimized-gcc-3: convolution-optimized.c
+	cc -O3 $+ -o $@
+
+# Compile and optimize separately to avoid unwanted optimization to affect main
+bin/conv: conv.c main.c
+	cc -c conv.c -O3 -o bin/conv.o
+	cc -c main.c -o bin/main.o
+	gcc bin/conv.o bin/main.o -o bin/conv
 
 
-# Plotting a few offsets on O3 -march=native and restrict with GCC
-bin/offsets-native-gcc.csv: conv-gcc
-	../lperf ./$+ -e cycles:u,instructions:u,r0203:u,r0107:u,r40d1:u,r01d1:u,r02d1:u,r04d1:u,r20d1:u,r024c:u -o $@ -n 101 -r 2 \
-		--environment-increment 0 --argument-increment 1
+# Measure for increasing offsets for each binary. Pattern matching rule to
+# cover all possible compiled versions.
+# Example: make bin/conv-gcc-estimate.csv
+# Nb: Must invoke disable-aslr before this
 
-#
-# Figure: Plot over different offsets with GCC and all optimizations enabled
-#         Show L1 hits, all other cache counters are trivially small (a couple of thousands)
-bin/offsets-native-gcc.eps: bin/offsets-native-gcc.csv
-	../lplot $+ -e cycles:u,r0107:u,r01d1:u --export $@ \
-		--legend 'upper right' \
-		--labels 'Cycles, cycles:u' 'Address alias, r0107:u' 'L1 hit, r01d1:u' 'instructions'
+bin/%-11.csv: bin/%
+	$(lperf) -e cycles:u,r0107:u -n 32 -r 1 --env-increment 0 --enumerate $< 11 > $@
+
+bin/%-1.csv: bin/%
+	$(lperf) -e cycles:u,r0107:u -n 32 -r 1 --env-increment 0 --enumerate $< 1 > $@
+
+bin/%-estimate.csv: bin/%-11.csv bin/%-1.csv
+	./estimate.py --delta 10 --longrun $< --shortrun $(word 2,$^) > $@
 
 
+bin/%-all-1.csv: bin/%
+	$(lperf) -e all --correlate cycles:u -n 32 -r 1 --env-increment 0 --enumerate $< 1 > $@

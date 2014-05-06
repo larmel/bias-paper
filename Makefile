@@ -51,6 +51,8 @@ bin/%.dat: resources/%.csv | bin
 # Section that produces resource files and raw data used in the article
 #
 
+# todo: probably remove this
+
 bin/stack-offset.csv: disable-aslr bin/loop
 	util/lperf -e cycles:u,r0107:u,r01a2:u,r02a3:u -n 512 -r 100 --env-increment 16 bin/loop > $@
 
