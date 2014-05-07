@@ -1,8 +1,7 @@
+lperf := ../../util/lperf.py
+estimate := ../../util/estimate.py
+correlate := ../../util/correlate.py
 
-lperf := ../../util/lperf
-
-# Don't delete intermediate csv files
-.SECONDARY: bin/%.csv
 .PHONY: disable-aslr
 
 disable-aslr:
@@ -34,15 +33,25 @@ bin/conv: conv.c main.c
 # Example: make bin/conv-gcc-estimate.csv
 # Nb: Must invoke disable-aslr before this
 
-bin/%-11.csv: bin/%
-	$(lperf) -e cycles:u,r0107:u -n 32 -r 1 --env-increment 0 --enumerate $< 11 > $@
+# bin/%-11.csv: bin/%
+# 	$(lperf) -e cycles:u,r0107:u -n 32 -r 1 --env-increment 0 --enumerate $< 11 > $@
 
-bin/%-1.csv: bin/%
-	$(lperf) -e cycles:u,r0107:u -n 32 -r 1 --env-increment 0 --enumerate $< 1 > $@
+# bin/%-1.csv: bin/%
+# 	$(lperf) -e cycles:u,r0107:u -n 32 -r 1 --env-increment 0 --enumerate $< 1 > $@
 
-bin/%-estimate.csv: bin/%-11.csv bin/%-1.csv
-	./estimate.py --delta 10 --longrun $< --shortrun $(word 2,$^) > $@
+# bin/%-estimate.csv: bin/%-11.csv bin/%-1.csv
+# 	./estimate.py --delta 10 --longrun $< --shortrun $(word 2,$^) > $@
 
+
+# All counters
+# TODO: Only need 24 or so
 
 bin/%-all-1.csv: bin/%
-	$(lperf) -e all --correlate cycles:u -n 32 -r 1 --env-increment 0 --enumerate $< 1 > $@
+	$(lperf) -e all -n 32 -r 1 --env-increment 0 --enumerate $< 1 > $@
+
+bin/%-all-11.csv: bin/%
+	$(lperf) -e all -n 32 -r 1 --env-increment 0 --enumerate $< 11 > $@
+
+bin/%-all-estimate.csv: bin/%-all-11.csv bin/%-all-1.csv
+	$(estimate) --delta 10 --longrun $< --shortrun $(word 2,$^) | $(correlate) cycles:u > $@
+
