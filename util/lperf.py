@@ -228,8 +228,8 @@ def parseargs():
     parser.add_argument('-e', '--events', type=perfctrs, default="all", help="Comma separated list of event code or mnemonic, ex. cycles:u,r0107:u")
     parser.add_argument('-n', '--iterations', type=int, default=1)
     parser.add_argument('-r', '--repeat', type=int, default=1, help="Average results over multiple runs, using perf-stat -r")
-    parser.add_argument('-o', '--outfile', type=argparse.FileType('w'), default=sys.stdout)
-    parser.add_argument('--correlate', type=perfctr, default=None)
+    parser.add_argument('-o', '--output', type=argparse.FileType('w'), default=sys.stdout)
+    #parser.add_argument('--correlate', type=perfctr, default=None)
     parser.add_argument('--env-offset', type=int, default=0, help="Number of bytes initially added to environment")
     parser.add_argument('--env-increment', type=int, default=1, help="Number of characters added to environment each iteration")
     parser.add_argument('--enumerate', default=False, action='store_true', help="Iteration number as program argument")
@@ -247,7 +247,7 @@ def parseargs():
 # counters each invocation of perf because of register limitations.
 def benchmark(args):
     counters = args.events
-    data = { counter: {'count': [0] * args.iterations, 'correlation': 0 } for counter in args.events }
+    data = { counter: {'count': [0] * args.iterations } for counter in args.events }
 
     for x in range(args.iterations):
         argument = "" if not args.enumerate else str(x)
@@ -268,10 +268,10 @@ def benchmark(args):
 
             process.wait()
     
-    if args.correlate != None:
-        numpy.seterr(invalid='ignore')
-        for event in args.events:
-            data[event]['correlation'], _ = stats.pearsonr( data[args.correlate]['count'], data[event]['count'] )
+    # if args.correlate != None:
+    #     numpy.seterr(invalid='ignore')
+    #     for event in args.events:
+    #         data[event]['correlation'], _ = stats.pearsonr( data[args.correlate]['count'], data[event]['count'] )
 
     return data
 
@@ -279,13 +279,13 @@ if __name__ == '__main__':
     args = parseargs()
     data = benchmark(args)
 
-    args.outfile.write("Performance counter,Mnemonic,")
-    if args.correlate != None and args.iterations > 1:
-        args.outfile.write("Correlation,")
-    args.outfile.write(",".join(map(str, range(args.iterations))) + "\n")
+    args.output.write("Performance counter,Mnemonic,")
+    # if args.correlate != None and args.iterations > 1:
+    #     args.output.write("Correlation,")
+    args.output.write(",".join(map(str, range(args.iterations))) + "\n")
 
     for event in args.events:
         row = [event.name, event.mnemonic] + data[event]['count']
-        if args.correlate != None and args.iterations > 1:
-            row.insert(2, data[event]['correlation'])
-        args.outfile.write(",".join(map(str, row)) + "\n")
+        # if args.correlate != None and args.iterations > 1:
+        #     row.insert(2, data[event]['correlation'])
+        args.output.write(",".join(map(str, row)) + "\n")
