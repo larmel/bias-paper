@@ -28,7 +28,7 @@ about:
 	gcc --version
 
 
-plotfiles = bin/convolution.dat bin/stack-offset.dat
+plotfiles = bin/convolution.dat bin/stack-offset.dat bin/conv-all-estimate.dat
 
 # Build in root to avoid trouble with pgfplots and output directories.
 bin/paper.pdf: paper.tex references.bib $(plotfiles) | bin
@@ -43,7 +43,7 @@ bin/paper.pdf: paper.tex references.bib $(plotfiles) | bin
 # Generate TiKz plot format from raw performance counter results. Nothing in
 # resources is generated, and must be updated manually.
 bin/%.dat: resources/%.csv | bin
-	cat $+ | util/pgfpconv > $@
+	cat $+ | util/pgfpconv.py > $@
 
 
 
