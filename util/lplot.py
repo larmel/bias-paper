@@ -61,8 +61,9 @@ def plot(args):
     args.input.readline()
     for line in args.input:
         e = map(lambda s : s.strip(), line.split(','))
+        start = 3 if "Correlation" in e else 2
         if args.events == ['all'] or e[1].lower() in args.events:
-            numbers = map(float, e[3:])
+            numbers = map(float, e[start:])
             plt.plot( \
                 [args.stride*v for v in range(len(numbers))], \
                 numbers, \
