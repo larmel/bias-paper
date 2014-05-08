@@ -1,13 +1,6 @@
+.PHONY: all paper disable-aslr clean about
 
-.PHONY: all paper data disable-aslr clean
-
-# Default to generating just the paper, given existing data in resources.
 all: paper
-
-# Compile examples and perform all measurements needed. Everyting is put in bin
-# folder, so if you actually want to update things in the article it has to be 
-# copied manually to the resources folder.
-data: bin/stack-offset.csv bin/convolution.csv
 
 paper: bin/paper.pdf
 
@@ -21,14 +14,17 @@ clean:
 bin:
 	mkdir -p bin
 
-# Print information about current platform, including version of various
-# software
 about:
 	uname -srvpi
 	gcc --version
 
+# Included for tables and graphs
+plotfiles := bin/stack-offset.dat bin/default-o3.estimate.dat
 
-plotfiles = bin/convolution.dat bin/stack-offset.dat bin/conv-all-estimate.dat
+# Generate TiKz plot format from raw performance counter results. Nothing in
+# resources is generated, which must be updated manually from analysis results.
+bin/%.dat: resources/%.csv | bin
+	cat $+ | util/pgfpconv.py > $@
 
 # Build in root to avoid trouble with pgfplots and output directories.
 bin/paper.pdf: paper.tex references.bib $(plotfiles) | bin
@@ -40,18 +36,15 @@ bin/paper.pdf: paper.tex references.bib $(plotfiles) | bin
 	mv paper.pdf $@
 	rm -f paper.log paper.dvi paper.aux paper.bbl paper.blg
 
-# Generate TiKz plot format from raw performance counter results. Nothing in
-# resources is generated, and must be updated manually.
-bin/%.dat: resources/%.csv | bin
-	cat $+ | util/pgfpconv.py > $@
 
 
-
+# Compile examples and perform all measurements needed. Everyting is put in bin
+# folder, so if you actually want to update things in the article it has to be 
+# copied manually to the resources folder.
+#data: bin/stack-offset.csv bin/convolution.csv
 
 # Section that produces resource files and raw data used in the article
-#
-
-# todo: probably remove this
+# todo: remove this
 
 bin/stack-offset.csv: disable-aslr bin/loop
 	util/lperf -e cycles:u,r0107:u,r01a2:u,r02a3:u -n 512 -r 100 --env-increment 16 bin/loop > $@
@@ -69,11 +62,4 @@ bin/loop: code/env-alias/loop.c
 
 bin/loop-recursion-fix: code/env-alias/loop-recursion-fix.c
 	cc $+ -o $@
-
-bin/convolution.csv: disable-aslr bin/convolution
-	util/lperf -e cycles:u,r0107:u -n 32 -r 100 --env-increment 0 --enumerate bin/convolution > $@
-
-bin/convolution: code/heap-alias/convolution.c
-	cc -O3 $+ -o $@
-
 

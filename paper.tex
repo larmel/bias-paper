@@ -555,29 +555,35 @@ This becomes much more enticing when the performance penalties are more signific
 % - Table with lots of data points, showing actual numbers for each offset
 % Architectural optimization
 % - Modified example with restrict and -march=i7
-% - Other compilers: Clang (pretty easy), Icc (already used preview version I think...)
 % Bahavior of other Allocators
 % - Intro each allocator
 % - Present table
-% - Conclude; not good...
+% Conclude
+% - not good...
+% - Not tested other compilers, not the purpose of this paper. 
+% - How did we find this example? Intelligent design, literally first guess
 
 Address aliasing can be caused by conflicting pairs of load and store operations to any part of memory.
 The previous section looked specifically at an example of collision between stack variables and static data.
 Another scenario to consider is collisions in heap allocated memory.
+Heap allocators are typically dynamically linked, and therefore part of the execution context.
 In particular, code that operate on pairs of contiguous arrays can be vulnerable to 4K aliasing.
-Acquiring dynamic memory at run time is usually done by calling malloc, which takes a number of bytes to allocate and returns a pointer to that area.
 
-\subsection{\texttt{malloc} Alias by Default}
-A typical malloc implementation uses two different strategies for how to allocate memory.
+
+\subsection{Alias by Default with \texttt{malloc}}
+Acquiring dynamic memory at run time is usually done by calling malloc, which takes a number of bytes to allocate and returns a pointer to that area.
+A typical malloc implementation uses two different strategies for how to allocate memory, depeding on the size of the request.
 The \emph{heap} area in virtual memory is used for smaller allocations.
-Programs are initially given a small heap area, which the allocator can increase by calling brk or sbrk.
-For larger allocations, it is typically faster to use anonymous memory mapping by calling mmap, instead of growing the ``normal'' heap.
-The heap starts at a low address close to the data section and grows towards higher addresses. 
-Mmap allocates much closer to the stack.
+Programs are initially given a small heap area, which the allocator can increase by calling brk or sbrk system calls.
+For larger allocations, instead of growing the regular heap it is typically faster to use anonymous memory mapping by calling the Posix function \texttt{mmap}.
+
+The heap starts at a relatively low address close to the data section, and grows upwards.
+Memory mapped chunks from mmap are placed much closer to the stack.
 While heap addresses can look like 0x16e30a0 or 0x1723020, pointers returned by mmap can for example be 0x7f0318a8f010 or 0x7f03105d2010.
 This distinction is of course unimportant for application developers, as everything is conceptually the same ``heap''.
 However, mmap has an interesting property in that allocations will always be page aligned.
 The page size is 4096 bytes, meaning two pointers returned by mmap will \emph{always} alias.\footnote{libc's version of malloc adds 16 bytes of medatada at the beginning, therefore every mmap'ed address ends with 0x010}
+
 
 \subsection{Aligned Sequential Access}
 Consider the function shown in Listing~\ref{lst:conv}.
@@ -585,7 +591,7 @@ It computes the convolution between an input array and a fixed five-element kern
 For simplicity, endpoints are not handled.
 
 % Plot of cycles vs alias for estimated cost of O3 convolution
-\pgfplotstableread{bin/conv-all-estimate.dat}{\convolutiontable}
+\pgfplotstableread{bin/default-o3.estimate.dat}{\convolutiontable}
 \begin{figure}[t]
   \caption{Cycle and alias counts for different offsets between input and output arrays in Listing~\ref{lst:conv}. Offset 0 means equal 12 bit address suffix, which is default behavior for mmap allocations. Array size $n=2^{20}$, compiled with -O3. }
   \label{fig:heapalias}
@@ -629,7 +635,7 @@ Listing \ref{lst:conv}, together with a small main method handling the allocatio
 Figure \ref{fig:heapalias} plots performance counter statistics for cycle count and 4K alias events over increasing amount of offset.
 This is an example of how false dependencies from address aliasing can cause a significant performance hit.
 Because large heap allocations always alias, the processor thinks memory accesses to input[i] potentially conflicts with output[i], stalling the pipeline.
-By manually adjusting the alignment of one input buffer, cycle count can be reduced by more than 50\% (verify).
+By manually adjusting the alignment of one input buffer, cycle count can be reduced by more than 50\%.
 This is a speedup on top of compiler optimization O3, which is not able to account for aliasing effects.
 
 
@@ -638,7 +644,7 @@ This is a speedup on top of compiler optimization O3, which is not able to accou
   col sep=comma,
   columns={n, cycles:u,r0107:u,r02a3:u,r01a2:u,r05a3:u,r04a2:u,r20a1:u,r0860:u,r0160:u,r2049:u,r6049:u},
   colnames from=n % Automapped to new 'colnames' column
-  ]\loadedtable{bin/conv-all-estimate.dat}
+  ]\loadedtable{bin/default-o3.estimate.dat}
 
 \begin{sidewaystable*}[p]
   \caption{Most interesting performance counters for O3 convolution code, estimated cost accounting for constant overhead of heap allocation in main. (see /resources for full table)}
@@ -646,7 +652,7 @@ This is a speedup on top of compiler optimization O3, which is not able to accou
   \pgfkeys{/pgf/number format/.cd,int trunc} % Output whole numbers
   \pgfplotstabletypeset[
     font=\normalsize,
-    columns={[index]0, [index]1, [index]2, [index]3, [index]4, [index]5, [index]11, [index]21}, % Select interesting offsets
+    columns={[index]0, [index]1, [index]2, [index]3, [index]4, [index]5, [index]11, [index]21, [index]31}, % Select interesting offsets
     columns/colnames/.style={string type,column name={}, column type={l}},
     columns/colnames/.append style={string replace={cycles:u}{Cycles}}, % Pretty print counter mnemonics
     columns/colnames/.append style={string replace={r0107:u}{Alias}},
