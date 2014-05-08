@@ -13,7 +13,7 @@ int main(int argc, char **argv)
     int i;
 
     float *input  = malloc( N          * sizeof(float));
-    float *output = malloc((N + 0x100) * sizeof(float));
+    float *output = malloc((N + 0x400) * sizeof(float)); // Room for 4k offset
 
     // To make a realistic test, initialize the otherwise all-zero input array
     for (srand(0), i = 0; i < N; ++i) {
