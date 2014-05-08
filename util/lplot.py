@@ -58,10 +58,10 @@ def plot(args):
         locator = MultipleLocator(args.ticks)
         plt.gca().xaxis.set_major_locator(locator)
 
-    args.input.readline()
+    header = args.input.readline().split(",")
+    start = 3 if "Correlation" in header else 2
     for line in args.input:
         e = map(lambda s : s.strip(), line.split(','))
-        start = 3 if "Correlation" in e else 2
         if args.events == ['all'] or e[1].lower() in args.events:
             numbers = map(float, e[start:])
             plt.plot( \
