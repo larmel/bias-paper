@@ -1,9 +1,4 @@
-# This is the output of compiling loop.c with no optimization, with the addition
-# of a small routine for printing the addresses of automatic variables g and inc.
-
 	.file	"loop.c"
-	#.local	h
-	#.lcomm	h,8
 	.local	i
 	.comm	i,4,4
 	.local	j
@@ -56,6 +51,9 @@ main:
 	.cfi_def_cfa 7, 8
 	ret
 	.cfi_endproc
+
+	# This is the output of compiling loop.c with no optimization, with the addition
+	# of a small routine for printing the addresses of automatic variables g and inc.
 
 	# Writes contents of rax in human readable format. The additional code is not 
 	# enough to affect the location of static variables i, j, k, and does not 
