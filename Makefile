@@ -27,7 +27,7 @@ bin/micro-kernel-cycles.dat: analysis/env-alias/results/cycles.csv | bin
 
 bin/micro-kernel-comparison.csv: analysis/env-alias/results/comparison.csv | bin
 	cat $< \
-		| util/select.py -e cycles:u,bus-cycles:u,r0107:u,r02a3:u,r01a2:u,r025c:u,r04a1:u,r05a3:u,r08a1:u,r80a1:u,r10a1:u,r40a1:u,r01a1:u,r02a1:u,r20a1:u \
+		| util/select.py -e cycles:u,bus-cycles:u,r0107:u,r02a3:u,r01a2:u,r04a2:u,r025c:u,r04a1:u,r05a3:u,r08a1:u,r80a1:u,r10a1:u,r40a1:u,r01a1:u,r02a1:u,r20a1:u \
 		> $@
 
 # Build in root to avoid trouble with pgfplots and output directories.

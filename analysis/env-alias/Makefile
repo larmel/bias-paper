@@ -18,7 +18,7 @@ loop.s: loop.c
 # periods. From that we do median value and filtering to produce backing files
 # needed for the article
 bin/loop.csv: bin/loop disable-aslr
-	$(lperf) -e all -n 512 -r 1 --env-increment 16 $< > $@
+	$(lperf) -e all -n 512 -r 10 --env-increment 16 $< > $@
 
 
 # From these results, it should be apparant that two environments have alias.
