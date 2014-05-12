@@ -355,7 +355,7 @@ This example is interesting for several reasons; the bias effects are significan
 Still, no satisfactory explanation as to what actually causes bias was given in the original paper.
 
 % Large plot of cycle count for two 4K stack sections.
-\pgfplotstableread{bin/stack-offset.dat}{\stackoffsettable}
+\pgfplotstableread{bin/micro-kernel-cycles.dat}{\stackoffsettable}
 \begin{figure*}[t]
   \caption{Bias from environment size for micro-kernel in Listing~\ref{lst:loopkernel}. Measured average of 100 cycle count samples for 512 different environments. Spikes show aliasing case, occurring once for each 4K period}
   \label{fig:envbias}
@@ -370,19 +370,9 @@ Still, no satisfactory explanation as to what actually causes bias was given in 
         xtick = {0,1024,...,8192},
         xmin = 0,
         xmax = 8192,
-        %legend pos = outer north east,
         cycle list name = exotic
       ]
-      %\draw [<->, line width=0.8, color=red] (axis cs:0,8e5) -- (axis cs:4096,8e5) ;
       \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \stackoffsettable ;
-      %\addplot table[x expr = \thisrowno{0}*16, y = r0107:u ] \stackoffsettable ;
-      %\addlegendentry{cycles:u} ;
-      %\addlegendentry{r0107:u} ;
-
-      % Could annotate area with correlation analysis, (spike - 50*16), + 100*16
-      % This is not correct atm, uses 100 samples with byte increment. 
-      %\draw [|<->|, gray] (axis cs:2392,720000)--(axis cs:3992,720000) node[right] {Analysis};
-
     \end{axis}
   \end{tikzpicture}
 \end{figure*}
@@ -392,76 +382,41 @@ We measure every 16 byte increment of environment size, covering two 4K periods 
 A finer sampling is not necessary, because the stack is by default aligned to 16 byte.
 The program is compiled with {\small{GCC}} using no optimization, as any optimization would likely disregard most of the function as redundant code, reducing it to return zero immediately.
 
-There are clearly two worst cases, indicated by significant spikes at the 3192 and 7288 byte offsets.
-We sampled an extensive set of performance counters around the first spike, incrementing environment size by 1 instead of 16 to capture the aliasing case multiple times.
-A total of 100 environment offsets were measured, ranging from 3142 to 3242 bytes added.
-From this we extracted counters with clear correlation to cycle count.
-Table \ref{tab:loopcorrelation} shows numerical counter values for the average case of 3176 bytes added to the environment, compared to worst case of 3192 bytes.
-% Events with the highest (absolute value) correlation to cycle count is listed in Table \ref{tab:loopcorrelation}, values close to $1$ or $-1$ indicate strong correlation.
+There are clearly two worst cases, indicated by significant spikes at the 3200 and 7296 byte offsets.
+We sampled an extensive set of performance counters in addition to cycle count for each execution context.
+By looking at the \emph{median} value of each counter compared to the extreme cases, we narrowed down the performance events that behaved similarly to cycle count.
+Table \ref{tab:loopcorrelation} shows numerical counter values for median over all environments, compared to worst cases of 3200 and 7296 bytes added.
 
+% Detailed comparison between median and worst cases.
 \begin{table}[h]
   \caption{Events with significant correlation to cycle count.}
   \label{tab:loopcorrelation}
   \centering
-  \small
-  \newcolumntype{H}{>{\lrbox0}c<{\endlrbox}@{}}
-  \renewcommand{\tabcolsep}{2pt}
-  \begin{tabular}{lHrr}
-    \toprule
-       &  & 3176 & 3192 \\
-    \midrule
-      \perfctr{CPU_CLK_UNHALTED.THREAD_P} & cycles:u & 698,101 & 829,103 \\
-      \perfctr{CPU_CLK_THREAD_UNHALTED.REF_XCLK} & bus-cycles:u & 19,698 & 23,632 \\ 
-      \perfctr{LD_BLOCKS_PARTIAL.ADDRESS_ALIAS} & r0107:u & \bf{121} & \bf{327,908} \\ 
-      \perfctr{CYCLE_ACTIVITY.CYCLES_LDM_PENDING} & r02a3:u & 1,183,945 & 1,449,964 \\ 
-      \perfctr{RESOURCE_STALLS.ANY} & r01a2:u & 276,648 & 408,071 \\ 
-      \perfctr{CPL_CYCLES.RING123} & r025c:u & 690,895 & 832,806 \\ 
-      \perfctr{UOPS_EXECUTED_PORT.PORT_2} & r04a1:u & 336,035 & 345,766 \\ 
-      \perfctr{CYCLE_ACTIVITY.STALLS_L2_PENDING} & r05a3:u & 492,163 & 512,649 \\ 
-      %L2_RQSTS.RFO_MISS & r2224:u & 123 & 127 \\ 
-      %OFFCORE_REQUESTS.DEMAND_RFO & r04b0:u & 129 & 130 \\
-      %L2_RQSTS.ALL_RFO & re224:u & 245 & 245 \\ 
-      %OFFCORE_REQUESTS_OUTSTANDING.DEMAND_RFO & r0460:u & 120154 & 1067959 \\ % Completely random numbers
-      %L2_TRANS.RFO & r02f0:u & 249 & 250 \\ 
-      %DTLB_STORE_MISSES.STLB_HIT_4K & r2049:u & 294 & 294 \\ 
-      %L2_TRANS.L2_WB & r40f0:u & 402 & 395 \\ 
 
-      %L2_RQSTS.ALL_DEMAND_DATA_RD & re124:u & 1097 & 1091 \\ 
-      %MEM_LOAD_UOPS_RETIRED.L2_MISS & r10d1:u & 565 & 562 \\ 
-      %L2_RQSTS.RFO_HIT & r4224:u & 69 & 67 \\ 
-      %LSD.UOPS & r01a8:u & 1059131 & 1058564 \\ 
+  \renewcommand{\tabcolsep}{1pt} % Less padding between cells
+  \pgfkeys{/pgf/number format/.cd,int trunc} % Output whole numbers
 
-      % Less extreme, but all ports change
-      \perfctr{UOPS_EXECUTED_PORT.PORT_3} & r08a1:u & 358,324 & 355,080 \\ 
-      \perfctr{UOPS_EXECUTED_PORT.PORT_7} & r80a1:u & 137,862 & 131,882 \\ 
-      \perfctr{UOPS_EXECUTED_PORT.PORT_4} & r10a1:u & 280,908 & 276,586 \\ 
-
-      \perfctr{UOPS_EXECUTED_PORT.PORT_6} & r40a1:u & 234,672 & 180,675 \\ 
-      \perfctr{UOPS_EXECUTED_PORT.PORT_0} & r01a1:u & 239,356 & 106,916 \\ 
-      \perfctr{UOPS_EXECUTED_PORT.PORT_1} & r02a1:u & 247,572 & 99,270 \\ 
-      \perfctr{UOPS_EXECUTED_PORT.PORT_5} & r20a1:u & 250,450 & 122,051 \\ 
-      \perfctr{RESOURCE_STALLS.RS} & r04a2:u & 272,833 & 135,900 \\ 
-
-    \bottomrule
-
-    % \toprule
-    %   CPU_CLK_THREAD_UNHALTED.REF_XCLK & 0.99946409726 \\ \midrule
-    %   LD_BLOCKS_PARTIAL.ADDRESS_ALIAS & 0.998961259046 \\ \midrule
-    %   CYCLE_ACTIVITY.CYCLES_LDM_PENDING & 0.998618840476 \\ \midrule
-    %   RESOURCE_STALLS.ANY & 0.998582438059 \\ \midrule
-    %   CPL_CYCLES.RING123 & 0.997305209986 \\ \midrule
-    %   UOPS_EXECUTED_PORT.PORT_2 & 0.995814514248 \\ \midrule
-    %   CYCLE_ACTIVITY.STALLS_L2_PENDING & 0.841261809569 \\ \midrule
-    %   UOPS_EXECUTED_PORT.PORT_3 & -0.9780404694 \\ \midrule
-    %   UOPS_EXECUTED_PORT.PORT_7 & -0.991034639943 \\ \midrule
-    %   UOPS_EXECUTED_PORT.PORT_4 & -0.995703596298 \\ \midrule
-    %   UOPS_EXECUTED_PORT.PORT_6 & -0.998681490923 \\ \midrule
-    %   UOPS_EXECUTED_PORT.PORT_0 & -0.998757079731 \\ \midrule
-    %   UOPS_EXECUTED_PORT.PORT_1 & -0.99886851364 \\ \midrule
-    %   UOPS_EXECUTED_PORT.PORT_5 & -0.998956858377 \\ \midrule
-    %   RESOURCE_STALLS.RS & -0.998963674679 \\
-    % \bottomrule
-  \end{tabular}
+  \pgfplotstabletypeset[
+    font=\scriptsize,
+    col sep=comma,
+    columns={Performance counter, Median, [index]3, [index]4},
+    column type=r,
+    columns/Performance counter/.style={
+      string type, 
+      column type=l,
+      postproc cell content/.append code={
+        \pgfkeysalso{@cell content=\perfctr{##1}}
+      }
+    },
+    every head row/.style={
+      output empty row,
+      before row={\toprule
+        Performance counter & Median & Spike 1 & Spike 2 \\
+        },
+      after row=\midrule,
+    },
+    every last row/.style={after row=\bottomrule}
+  ]{bin/micro-kernel-comparison.csv}
 \end{table}
 
 Notice the most extreme change from average case to worst case is clearly the number of alias events.
@@ -647,7 +602,7 @@ This is a speedup on top of compiler optimization O3, which is not able to accou
   ]\loadedtable{bin/default-o3.estimate.dat}
 
 \begin{sidewaystable*}[p]
-  \caption{Most interesting performance counters for O3 convolution code, estimated cost accounting for constant overhead of heap allocation in main. (see /resources for full table)}
+  \caption{Most interesting performance counters for O3 convolution code, estimated cost accounting for constant overhead of heap allocation in main.}
   \label{tab:convstats}
   \pgfkeys{/pgf/number format/.cd,int trunc} % Output whole numbers
   \pgfplotstabletypeset[

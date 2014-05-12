@@ -18,13 +18,17 @@ about:
 	uname -srvpi
 	gcc --version
 
-# Included for tables and graphs
-plotfiles := bin/stack-offset.dat bin/default-o3.estimate.dat
+plotfiles := bin/micro-kernel-cycles.dat bin/micro-kernel-comparison.csv bin/default-o3.estimate.dat
 
-# Generate TiKz plot format from raw performance counter results. Nothing in
-# resources is generated, which must be updated manually from analysis results.
-bin/%.dat: resources/%.csv | bin
-	cat $+ | util/pgfpconv.py > $@
+# Move and process data files for inclusion in the paper
+
+bin/micro-kernel-cycles.dat: analysis/env-alias/results/cycles.csv | bin
+	cat $< | util/pgfpconv.py > $@
+
+bin/micro-kernel-comparison.csv: analysis/env-alias/results/comparison.csv | bin
+	cat $< \
+		| util/select.py -e cycles:u,bus-cycles:u,r0107:u,r02a3:u,r01a2:u,r025c:u,r04a1:u,r05a3:u,r08a1:u,r80a1:u,r10a1:u,r40a1:u,r01a1:u,r02a1:u,r20a1:u \
+		> $@
 
 # Build in root to avoid trouble with pgfplots and output directories.
 bin/paper.pdf: paper.tex references.bib $(plotfiles) | bin
@@ -35,31 +39,3 @@ bin/paper.pdf: paper.tex references.bib $(plotfiles) | bin
 	dvipdf paper.dvi
 	mv paper.pdf $@
 	rm -f paper.log paper.dvi paper.aux paper.bbl paper.blg
-
-
-
-# Compile examples and perform all measurements needed. Everyting is put in bin
-# folder, so if you actually want to update things in the article it has to be 
-# copied manually to the resources folder.
-#data: bin/stack-offset.csv bin/convolution.csv
-
-# Section that produces resource files and raw data used in the article
-# todo: remove this
-
-bin/stack-offset.csv: disable-aslr bin/loop
-	util/lperf -e cycles:u,r0107:u,r01a2:u,r02a3:u -n 512 -r 100 --env-increment 16 bin/loop > $@
-
-bin/loop-recursion-fix.csv: disable-aslr bin/loop-recursion-fix
-	util/lperf -e cycles:u,r0107:u,r01a2:u,r02a3:u -n 512 -r 100 --env-increment 16 bin/loop-recursion-fix > $@
-
-# Hard-coded offset that hits around worst case on our machine. Warning: This 
-# takes a long time.
-bin/stack-offset-all.csv: disable-aslr bin/loop
-	util/lperf -e all -n 300 -r 100 --env-increment 1 --env-offset 3100 bin/loop > $@
-
-bin/loop: code/env-alias/loop.c
-	cc $+ -o $@
-
-bin/loop-recursion-fix: code/env-alias/loop-recursion-fix.c
-	cc $+ -o $@
-
