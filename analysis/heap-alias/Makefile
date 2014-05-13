@@ -5,37 +5,47 @@ lplot := ../../util/lplot.py
 
 .PHONY: disable-aslr
 
+bin:
+	mkdir -p bin
+
 disable-aslr:
 	sudo bash -c "echo 0 > /proc/sys/kernel/randomize_va_space"
 
 
 # Compile and optimize separately to avoid unwanted optimization to affect main
 
-bin/main.o: main.c
+bin/main.o: main.c | bin
 	cc -c $< -o $@
 
-# Compile convolution kernel in different configurations
+# Compile convolution kernel in different configurations, -march=native should
+# translate to core-avx2 for gcc.
 
-bin/default.o: conv.c
+bin/default.o: conv.c | bin
 	cc -c $< -o $@
 
-bin/default-o1.o: conv.c
+bin/default-o1.o: conv.c | bin
 	cc -c $< -O1 -o $@
 
-bin/default-o2.o: conv.c
+bin/default-o2.o: conv.c | bin
 	cc -c $< -O2 -o $@
 
-bin/default-o3.o: conv.c
+bin/default-o2-native.o: conv.c | bin
+	cc -c $< -O2 -march=native -o $@
+
+bin/default-o3.o: conv.c | bin
 	cc -c $< -O3 -o $@
 
-bin/default-o3-native.o: conv.c
+bin/default-o3-native.o: conv.c | bin
 	cc -c $< -O3 -march=native -o $@
 
-bin/restrict-o3.o: conv-restrict.c
+bin/restrict-o3.o: conv-restrict.c | bin
 	cc -c $< -std=c99 -O3 -o $@
 
-bin/restrict-o3-corei7.o: conv-restrict.c
-	cc -c $< -std=c99 -march=corei7 -O3 -o $@
+bin/restrict-o2-native.o: conv-restrict.c | bin
+	cc -c $< -std=c99 -march=native -O2 -o $@
+
+bin/restrict-o3-native.o: conv-restrict.c | bin
+	cc -c $< -std=c99 -march=native -O3 -o $@
 
 
 # Performance counter stats for 'bin/default 1 0':
@@ -68,6 +78,17 @@ bin/default-o1: bin/main.o bin/default-o1.o
 
 #       0,015085803 seconds time elapsed
 bin/default-o2: bin/main.o bin/default-o2.o
+	gcc $+ -o $@
+
+
+# Performance counter stats for 'bin/default-o2-native 1 0':
+
+#        50 222 082 cycles:u                  #    0,000 GHz                    
+#        13 714 454 r0107:u                                                     
+#       100 794 900 instructions:u            #    2,01  insns per cycle        
+
+#       0,017640254 seconds time elapsed
+bin/default-o2-native: bin/main.o bin/default-o2-native.o
 	gcc $+ -o $@
 
 
@@ -104,24 +125,35 @@ bin/restrict-o3: bin/main.o bin/restrict-o3.o
 	gcc $+ -o $@
 
 
-# Performance counter stats for 'bin/restrict-o3-corei7 1 0':
+# Performance counter stats for 'bin/restrict-o2-native 1 0':
+
+#        39 391 779 cycles:u                  #    0,000 GHz                    
+#         2 113 272 r0107:u                                                     
+#        95 552 051 instructions:u            #    2,43  insns per cycle        
+
+#       0,013076336 seconds time elapsed
+bin/restrict-o2-native: bin/main.o bin/restrict-o2-native.o
+	gcc $+ -o $@
+
+
+# Performance counter stats for 'bin/restrict-o3-native 1 0':
 
 #        32 126 262 cycles:u                  #    0,000 GHz                    
 #           225 402 r0107:u                                                     
 #        68 027 072 instructions:u            #    2,12  insns per cycle        
 
 #       0,010556418 seconds time elapsed
-bin/restrict-o3-corei7: bin/main.o bin/restrict-o3-corei7.o
+bin/restrict-o3-native: bin/main.o bin/restrict-o3-native.o
 	gcc $+ -o $@
 
 
 
 # Measure all counters for 32 different heap offsets
 
-bin/%.1.csv: bin/% disable-aslr
+bin/%.1.csv: bin/% | disable-aslr
 	$(lperf) -e all -n 32 -r 10 --env-increment 0 --enumerate $< 1 > $@
 
-bin/%.11.csv: bin/% disable-aslr
+bin/%.11.csv: bin/% | disable-aslr
 	$(lperf) -e all -n 32 -r 10 --env-increment 0 --enumerate $< 11 > $@
 
 bin/%.estimate.csv: bin/%.11.csv bin/%.1.csv
@@ -129,14 +161,14 @@ bin/%.estimate.csv: bin/%.11.csv bin/%.1.csv
 
 
 # For debug purposes, find interesting scenarios
-bin/%.quick-estimate.csv: bin/% disable-aslr
-	$(lperf) -e cycles:u,r0107:u -n 32 -r 1 --env-increment 0 --enumerate $< 1 > bin/a.csv
-	$(lperf) -e cycles:u,r0107:u -n 32 -r 1 --env-increment 0 --enumerate $< 11 > bin/b.csv
+bin/%.quick-estimate.csv: bin/% | disable-aslr
+	$(lperf) -e cycles:u,r0107:u -n 32 -r 10 --env-increment 0 --enumerate $< 1 > bin/a.csv
+	$(lperf) -e cycles:u,r0107:u -n 32 -r 10 --env-increment 0 --enumerate $< 11 > bin/b.csv
 	$(estimate) --delta 10 --longrun bin/b.csv --shortrun bin/a.csv > $@
 	rm bin/a.csv bin/b.csv
 	$(lplot) --input $@
 
 
 # Measure only cycles and alias for the full 4k offset (400 floats)
-bin/%.4k.csv: bin/% disable-aslr
+bin/%.4k.csv: bin/% | disable-aslr
 	$(lperf) -e cycles:u,r0107:u -n 400 -r 1 --env-increment 0 --enumerate $< 1 > $@
