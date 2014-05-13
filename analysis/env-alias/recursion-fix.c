@@ -20,7 +20,7 @@ int main() {
     if (ALIAS(inc, i) || ALIAS(g, i))
         return main();
 
-    for (; g < 65536*10; g++) {
+    for (; g < 65536; g++) {
         i += inc;
         j += inc;
         k += inc;
