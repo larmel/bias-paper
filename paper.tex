@@ -392,12 +392,10 @@ Table \ref{tab:loopcorrelation} shows numerical counter values for median over a
   \caption{Events with significant correlation to cycle count.}
   \label{tab:loopcorrelation}
   \centering
-
   \renewcommand{\tabcolsep}{1pt} % Less padding between cells
-  \pgfkeys{/pgf/number format/.cd,int trunc} % Output whole numbers
-
   \pgfplotstabletypeset[
     font=\scriptsize,
+    int detect, % Output whole numbers for counter values
     col sep=comma,
     columns={Performance counter, Median, [index]3, [index]4},
     column type=r,
@@ -500,6 +498,8 @@ This becomes much more enticing when the performance penalties are more signific
 % - Bias from aliasing caused by accesses to any part of memory
 % - Dynamic memory usually from dynamically linked libs = bias
 % - More interesting: default behavior provokes aliasing 
+% - Intel warning, copy routine. 
+% - Trouble with aligned read/write buffers, creating constant conflicts in sliding window.
 % Heap allocation alias by default
 % - Normal heap with brk/sbrk syscalls
 %   - Manage heap and increase on demand
@@ -509,16 +509,14 @@ This becomes much more enticing when the performance penalties are more signific
 %   - Page aligned
 % - Normal addr. vs mmap addr.
 % - Makes no difference ++ everything is conceptually the same heap, but alias by default!
-% Aligned sequential access
-% - Intel warning, copy routine. 
-% - Trouble with aligned read/write buffers, creating constant conflicts in sliding window.
+% Convolution kernel Analysis
 % - More contrived example; convolution
 %   - Simple code disregarding endpoints
 %   - Manipulate start addresses by offseting pointers
 %   - Compiled with gcc O3, shows bad performance (graph) + discussion
 % - Table with lots of data points, showing actual numbers for each offset
 % Architectural optimization
-% - Modified example with restrict and -march=i7
+% - Modified example with restrict and -march=native
 % Bahavior of other Allocators
 % - Intro each allocator
 % - Present table
@@ -549,13 +547,13 @@ However, mmap has an interesting property in that allocations will always be pag
 The page size is 4096 bytes, meaning two pointers returned by mmap will \emph{always} alias.\footnote{libc's version of malloc adds 16 bytes of medatada at the beginning, therefore every mmap'ed address ends with 0x010}
 
 
-\subsection{Aligned Sequential Access}
+\subsection{Analysis of Convolution kernel}
 Consider the function shown in Listing~\ref{lst:conv}.
 It computes the convolution between an input array and a fixed five-element kernel, writing the result to another array.
 For simplicity, endpoints are not handled.
 
 % Plot of cycles vs alias for estimated cost of O3 convolution
-\pgfplotstableread{bin/default-o3.estimate.dat}{\convolutiontable}
+\pgfplotstableread{bin/conv-default-o3.estimate.dat}{\convolutiontable}
 \begin{figure}[t]
   \caption{Cycle and alias counts for different offsets between input and output arrays in Listing~\ref{lst:conv}. Offset 0 means equal 12 bit address suffix, which is default behavior for mmap allocations. Array size $n=2^{20}$, compiled with -O3. }
   \label{fig:heapalias}
@@ -573,18 +571,13 @@ For simplicity, endpoints are not handled.
   \end{tikzpicture}
 \end{figure}
 
-
-\begin{lstlisting}[float=t, language=C, caption={Naive implementation of convolution. Highly sensitive to aliasing between input and output arrays.}, label={lst:conv}, frame=lines]
-static float k[5]={0.1,0.25,0.3,0.25,0.1};
-void conv(int n, float *in, float *out) {
-    int i, j;
-    for (i = 2; i < n-2; ++i) {
-      out[i] = 0;
-      for (j = 0; j < 5; ++j)
-          out[i] += in[i-2+j] * k[j];
-    }
-}
-\end{lstlisting}
+\lstinputlisting[
+  float=t, 
+  language=C, 
+  caption={Naive implementation of convolution. Highly sensitive to aliasing between input and output arrays.},
+  label={lst:conv},
+  frame=lines
+]{bin/convolution-kernel.c}
 
 Figure \ref{fig:heapalias} shows how this function behaves when given input with different alignment.
 The default behavior for large heap allocations is that both arrays alias.
@@ -602,37 +595,40 @@ Because large heap allocations always alias, the processor thinks memory accesse
 By manually adjusting the alignment of one input buffer, cycle count can be reduced by more than 50\%.
 This is a speedup on top of compiler optimization O3, which is not able to account for aliasing effects.
 
-
-% Table with detailed performance data, estimated for O3
-\pgfplotstabletranspose[
-  col sep=comma,
-  columns={n, cycles:u,r0107:u,r02a3:u,r01a2:u,r05a3:u,r04a2:u,r20a1:u,r0860:u,r0160:u,r2049:u,r6049:u},
-  colnames from=n % Automapped to new 'colnames' column
-  ]\loadedtable{bin/default-o3.estimate.dat}
-
-\begin{sidewaystable*}[p]
+% Table with detailed performance data, estimated for O3 (sidewaystable)
+\begin{table*}[t]
   \caption{Most interesting performance counters for O3 convolution code, estimated cost accounting for constant overhead of heap allocation in main.}
   \label{tab:convstats}
-  \pgfkeys{/pgf/number format/.cd,int trunc} % Output whole numbers
+
+  \renewcommand{\tabcolsep}{3pt} % Less padding between cells
   \pgfplotstabletypeset[
-    font=\normalsize,
-    columns={[index]0, [index]1, [index]2, [index]3, [index]4, [index]5, [index]11, [index]21, [index]31}, % Select interesting offsets
-    columns/colnames/.style={string type,column name={}, column type={l}},
-    columns/colnames/.append style={string replace={cycles:u}{Cycles}}, % Pretty print counter mnemonics
-    columns/colnames/.append style={string replace={r0107:u}{Alias}},
-    columns/colnames/.append style={string replace={r02a3:u}{cycle_activity.cycles_ldm_pending}},
-    columns/colnames/.append style={string replace={r01a2:u}{resource_stalls.any}},
-    columns/colnames/.append style={string replace={r05a3:u}{cycle_activity.stalls_l2_pending}},
-    columns/colnames/.append style={string replace={r04a2:u}{resource_stalls.rs}},
-    columns/colnames/.append style={string replace={r20a1:u}{uops_executed_port.port_5}},
-    columns/colnames/.append style={string replace={r0860:u}{offcore_requests_outstanding.all_data_rd}},
-    columns/colnames/.append style={string replace={r0160:u}{offcore_requests_outstanding.demand_data_rd}},
-    columns/colnames/.append style={string replace={r2049:u}{dtlb_store_misses.stlb_hit_4k}},
-    columns/colnames/.append style={string replace={r6049:u}{dtlb_store_misses.stlb_hit}},
-    every head row/.style={before row=\toprule, after row=\midrule},
+    font=\footnotesize,
+    int detect, % Output whole numbers for counter values
+    col sep=comma,
+    columns={Performance counter, Correlation, 0, 2, 4, 8, 16, 24},
+    column type=r,
+    columns/Performance counter/.style={
+      string type, 
+      column type=l,
+      postproc cell content/.append code={
+        \pgfkeysalso{@cell content=\perfctr{##1}}
+      }
+    },
+    columns/Correlation/.style={
+      fixed,
+      fixed zerofill,
+      precision=2
+    },
+    every head row/.style={
+      output empty row,
+      before row={\toprule
+        Performance counter & $r$ & 0 & 2 & 4 & 8 & 16 & 24 \\
+        },
+      after row=\midrule,
+    },
     every last row/.style={after row=\bottomrule}
-    ]{\loadedtable}
-\end{sidewaystable*}
+  ]{bin/conv-default-o3.estimate.csv}
+\end{table*}
 
 
 \subsection{Architectural Optimization}

@@ -3,7 +3,9 @@ estimate := ../../util/estimate.py
 correlate := ../../util/correlate.py
 lplot := ../../util/lplot.py
 
-.PHONY: disable-aslr
+.PHONY: all disable-aslr results
+
+all: results
 
 bin:
 	mkdir -p bin
@@ -172,3 +174,7 @@ bin/%.quick-estimate.csv: bin/% | disable-aslr
 # Measure only cycles and alias for the full 4k offset (400 floats)
 bin/%.4k.csv: bin/% | disable-aslr
 	$(lperf) -e cycles:u,r0107:u -n 400 -r 1 --env-increment 0 --enumerate $< 1 > $@
+
+
+results: bin/default-o3.estimate.csv
+

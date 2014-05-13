@@ -18,9 +18,18 @@ about:
 	uname -srvpi
 	gcc --version
 
-plotfiles := bin/micro-kernel-cycles.dat bin/micro-kernel-comparison.csv bin/micro-kernel-annotated.s bin/default-o3.estimate.dat
+resources := bin/micro-kernel-cycles.dat bin/micro-kernel-comparison.csv bin/micro-kernel-annotated.s \
+	bin/conv-default-o3.estimate.dat bin/conv-default-o3.estimate.csv bin/convolution-kernel.c
 
-# Move and process data files for inclusion in the paper
+# Build in root to avoid trouble with pgfplots and output directories.
+bin/paper.pdf: paper.tex references.bib $(resources) | bin
+	latex paper.tex
+	bibtex paper
+	latex paper.tex
+	latex paper.tex
+	dvipdf paper.dvi
+	mv paper.pdf $@
+	rm -f paper.log paper.dvi paper.aux paper.bbl paper.blg
 
 bin/micro-kernel-cycles.dat: analysis/env-alias/results/cycles.csv | bin
 	cat $< | util/pgfpconv.py > $@
@@ -33,13 +42,14 @@ bin/micro-kernel-comparison.csv: analysis/env-alias/results/comparison.csv | bin
 bin/micro-kernel-annotated.s: analysis/env-alias/loop.s | bin
 	cp $< $@
 
+bin/convolution-kernel.c: analysis/heap-alias/conv.c | bin
+	cp $< $@
 
-# Build in root to avoid trouble with pgfplots and output directories.
-bin/paper.pdf: paper.tex references.bib $(plotfiles) | bin
-	latex paper.tex
-	bibtex paper
-	latex paper.tex
-	latex paper.tex
-	dvipdf paper.dvi
-	mv paper.pdf $@
-	rm -f paper.log paper.dvi paper.aux paper.bbl paper.blg
+bin/conv-default-o3.estimate.dat: analysis/heap-alias/results/default-o3.estimate.csv | bin
+	cat $< | util/select.py -e cycles:u,r0107:u | util/pgfpconv.py > $@
+
+bin/conv-default-o3.estimate.csv: analysis/heap-alias/results/default-o3.estimate.csv | bin
+	cat $< \
+		| util/select.py -e cycles:u,r0107:u,r02a3:u,r01a2:u,r04a2:u,r05a3:u,r0860:u,r20a1:u,r04a1:u,r0160:u \
+		> $@
+
