@@ -432,6 +432,7 @@ Note that the number of micro-ops \emph{retired} overall does not change, but fo
 Our assumption is that this is a by-product of stalls generated from aliasing.
 
 % More deep dive section (maybe separate headline...)
+\subsection{The Offending Variables}
 These numbers clearly points to address aliasing as a plausible explanation, thus the next step is to see exactly which memory accesses are aliasing. 
 For that we need to know the addresses of all variables at run time.
 The program contains five variables; \texttt{g} and \texttt{inc} which are stack allocated, and \texttt{i}, \texttt{j} and \texttt{k} which are statically allocated.
@@ -517,6 +518,7 @@ This becomes much more enticing when the performance penalties are more signific
 % - Table with lots of data points, showing actual numbers for each offset
 % Architectural optimization
 % - Modified example with restrict and -march=native
+% - Vectorization -- probably less loads that causes reduction mostly
 % Bahavior of other Allocators
 % - Intro each allocator
 % - Present table
@@ -526,31 +528,54 @@ This becomes much more enticing when the performance penalties are more signific
 % - How did we find this example? Intelligent design, literally first guess
 
 Address aliasing can be caused by conflicting pairs of load and store operations to any part of memory.
-The previous section looked specifically at an example of collision between stack variables and static data.
-Another scenario to consider is collisions in heap allocated memory.
-Heap allocators are typically dynamically linked, and therefore part of the execution context.
-In particular, code that operate on pairs of contiguous arrays can be vulnerable to 4K aliasing.
+In the previous sections we saw collisions between static data and stack, observing bias from external conditions that affected addresses of automatic variables.
+Most dynamic memory is allocated on the \emph{heap}, which is managed by an \emph{allocator}.
+A heap allocator is responsible for managing dynamic memory, and ultimately assigns the actual addresses of heap allocated variables at run time.
+Heap allocation routines such as \texttt{malloc} and \texttt{free} are typically dynamically linked, for example as part of glibc, or some other library.
+The particular library used therefore constitutes an important part of the execution context, as linking to a different library, or a library with some alternative configuration, can impact heap addresses at run time.
 
-
-\subsection{Alias by Default with \texttt{malloc}}
-Acquiring dynamic memory at run time is usually done by calling malloc, which takes a number of bytes to allocate and returns a pointer to that area.
-A typical malloc implementation uses two different strategies for how to allocate memory, depeding on the size of the request.
-The \emph{heap} area in virtual memory is used for smaller allocations.
-Programs are initially given a small heap area, which the allocator can increase by calling brk or sbrk system calls.
-For larger allocations, instead of growing the regular heap it is typically faster to use anonymous memory mapping by calling the Posix function \texttt{mmap}.
-
-The heap starts at a relatively low address close to the data section, and grows upwards.
-Memory mapped chunks from mmap are placed much closer to the stack.
-While heap addresses can look like 0x16e30a0 or 0x1723020, pointers returned by mmap can for example be 0x7f0318a8f010 or 0x7f03105d2010.
+\subsection{\texttt{malloc} will Alias by Default}
+Acquiring dynamic memory at run time is usually done by calling \texttt{malloc}, which takes a number of bytes to allocate as input, and returns a pointer to that area.
+A typical malloc implementation uses different strategies for how to allocate memory depending on the size of the request.
+\begin{itemize}
+  \item The ``regular'' heap area in virtual memory is used for smaller allocations. 
+        Programs are initially given a relatively small heap, which the allocator can increase by calling \texttt{brk} or \texttt{sbrk} system calls.
+        The heap section starts at a relatively low address (close to the data section), and grows upwards.
+  \item For larger allocations, instead of growing the regular heap it is typically faster to use anonymous memory mapping by calling the Posix function \texttt{mmap}.
+      Memory mapped chunks are typically placed towards the upper end of the virtual address space, closer to the stack.
+\end{itemize}
+Addresses for smaller requests that are placed in the regular heap can look something like 0x16e30a0 or 0x1723020, while pointers returned by \texttt{mmap} can for example be 0x7f0318a8f010 or 0x7f03105d2010.
 This distinction is of course unimportant for application developers, as everything is conceptually the same ``heap''.
-However, mmap has an interesting property in that allocations will always be page aligned.
-The page size is 4096 bytes, meaning two pointers returned by mmap will \emph{always} alias.\footnote{libc's version of malloc adds 16 bytes of medatada at the beginning, therefore every mmap'ed address ends with 0x010}
+However, \texttt{mmap} has an interesting property in that allocations will always be page aligned.
+The page size is 4096 bytes, meaning two pointers returned by \texttt{mmap} will \emph{always} alias.\footnote{libc's version of malloc adds 16 bytes of medatada at the beginning, therefore every mmap'ed address ends with 0x010}
 
 
-\subsection{Analysis of Convolution kernel}
-Consider the function shown in Listing~\ref{lst:conv}.
-It computes the convolution between an input array and a fixed five-element kernel, writing the result to another array.
-For simplicity, endpoints are not handled.
+\subsection{Aligned Sequential Access}
+Many functions operate on pairs of buffers in a ``sliding window'' fashion; reading from one and writing the result to another in some loop construct.
+This type of program is potentially vulnerable to 4K aliasing, where the worst case will be when the read and write pointers are aliased and continuously generating false conflicts.
+This effect is mentioned in the Intel optimization manual, exemplified by an aliasing copy routine.
+
+\lstinputlisting[
+  float=t, 
+  language=C, 
+  caption={Naive implementation of convolution. Highly sensitive to aliasing between input and output arrays.},
+  label={lst:conv},
+  frame=lines
+]{bin/convolution-kernel.c}
+
+The function from Listing \ref{lst:conv} is a hand crafted naive implementation of linear correlation, containing lots of interleaved loads and stores while iterating over two independent memory buffers (for simplicity, endpoints are not handled).
+We show that the performance of this program greatly depends on the address alignment of each buffer, favoring memory addresses that are not closely aligned on the last 12 bits.
+For heap allocated memory, this depends entirely on what addresses the heap allocator provides.
+
+To force different alignments, we allocate some extra bytes at the end and offset the output pointer argument.
+
+\begin{lstlisting}
+output = malloc(n * (sizeof(float) + offset));
+conv(n, input, output + offset);
+\end{lstlisting}
+
+Figure \ref{fig:heapalias} shows how this function behaves when given input with different alignment.
+The default behavior for large heap allocations is that both arrays alias.
 
 % Plot of cycles vs alias for estimated cost of O3 convolution
 \pgfplotstableread{bin/conv-default-o3.estimate.dat}{\convolutiontable}
@@ -570,23 +595,6 @@ For simplicity, endpoints are not handled.
     \end{axis}
   \end{tikzpicture}
 \end{figure}
-
-\lstinputlisting[
-  float=t, 
-  language=C, 
-  caption={Naive implementation of convolution. Highly sensitive to aliasing between input and output arrays.},
-  label={lst:conv},
-  frame=lines
-]{bin/convolution-kernel.c}
-
-Figure \ref{fig:heapalias} shows how this function behaves when given input with different alignment.
-The default behavior for large heap allocations is that both arrays alias.
-To force different alignments, we allocate some extra bytes at the end and offset the output pointer argument.
-
-\begin{lstlisting}
-output = malloc(n * (sizeof(float) + offset));
-conv(n, input, output + offset);
-\end{lstlisting}
 
 Listing \ref{lst:conv}, together with a small main method handling the allocation and offset, is compiled with optimization O3 and input size n=$2^{20}$.
 Figure \ref{fig:heapalias} plots performance counter statistics for cycle count and 4K alias events over increasing amount of offset.
