@@ -388,7 +388,7 @@ By looking at the \emph{median} value of each counter compared to the extreme ca
 Table \ref{tab:loopcorrelation} shows numerical counter values for median over all environments, compared to worst cases of 3200 and 7296 bytes added.
 
 % Detailed comparison between median and worst cases.
-\begin{table}[h]
+\begin{table}[t]
   \caption{Events with significant correlation to cycle count.}
   \label{tab:loopcorrelation}
   \centering
@@ -421,7 +421,7 @@ Notice the most extreme change from median to worst case is clearly the number o
 If we plot the graph for address aliasing, we see that it is near zero everywhere and spikes at exactly the points we observe bias. 
 The results show a high number of resource stalls and pending memory loads when the spikes occur, which is consistent with address aliasing issues.
 Some of the other counters are less interesting; for example, bus- and cpl cycles, which will naturally vary with the total cycle count.
-These counters such as these are obviously not indicative of any causal relationship, and are ommitted.
+These counters are obviously not indicative of any causal relationship, and are ommitted.
 
 % Need input here, does this make sense?
 On the other end we get a much lower number of reservation station (RS) stalls in the aliasing case, with a reduction from about 270'000 to about 135'000.
@@ -440,9 +440,10 @@ Virtual memory layout of static data is decided at compile time, and we can find
 We find the addresses to be \texttt{\&i} = 0x60103c, \texttt{\&j} = 0x601040, and \texttt{\&k} = 0x601044.\footnote{ELF symbol tables can be read using \texttt{readelf -s}}
 
 Observing addresses of stack allocated data at run time is more challenging, as we have to make sure to not introduce any observer effects that alters the addresses as we are observing them.
-A small amount of assembly code was used to calculate the addresses of \texttt{g} and \texttt{inc} and outputing to stdout direcly using syscall.
-The instrumented program has the exact same bias to environment size, making no change to the stack allocation instructions and not affecting the addresses of static variables.
+A small amount of assembly code was added to calculate the addresses of \texttt{g} and \texttt{inc}, outputing to stdout direcly using the \texttt{syscall} instruction.
+Making no change to the stack allocation instructions and not affecting the addresses of static variables, the instrumented program have the exact same bias to environment size, free from observer effects.
 We find that the spike in cycle count occurs precicely when the address of \texttt{inc} alias with \texttt{i}, the first spike happening when \texttt{g} is at 0x7fffffffe038 and \texttt{inc} is at 0x7fffffffe{\underline{03c}}.
+The assembly output of gcc for the inner loop is shown below, indicating the conflicting load and store instructions.
 
 % Refer to relevant section of the generated assembly file (in gas syntax)
 \lstinputlisting[
@@ -534,26 +535,32 @@ A heap allocator is responsible for managing dynamic memory, and ultimately assi
 Heap allocation routines such as \texttt{malloc} and \texttt{free} are typically dynamically linked, for example as part of glibc, or some other library.
 The particular library used therefore constitutes an important part of the execution context, as linking to a different library, or a library with some alternative configuration, can impact heap addresses at run time.
 
+
 \subsection{\texttt{malloc} will Alias by Default}
 Acquiring dynamic memory at run time is usually done by calling \texttt{malloc}, which takes a number of bytes to allocate as input, and returns a pointer to that area.
-A typical malloc implementation uses different strategies for how to allocate memory depending on the size of the request.
+A typical malloc implementation uses different strategies for how to allocate memory depending on the \emph{size} of the request.
 \begin{itemize}
   \item The ``regular'' heap area in virtual memory is used for smaller allocations. 
-        Programs are initially given a relatively small heap, which the allocator can increase by calling \texttt{brk} or \texttt{sbrk} system calls.
-        The heap section starts at a relatively low address (close to the data section), and grows upwards.
-  \item For larger allocations, instead of growing the regular heap it is typically faster to use anonymous memory mapping by calling the Posix function \texttt{mmap}.
-      Memory mapped chunks are typically placed towards the upper end of the virtual address space, closer to the stack.
+  Programs are initially given a relatively small heap, which the allocator can increase by calling \texttt{brk} or \texttt{sbrk} system calls.
+
+  \item For larger allocations, it can be more efficient to use anonymous memory mapping by calling the Posix function \texttt{mmap} instead of growing the regular heap.
+  One drawback of this is that it requires the memory to be zero initialized, thus whether memory mapping is used or not is based on some cost heuristic employed by the allocator.
 \end{itemize}
-Addresses for smaller requests that are placed in the regular heap can look something like 0x16e30a0 or 0x1723020, while pointers returned by \texttt{mmap} can for example be 0x7f0318a8f010 or 0x7f03105d2010.
+The heap section starts at a relatively low address (close to the data section), growing upwards.
+Memory mapped chunks are placed towards the upper end of the virtual address space, closer to the stack.
+Whether a memory allocation request is served by the heap or by memory mapping is therefore easy to determine just by looking at the actual pointer values returned.
+While addresses in the regular heap can look something like 0x16e30a0 or 0x1723020, pointers returned by \texttt{mmap} are numerically much larger -- for example 0x7f0318a8f010 or 0x7f03105d2010.
 This distinction is of course unimportant for application developers, as everything is conceptually the same ``heap''.
 However, \texttt{mmap} has an interesting property in that allocations will always be page aligned.
 The page size is 4096 bytes, meaning two pointers returned by \texttt{mmap} will \emph{always} alias.\footnote{libc's version of malloc adds 16 bytes of medatada at the beginning, therefore every mmap'ed address ends with 0x010}
+This behavior is often the worst case for functions that operate on two or more independent buffers, as we will see in the following sections.
 
 
 \subsection{Aligned Sequential Access}
-Many functions operate on pairs of buffers in a ``sliding window'' fashion; reading from one and writing the result to another in some loop construct.
-This type of program is potentially vulnerable to 4K aliasing, where the worst case will be when the read and write pointers are aliased and continuously generating false conflicts.
-This effect is mentioned in the Intel optimization manual, exemplified by an aliasing copy routine.
+Many functions operate in a ``sliding window'' fashion; reading from one buffer and writing the result to another in some loop construction.
+This type of program is potentially vulnerable to 4K aliasing, where the worst case will be when the read and write pointers are aliased, and continuously generating false conflicts.
+The function from Listing \ref{lst:conv} is an example of this.
+It is a naive implementation of linear correlation, containing lots of interleaved loads and stores while iterating over two independent memory buffers (for simplicity, endpoints are not handled).
 
 \lstinputlisting[
   float=t, 
@@ -563,57 +570,69 @@ This effect is mentioned in the Intel optimization manual, exemplified by an ali
   frame=lines
 ]{bin/convolution-kernel.c}
 
-The function from Listing \ref{lst:conv} is a hand crafted naive implementation of linear correlation, containing lots of interleaved loads and stores while iterating over two independent memory buffers (for simplicity, endpoints are not handled).
-We show that the performance of this program greatly depends on the address alignment of each buffer, favoring memory addresses that are not closely aligned on the last 12 bits.
-For heap allocated memory, this depends entirely on what addresses the heap allocator provides.
-
-To force different alignments, we allocate some extra bytes at the end and offset the output pointer argument.
-
+The performance of this program greatly depends on the address alignment of each buffer, favoring memory addresses that are not closely aligned on the last 12 bits.
+By using an input size of $n=2^{20}$ (4 MiB in memory for each array), glibc's heap allocator ends up always choosing \texttt{mmap} to serve requests.
+To analyse performance for different addresses input and output buffers, we manually insert padding to offset one of the memory mapped pointers.
+This is accomplished by requesting a bit more memory, and use pointer arithmetic to offset the input arguments when calling \texttt{convolution}.
+Controlling the offset parameter, we can create environments where the inputs are some number of \texttt{sizeof(float)} bytes apart.
+Allocating and managing these buffers at startup takes a non-neglegible amount of work.
+This constant over head can be masked by repeatedly invoking the \texttt{convolution} kernel after allocating and initializing all the inputs.
 \begin{lstlisting}
-output = malloc(n * (sizeof(float) + offset));
-conv(n, input, output + offset);
+    for (i = 0; i < k; ++i)
+        convolution(n, input, output + offset);
 \end{lstlisting}
+An estimate of the actual cost of one invocation is calculated by averaging over a number of repeated function calls, after subtracting the constant overhead of invoking it only once.
 
-Figure \ref{fig:heapalias} shows how this function behaves when given input with different alignment.
-The default behavior for large heap allocations is that both arrays alias.
+\[
+t_{\text{estimate}} = \frac{t_{k} - t_{1}}{k - 1}
+\]
 
-% Plot of cycles vs alias for estimated cost of O3 convolution
-\pgfplotstableread{bin/conv-default-o3.estimate.dat}{\convolutiontable}
-\begin{figure}[t]
-  \caption{Cycle and alias counts for different offsets between input and output arrays in Listing~\ref{lst:conv}. Offset 0 means equal 12 bit address suffix, which is default behavior for mmap allocations. Array size $n=2^{20}$, compiled with -O3. }
-  \label{fig:heapalias}
+Our results are from using $k=11$, averaging over 10 invocations.
+
+\pgfplotstableread{bin/conv-default-o2.estimate.dat}{\convtabletwo}
+\pgfplotstableread{bin/conv-default-o3.estimate.dat}{\convtablethree}
+\begin{figure*}[t]
+  \caption{Cycle and alias counts for different offsets between input and output arrays in Listing~\ref{lst:conv}. Offset 0 means equal 12 bit address suffix, which is default behavior for \texttt{mmap} allocations. Input size $n=2^{20}$.}
+  \label{fig:conv-default}
   \begin{tikzpicture}
     \begin{axis}[
+        title=\texttt{cc -O2},
         font = \small,
         xlabel=Relative offset in \lstinline!sizeof(float)! bytes,
         cycle list name=black white
       ]
-      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convolutiontable ;
-      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \convolutiontable ;
-      \addlegendentry{cycles:u} ;
-      \addlegendentry{r0107:u} ;
+      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convtabletwo ;
+      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \convtabletwo ;
+      \addlegendentry{Cycles} ;
+      \addlegendentry{Alias} ;
     \end{axis}
   \end{tikzpicture}
-\end{figure}
+  \begin{tikzpicture}
+    \begin{axis}[
+        title=\texttt{cc -O3},
+        font = \small,
+        xlabel=Relative offset in \lstinline!sizeof(float)! bytes,
+        cycle list name=black white
+      ]
+      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convtablethree ;
+      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \convtablethree ;
+      \addlegendentry{Cycles} ;
+      \addlegendentry{Alias} ;
+    \end{axis}
+  \end{tikzpicture}
+\end{figure*}
 
-Listing \ref{lst:conv}, together with a small main method handling the allocation and offset, is compiled with optimization O3 and input size n=$2^{20}$.
-Figure \ref{fig:heapalias} plots performance counter statistics for cycle count and 4K alias events over increasing amount of offset.
-This is an example of how false dependencies from address aliasing can cause a significant performance hit.
-Because large heap allocations always alias, the processor thinks memory accesses to input[i] potentially conflicts with output[i], stalling the pipeline.
-By manually adjusting the alignment of one input buffer, cycle count can be reduced by more than 50\%.
-This is a speedup on top of compiler optimization O3, which is not able to account for aliasing effects.
-
-% Table with detailed performance data, estimated for O3 (sidewaystable)
+% Table with detailed performance data, use estimated for O2 because it does not need as many columns (!)
 \begin{table*}[t]
-  \caption{Most interesting performance counters for O3 convolution code, estimated cost accounting for constant overhead of heap allocation in main.}
+  \caption{Most interesting performance counters and correlation with cycle count for optimization O2, estimated cost accounting for constant overhead.}
   \label{tab:convstats}
 
-  \renewcommand{\tabcolsep}{3pt} % Less padding between cells
+  %\renewcommand{\tabcolsep}{3pt} % Less padding between cells
   \pgfplotstabletypeset[
-    font=\footnotesize,
+    font=\small,
     int detect, % Output whole numbers for counter values
     col sep=comma,
-    columns={Performance counter, Correlation, 0, 2, 4, 8, 16, 24},
+    columns={Performance counter, Correlation, 0, 2, 4, 8},
     column type=r,
     columns/Performance counter/.style={
       string type, 
@@ -630,13 +649,32 @@ This is a speedup on top of compiler optimization O3, which is not able to accou
     every head row/.style={
       output empty row,
       before row={\toprule
-        Performance counter & $r$ & 0 & 2 & 4 & 8 & 16 & 24 \\
+        Performance counter & $r$ & 0 & 2 & 4 & 8 \\
         },
       after row=\midrule,
     },
     every last row/.style={after row=\bottomrule}
-  ]{bin/conv-default-o3.estimate.csv}
+  ]{bin/conv-default-o2.estimate.csv}
 \end{table*}
+
+Figure~\ref{fig:conv-default} shows how the convolution kernel behaves for increasing offsets modulo 4096 between heap addresses.
+The effects are most distinct on optimization level 2 and 3, where the ratio of cycles to alias events is most significant.
+The figures clearly indicate a relationship between address aliasing events and cycles executed.
+The numbers on the x axis represent the amount of offset, measures in number of \texttt{float} values.
+Note that an offset of zero is the default behavior for this program when using \texttt{malloc}, where both arrays will have addresses ending in 0x010 using the default allocator.
+Both for optimization level 2 and 3, the default alignment is close to worst case performance. 
+We only show the first 32 data points, but the lines are flat all the way through if extended to cover the full width of possible offsets within a 4K segment.
+
+% todo from here ...
+% - O2 easy, clear correlation. Look at numbers.
+% - O3 still the same. But more chaotic -- very much vectorized by gcc.
+
+Listing \ref{lst:conv}, together with a small main method handling the allocation and offset, is compiled with optimization O3 and input size n=$2^{20}$.
+Figure \ref{fig:conv-o2} plots performance counter statistics for cycle count and 4K alias events over increasing amount of offset.
+This is an example of how false dependencies from address aliasing can cause a significant performance hit.
+Because large heap allocations always alias, the processor thinks memory accesses to input[i] potentially conflicts with output[i], stalling the pipeline.
+By manually adjusting the alignment of one input buffer, cycle count can be reduced by more than 50\%.
+This is a speedup on top of compiler optimization O3, which is not able to account for aliasing effects.
 
 
 \subsection{Architectural Optimization}
@@ -656,7 +694,7 @@ Even with the updated signature compiled with -O3 -march=native, there is still 
 As with the contents of environment variables, the exact behavior of dynamic memory allocation can typically not be known ahead of time.
 Heap allocation routines such as malloc and free are usually dynamically linked and resolved at run-time, which again represents a source of potential bias.
 For the code examples presented earlier, the dynamic linker will resolve malloc to some version of glibc, which is the default on our system.
-Variations between different versions of libc, or local configurations on parameters such as M\_MMAP\_THRESHOLD, could trigger aliasing cases.
+Variations between different versions of libc, or local configurations on parameters such as thresholds for when to use \texttt{mmap} over \texttt{brk}, could trigger aliasing cases.
 
 In addition to glibc's ptmalloc, we look at the following alternatives.
 \begin{itemize}
