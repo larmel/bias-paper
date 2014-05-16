@@ -171,10 +171,9 @@ bin/%.quick-estimate.csv: bin/% | disable-aslr
 	$(lplot) --input $@
 
 
-# Measure only cycles and alias for the full 4k offset (400 floats)
+# Measure only cycles and alias for the full 4k offset (1024 floats)
 bin/%.4k.csv: bin/% | disable-aslr
-	$(lperf) -e cycles:u,r0107:u -n 400 -r 1 --env-increment 0 --enumerate $< 1 > $@
+	$(lperf) -e cycles:u,r0107:u -n 1024 -r 1 --env-increment 0 --enumerate $< 1 > $@
 
 
-results: bin/default-o3.estimate.csv
-
+results: bin/default-o2.estimate.csv bin/default-o3.estimate.csv bin/default-o2.4k.csv bin/default-o3.4k.csv

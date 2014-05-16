@@ -43,7 +43,7 @@
     In this paper we identify the underlying mechanics resulting in measurement bias on modern Intel microarchitectures. 
     The magnitude of this performance bias has been shown to be significant, and can be as high as a factor two.
     
-    We analyze a small program that was presented as a curiosity in [others] previous work on \emph{measurement bias};
+    We analyze a small program that was presented as a curiosity in related previous work on \emph{measurement bias};
     Code that for unexplained reasons performs significantly worse than average for certain configurations of system environment variables.
 
     Using hardware performance counters, we identify a strong correlation with resource stalls, ultimately caused by address aliasing events.
@@ -481,7 +481,7 @@ int main() {
     int g = 0, inc = 1;
     if (ALIAS(inc, i) || ALIAS(g, i))
         return main();
-    for (; g < 65536*10; g++) {
+    for (; g < 65536; g++) {
         i += inc;
         j += inc;
         k += inc;
@@ -544,7 +544,7 @@ A typical malloc implementation uses different strategies for how to allocate me
   Programs are initially given a relatively small heap, which the allocator can increase by calling \texttt{brk} or \texttt{sbrk} system calls.
 
   \item For larger allocations, it can be more efficient to use anonymous memory mapping by calling the Posix function \texttt{mmap} instead of growing the regular heap.
-  One drawback of this is that it requires the memory to be zero initialized, thus whether memory mapping is used or not is based on some cost heuristic employed by the allocator.
+  One drawback of this is that it requires the memory to be zero initialized, and whether memory mapping is used or not is based on some cost heuristic employed by the allocator.
 \end{itemize}
 The heap section starts at a relatively low address (close to the data section), growing upwards.
 Memory mapped chunks are placed towards the upper end of the virtual address space, closer to the stack.
@@ -552,15 +552,15 @@ Whether a memory allocation request is served by the heap or by memory mapping i
 While addresses in the regular heap can look something like 0x16e30a0 or 0x1723020, pointers returned by \texttt{mmap} are numerically much larger -- for example 0x7f0318a8f010 or 0x7f03105d2010.
 This distinction is of course unimportant for application developers, as everything is conceptually the same ``heap''.
 However, \texttt{mmap} has an interesting property in that allocations will always be page aligned.
-The page size is 4096 bytes, meaning two pointers returned by \texttt{mmap} will \emph{always} alias.\footnote{libc's version of malloc adds 16 bytes of metadata at the beginning, therefore every mmap'ed address ends with 0x010}
+The page size is 4096 bytes, meaning two pointers returned by \texttt{mmap} will \emph{always} alias.\footnote{libc's version of malloc adds 16 bytes of metadata at the beginning, therefore every memory mapped address end with 0x010.}
 This behavior is often the worst case for functions that operate on two or more independent buffers, as we will see in the following sections.
 
-
 \subsection{Aligned Sequential Access}
-Many functions operate in a ``sliding window'' fashion; reading from one buffer and writing the result to another in some loop construction.
-This type of program is potentially vulnerable to 4K aliasing, where the worst case will be when the read and write pointers are aliased, and continuously generating false conflicts.
-The function from Listing \ref{lst:conv} is an example of this.
-It is a naive implementation of linear correlation, containing lots of interleaved loads and stores while iterating over two independent memory buffers (for simplicity, endpoints are not handled).
+Many functions operate in a ``sliding window'' fashion; reading and writing to different buffers in some loop construction.
+This type of program is potentially vulnerable to 4K aliasing, where the worst case will be when the read and write pointer addresses are aliased, continuously generating false conflicts.
+As an example of this, consider a naive implementation of linear correlation shown in Listing \ref{lst:conv} (for simplicity, endpoints are not handled).
+The function containins lots of interleaved loads and stores, iterating over two independent memory buffers in a tight loop.
+We will see that the performance of this program greatly depends on the address alignment of each buffer, favoring memory addresses that are not closely aligned on the last 12-bits.
 
 \lstinputlisting[
   float=t, 
@@ -570,29 +570,31 @@ It is a naive implementation of linear correlation, containing lots of interleav
   frame=lines
 ]{bin/convolution-kernel.c}
 
-The performance of this program greatly depends on the address alignment of each buffer, favoring memory addresses that are not closely aligned on the last 12-bits.
+% Use mmap directly instead maybe?
 By using an input size of $n=2^{20}$ (4 MiB in memory for each array), glibc's heap allocator ends up always choosing \texttt{mmap} to serve requests.
-To analyse performance for different addresses input and output buffers, we manually insert padding to offset one of the memory mapped pointers.
+By default, even with address randomization enabled, both pointers will have the same address suffix of 0x010.
+To analyse performance for different addresses of input and output buffers, we manually insert padding to offset one of the memory mapped pointers.
 This is accomplished by requesting a bit more memory, and use pointer arithmetic to offset the input arguments when calling \texttt{convolution}.
 Controlling the offset parameter, we can create environments where the inputs are some number of \texttt{sizeof(float)} bytes apart.
 Allocating and managing these buffers at startup takes a non-neglegible amount of work.
-This constant over head can be masked by repeatedly invoking the \texttt{convolution} kernel after allocating and initializing all the inputs.
+The overhead can be masked by repeatedly invoking the \texttt{convolution} kernel after allocating and initializing all the inputs.
 \begin{lstlisting}
     for (i = 0; i < k; ++i)
         convolution(n, input, output + offset);
 \end{lstlisting}
-An estimate of the actual cost of one invocation is calculated by averaging over a number of repeated function calls, after subtracting the constant overhead of invoking it only once.
+An estimate of the actual cost of one invocation can be calculated by averaging over a number of repeated function calls, after subtracting the constant overhead of invoking it only once.
 
 \[
 t_{\text{estimate}} = \frac{t_{k} - t_{1}}{k - 1}
 \]
 
-Our results are from using $k=11$, averaging over 10 invocations.
+Our results are from using $k=11$, effectively using the average over 10 loop iterations to estimate the cost of a single invocation.
+For every run, performance counter measurements is also averaged over 10 samples, using the repeat mechanism of \texttt{perf-stat}.
 
 \pgfplotstableread{bin/conv-default-o2.estimate.dat}{\convtabletwo}
 \pgfplotstableread{bin/conv-default-o3.estimate.dat}{\convtablethree}
 \begin{figure*}[t]
-  \caption{Cycle and alias counts for different offsets between input and output arrays in Listing~\ref{lst:conv}. Offset 0 means equal 12-bit address suffix, which is default behavior for \texttt{mmap} allocations. Input size $n=2^{20}$.}
+  \caption{Estimated cycle- and alias counts for different offsets between input and output arrays in convolution kernel from Listing~\ref{lst:conv}. Offset 0 means equal 12-bit address suffix, which is default behavior for \texttt{mmap} allocations. Input size $n=2^{20}$.}
   \label{fig:conv-default}
   \begin{tikzpicture}
     \begin{axis}[
@@ -657,24 +659,37 @@ Our results are from using $k=11$, averaging over 10 invocations.
   ]{bin/conv-default-o2.estimate.csv}
 \end{table*}
 
-Figure~\ref{fig:conv-default} shows how the convolution kernel behaves for increasing offsets modulo 4096 between heap addresses.
+Figure~\ref{fig:conv-default} illustrates how the convolution kernel behaves for increasing offsets between heap addresses (modulo 4096), clearly indicating a relationship between address aliasing events and cycles executed.
 The effects are most distinct on optimization level 2 and 3, where the ratio of cycles to alias events is most significant.
-The figures clearly indicate a relationship between address aliasing events and cycles executed.
-The numbers on the x axis represent the amount of offset, measures in number of \texttt{float} values.
-Note that an offset of zero is the default behavior for this program when using \texttt{malloc}, where both arrays will have addresses ending in 0x010 using the default allocator.
-Both for optimization level 2 and 3, the default alignment is close to worst case performance. 
-We only show the first 32 data points, but the lines are flat all the way through if extended to cover the full width of possible offsets within a 4K segment.
+Numbers on the x axis represent the amount of offset, measured in number of \texttt{sizeof(float)} bytes.
+An offset of zero is the default behavior for this program when using \texttt{malloc} and moderately large inputs.
+Both for optimization level 2 and 3, the default alignment is close to worst case performance.
+The differences in cycles executed is also very significant, with about $1.7x$ speedup for O2 and as much as $2x$ speedup for O3.
+This phenomenon is only observed for address offsets close to zero, thus we only show the first 32 data points.
+If extended to cover the full width of 1024 possible offsets within a 4K segment, graph shows that the performance is uniform everywhere else.
 
-% todo from here ...
-% - O2 easy, clear correlation. Look at numbers.
-% - O3 still the same. But more chaotic -- very much vectorized by gcc.
+More detailed performance counter data is presented in Table~\ref{tab:convstats}, where we have selected a subset that seem to correlate well with the change to cycle count.
+The numbers are for the level 2 optimization case, which was chosen because the behavior was less chaotic and thus more easily represented by only a few numbers.
+However, we find the performance data looks fairly similar between the two data sets, with a couple of events that seem to stand out.
+\begin{itemize}
+    \item A high number of resource stalls for the default alignment, which is reduced substantially together with increasing offsets. 
+    \item A high number of cycles with memory loads pending, indicating that the pipeline is stalled waiting for load operations to resolve.
+    \item Changes to micro-ops executed for certain ports.
+    \item Offcore requests. % todo!
+\end{itemize} 
+Interestingly, it looks like small address offsets incur a massive increase in operations issued on port 0 for the O2 case. 
+On Haswell, this port handles various ALU operations, and branching together with port 6.~\cite[Figure 2.1]{OptimizationManual}
+As there is also variations in the number of branch instructions executed, it seems like these counters together show that certain branch micro-ops are re-issued.
 
-Listing \ref{lst:conv}, together with a small main function handling the allocation and offset, is compiled with optimization O3 and input size n=$2^{20}$.
-Figure \ref{fig:conv-o2} plots performance counter statistics for cycle count and 4K alias events over increasing amount of offset.
-This is an example of how false dependencies from address aliasing can cause a significant performance hit.
-Because large heap allocations always alias, the processor thinks memory accesses to input[i] potentially conflicts with output[i], stalling the pipeline.
-By manually adjusting the alignment of one input buffer, cycle count can be reduced by more than 50\%.
-This is a speedup on top of compiler optimization level O3, which is not able to account for aliasing effects.
+It is also worth noticing that most cache related metrics does \emph{not} stand out in this experiment.
+The L1 hit rate remains stable across all offsets, and only a neglible number of memory loads actually misses L1.
+
+Overall it seems reasonable to conclude that the resource stalling is causing delayed execution, ultimately generated by false dependencies from address aliasing.
+Variations in execution port activity, and in this case increased number of branches executed, is consistent with micro-ops being reissued after the potential conflict is detected.
+
+We do not attempt to pinpoint exactly which assembly instructions might alias, but on a high level we can assume that the processor thinks memory accesses to \texttt{input[i]} potentially conflicts with \texttt{output[i]}.
+By manually adjusting the alignment of one of the input buffers, cycle count can be reduced by as much as 50\%.
+This is a speedup on top of aggressive compiler optimization, which is not able to account for aliasing effects.
 
 
 \subsection{Architectural Optimization}

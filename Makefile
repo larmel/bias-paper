@@ -56,9 +56,9 @@ bin/conv-default-o2.estimate.dat: analysis/heap-alias/results/default-o2.estimat
 	cat $< | util/select.py -e cycles:u,r0107:u | util/pgfpconv.py > $@
 
 bin/conv-default-o2.estimate.csv: analysis/heap-alias/results/default-o2.estimate.csv | bin
-	cat $< \
-		| util/select.py -e cycles:u,r0107:u,r02a3:u,r01a2:u,r04a2:u,r05a3:u,r0860:u,r20a1:u,r04a1:u,r0160:u \
-		> $@
+	$(eval positive := cycles:u,r01a2:u,r02a3:u,r04a2:u,r01a1:u,r0107:u,r40a1:u,r05a3:u,r0160:u,rff88:u,r4188:u,r0860:u)
+	$(eval cache := r01d1:u,r02d1:u,r08d1:u)
+	cat $< | util/select.py -e $(positive) > $@
 
 bin/conv-default-o3.estimate.dat: analysis/heap-alias/results/default-o3.estimate.csv | bin
 	cat $< | util/select.py -e cycles:u,r0107:u | util/pgfpconv.py > $@
