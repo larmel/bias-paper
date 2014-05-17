@@ -1,12 +1,8 @@
-.PHONY: all paper disable-aslr clean about
+.PHONY: all paper clean about
 
 all: paper
 
 paper: bin/paper.pdf
-
-disable-aslr:
-	@echo "Disabling address randomization ..."
-	sudo bash -c "echo 0 > /proc/sys/kernel/randomize_va_space"
 
 clean:
 	rm -f bin/*
@@ -22,7 +18,8 @@ about:
 resources := bin/micro-kernel-cycles.dat bin/micro-kernel-comparison.csv bin/micro-kernel-annotated.s \
 	bin/conv-default-o2.estimate.dat bin/conv-default-o2.estimate.csv \
 	bin/conv-default-o3.estimate.dat bin/conv-default-o3.estimate.csv \
-	bin/convolution-kernel.c
+	bin/convolution-kernel.c \
+	bin/malloc-comparison.csv
 
 # Build in root to avoid trouble with pgfplots and output directories.
 bin/paper.pdf: paper.tex references.bib $(resources) | bin
@@ -67,3 +64,6 @@ bin/conv-default-o3.estimate.csv: analysis/heap-alias/results/default-o3.estimat
 	cat $< \
 		| util/select.py -e cycles:u,r0107:u,r02a3:u,r01a2:u,r04a2:u,r05a3:u,r0860:u,r20a1:u,r04a1:u,r0160:u \
 		> $@
+
+bin/malloc-comparison.csv: analysis/allocators/results/comparison.csv | bin
+	cat $< > $@

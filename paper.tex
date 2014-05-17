@@ -718,29 +718,59 @@ In addition to glibc's ptmalloc, we look at the following alternatives.
  \item Hoard is another project that focuses extensively on improving performance for multithreaded programs. \cite{Berger:2000:Hoard}
 \end{itemize}
 
-\begin{table}[t]
-  \caption{Addresses returned by different heap allocators when allocating pairs of equally sized buffers}
+% \begin{table}[t]
+%   \caption{Addresses returned by different heap allocators when allocating pairs of equally sized buffers}
+%   \label{tab:mallocompare}
+%   \centering
+%   \small
+%   \begin{tabular}{l r r}
+%     \toprule
+%                       & 5120 B          & $2^{20}$ B \\
+%     \midrule
+%     glibc             & 0x6028d0        & 0x2aaaaaaf3010 \\
+%     (ptmalloc)        & 0x603ce0        & 0x2aaaab098010 \\
+%     \midrule
+%     tcmalloc          & 0xe16000        & 0xe64000 \\
+%                       & 0xe18800        & 0xf64000 \\
+%     \midrule
+%     jemalloc          & 0x2aaaabc1f000  & 0x2aaaabc86000 \\
+%                       & 0x2aaaabc21000  & 0x2aaaabd86000 \\
+%     \midrule
+%     Hoard             & 0x2aaaaab40070  & 0x2aaaabf40070 \\
+%                       & 0x2aaaaab42070  & 0x2aaaac060070 \\
+%     \bottomrule
+%   \end{tabular}
+% \end{table}
+
+\begin{table*}[t]
+  \caption{Addresses returned by different heap allocators when allocating pairs of equally sized buffers.}
   \label{tab:mallocompare}
-  \centering
-  \small
-  \begin{tabular}{l r r}
-    \toprule
-                      & 5120 B          & $2^{20}$ B \\
-    \midrule
-    glibc             & 0x6028d0        & 0x2aaaaaaf3010 \\
-    (ptmalloc)        & 0x603ce0        & 0x2aaaab098010 \\
-    \midrule
-    tcmalloc          & 0xe16000        & 0xe64000 \\
-                      & 0xe18800        & 0xf64000 \\
-    \midrule
-    jemalloc          & 0x2aaaabc1f000  & 0x2aaaabc86000 \\
-                      & 0x2aaaabc21000  & 0x2aaaabd86000 \\
-    \midrule
-    Hoard             & 0x2aaaaab40070  & 0x2aaaabf40070 \\
-                      & 0x2aaaaab42070  & 0x2aaaac060070 \\
-    \bottomrule
-  \end{tabular}
-\end{table}
+
+  %\renewcommand{\tabcolsep}{3pt} % Less padding between cells
+  \pgfplotstabletypeset[
+    font=\small,
+    col sep=comma,
+    string type,
+    columns={Allocation, 64, 1024, 5120, 1048576},
+    column type=r,
+    columns/.style={
+        width=1cm
+    },
+    columns/Allocation/.style={
+      string type, 
+      column type=l
+    },
+    every head row/.style={
+      output empty row,
+      before row={\toprule
+         & 64 & 1024 & 5120 & 1048576 \\
+        },
+      after row=\midrule,
+    },
+    every last row/.style={after row=\bottomrule}
+  ]{bin/malloc-comparison.csv}
+\end{table*}
+
 
 Table \ref{tab:mallocompare} illustrates some differences that can be observed by switching heap allocator\footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}.
 The addresses of two equally sized char buffers allocated with malloc are observed for size parameters 5120 and $2^{20}$ bytes. 
