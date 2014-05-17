@@ -127,7 +127,7 @@ For some applications it might even make sense for programmers to actively take 
 
 % Include preview of aliasing program early to provike interest. 
 % Also lightly referenced in introduction/background
-\begin{lstlisting}[float=t, language=C, caption={Micro-kernel succeptible to aliasing between static and automatic variables depending on environment sizes}, label={lst:loopkernel}, frame=lines]
+\begin{lstlisting}[float=t, language=C, caption={Micro-kernel presented by Mytkowitz et al~\cite{Mytkowicz:2009:WrongData}, succeptible to bias from variations to system environment variables.}, label={lst:loopkernel}, frame=lines]
 static int i, j, k;
 int main() {
     int g = 0, inc = 1;
@@ -175,8 +175,8 @@ Cache related metrics are monitored in order to rule out cache as the underlying
 Results are averaged over multiple runs to reduce potential random error, supplying the \texttt{-r} option to perf-stat. % Not median, good question. man perf-stat says average + std.dev. 
 
 Because bias can be hardware dependent, and to keep the scope of this work manageable, we choose to focus on the Intel ``Haswell'' microarchitecture specifically.
-Our setup consists of a 4th generation Intel\textsuperscript{\textregistered} Core\textsuperscript{\texttrademark} i7-4770K processor, running 64-bit Ubuntu 13.10.
-Code samples are compiled using the GCC toolchain, version 4.8.1-10ubuntu9.
+Our setup consists of a 4th generation Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7-4770K processor, running 64-bit Ubuntu 14.04 LTS on kernel version 3.13.0-24-generic.
+Code samples are compiled using the {\small GCC} toolchain, version 4.8.2-19ubuntu1.
 
 We also have to ensure we are not affected by measurement bias beyond what we are actually trying to observe, and in general follow best practices on gathering data~\cite{Mytkowicz:2009:WrongData}.
 Most importantly, this means keeping the memory address space under control.
@@ -717,30 +717,6 @@ In addition to glibc's ptmalloc, we look at the following alternatives.
  \item jemalloc was originally developed for FreeBSD. It aims to be a scalable general purpose allocator in single or multithreaded environments. \cite{JEMalloc}
  \item Hoard is another project that focuses extensively on improving performance for multithreaded programs. \cite{Berger:2000:Hoard}
 \end{itemize}
-
-% \begin{table}[t]
-%   \caption{Addresses returned by different heap allocators when allocating pairs of equally sized buffers}
-%   \label{tab:mallocompare}
-%   \centering
-%   \small
-%   \begin{tabular}{l r r}
-%     \toprule
-%                       & 5120 B          & $2^{20}$ B \\
-%     \midrule
-%     glibc             & 0x6028d0        & 0x2aaaaaaf3010 \\
-%     (ptmalloc)        & 0x603ce0        & 0x2aaaab098010 \\
-%     \midrule
-%     tcmalloc          & 0xe16000        & 0xe64000 \\
-%                       & 0xe18800        & 0xf64000 \\
-%     \midrule
-%     jemalloc          & 0x2aaaabc1f000  & 0x2aaaabc86000 \\
-%                       & 0x2aaaabc21000  & 0x2aaaabd86000 \\
-%     \midrule
-%     Hoard             & 0x2aaaaab40070  & 0x2aaaabf40070 \\
-%                       & 0x2aaaaab42070  & 0x2aaaac060070 \\
-%     \bottomrule
-%   \end{tabular}
-% \end{table}
 
 \begin{table*}[t]
   \caption{Addresses returned by different heap allocators when allocating pairs of equally sized buffers.}
