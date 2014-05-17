@@ -745,17 +745,12 @@ In addition to glibc's ptmalloc, we look at the following alternatives.
 \begin{table*}[t]
   \caption{Addresses returned by different heap allocators when allocating pairs of equally sized buffers.}
   \label{tab:mallocompare}
-
-  %\renewcommand{\tabcolsep}{3pt} % Less padding between cells
   \pgfplotstabletypeset[
     font=\small,
     col sep=comma,
     string type,
-    columns={Allocation, 64, 1024, 5120, 1048576},
+    columns={Allocation, 64, 1024, 65536, 1048576, 4194304},
     column type=r,
-    columns/.style={
-        width=1cm
-    },
     columns/Allocation/.style={
       string type, 
       column type=l
@@ -763,14 +758,14 @@ In addition to glibc's ptmalloc, we look at the following alternatives.
     every head row/.style={
       output empty row,
       before row={\toprule
-         & 64 & 1024 & 5120 & 1048576 \\
+         & 64 B & 1,024 B & 65,536 B & 1,048,576 B & 4,194,304 B \\
         },
       after row=\midrule,
     },
+    every odd row/.style={after row=\midrule},
     every last row/.style={after row=\bottomrule}
   ]{bin/malloc-comparison.csv}
 \end{table*}
-
 
 Table \ref{tab:mallocompare} illustrates some differences that can be observed by switching heap allocator\footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}.
 The addresses of two equally sized char buffers allocated with malloc are observed for size parameters 5120 and $2^{20}$ bytes. 

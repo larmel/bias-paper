@@ -10,6 +10,6 @@ int main(int argc, char* argv[])
 	char *a = malloc(size);	
 	char *b = malloc(size);
 
-	printf("%p %p", a, b);
+	printf("%p\n%p\n", a, b);
     return 0;
 }
