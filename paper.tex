@@ -785,11 +785,14 @@ In this case, the external trigger of bias is variations in environment size, wh
 
 In general, any change to virtual memory layout of data can potentially introduce bias effects from address aliasing. 
 We present a code example with extreme sensitivity to heap address alignment, with more than 50 \% performance variation between different memory layouts.
-
 We find that typical heap allocators return page-aligned memory by default, which is the worst case with respect to aliasing for many algorithms.
 Despite recommendations from Intel, we are not aware of any allocators that specifically addresses this issue. 
 We show how manual padding of variables, and alternative alias-free code paths, can be used to avoid aliasing at runtime.
 This means that an understanding of 4K address aliasing is sometimes needed to achieve optimal performance. 
+
+
+\section{Acknowledgements}
+This work is forked from a Master's thesis project under the supervision of Anne Cathrine Elster and Rune Erlend Jensen at IDI, NTNU, studying sources of measurment bias for the Intel Ivy Bridge architecture~\cite{MasterThesis}.
 
 
 \bibliographystyle{plain}
