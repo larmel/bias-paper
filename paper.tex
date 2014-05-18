@@ -628,8 +628,6 @@ For every run, performance counter measurements is also averaged over 10 samples
 \begin{table*}[t]
   \caption{Most interesting performance counters and correlation with cycle count for optimization O2, estimated cost accounting for constant overhead.}
   \label{tab:convstats}
-
-  %\renewcommand{\tabcolsep}{3pt} % Less padding between cells
   \pgfplotstabletypeset[
     font=\small,
     int detect, % Output whole numbers for counter values
@@ -691,20 +689,6 @@ We do not attempt to pinpoint exactly which assembly instructions might alias, b
 By manually adjusting the alignment of one of the input buffers, cycle count can be reduced by as much as 50\%.
 This is a speedup on top of aggressive compiler optimization, which is not able to account for aliasing effects.
 
-
-\subsection{Architectural Optimization}
-It is perhaps unfair to assume the compiler can fix this when only given a generic optimization flag, as aliasing effects is (presumably) an Intel-specific issue.
-Another option is to utilize the C99 keyword \emph{restrict} to explicitly tell the compiler that the buffers are disjoint in memory.
-
-\begin{lstlisting}[language=C]
-void conv( int n,
-            const float * restrict in,
-            const float * restrict out );
-\end{lstlisting}
-
-Even with the updated signature compiled with -O3 -march=native, there is still room for improvement by inserting manual offsets.
-
-
 \subsection{Behavior of other Allocators}
 As with the contents of environment variables, the exact behavior of dynamic memory allocation can typically not be known ahead of time.
 Heap allocation routines such as malloc and free are usually dynamically linked and resolved at runtime, which again represents a source of potential bias.
@@ -755,12 +739,44 @@ Given that these results are deterministic (with ASLR disabled), it is not hard 
 
 Most malloc alternatives focuses heavily on performance in multithreaded environments.
 Heap allocation is intrinsically inefficient in that all threads share the same address space, leading to a high potential lock contention on memory accesses.
-To our knowledge, there are no commonly used allocators that specifically tries to mitigate aliasing in heap allocated memory.
-This despite explicit recommendation from Intel that special purpose allocators should care about aliasing for optimization. [cite]
 
 The purpose of this is to illustrate that allocators is yet another source of bias.
 Using heap allocated memory, address aliasing is an artifact of the allocator used.
 With different versions or configurations of memory allocators, any performance impact from aliasing can qualify as measurement bias.
+
+
+\subsection{Ways to Deal with Address Aliasing}
+Measurement bias from address aliasing can be significant in real applications, with potentially large performance penalties.
+However, with an understanding of the underlying mechanism that causes bias, the effects can to some extent be predicted and accounted for in software.
+The most relevant scenario to consider is probably code that can hit the aliasing \texttt{mmap} scenario, where performance impact can be consistently bad over all environments.
+In our convolution kernel example, there are several ways to limit the extent of aliasing.
+
+\paragraph{Mark buffers with \texttt{restrict}}
+In our convolution kernel implementation, the compiler has to account for the fact that input and output pointers might alias, or that the buffers partially overlap.
+This limits the extent generated code can keep data in registers without updating the values from memory, as a write to one buffer potentially could invalidate a cached value from the other.
+The C99 keyword \emph{restrict} can be used to explicitly tell the compiler that accesses through a pointer does not alias with any other, allowing for more efficient code generation with fewer memory accesses.
+\begin{lstlisting}[language=C]
+void conv( int n,
+            const float * restrict input,
+            float * restrict output );
+\end{lstlisting}
+With this updated function prototype, most of the address aliasing events are gone for the default alignment.
+
+\paragraph{Use a special purpose allocator}
+We found that heap allocators are prone to generate pairwise aliasing buffers, the worst case for functions such as the convolution example.
+A potential solution could be to apply some heuristic to randomize addresses more, and in particular not always return the same 12 bit suffix for large allocations.
+This goes somewhat agains conventional wisdom that more alignment is better.
+The Intel optimization manual actually mentiones this in \emph{User/Source Coding Rule 8}, suggesting that special purpose allocators could be used to avoid aliasing ~\cite{OptimizationManual}.
+However, to our knowledge there are no commonly used allocators that specifically tries to mitigate aliasing in heap allocated memory.
+
+\paragraph{Manually adjust memory}
+In some cases it might make sense to explicitly control the memory addresses used, for example forcing some fixed relative offset between input and output pointers.
+This can be achieved by exploiting the fact the \texttt{mmap} is in fact guaranteed to be placed at a page boundary, and use that directly instead of \texttt{malloc}.
+The following approach can be used to make an anonymous memory mapping with offset \texttt{d} bytes away from page alignment.
+\begin{lstlisting}[breaklines=true]
+    mmap(NULL, (n + d), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) + d;
+\end{lstlisting}
+The same pointer difference must of course by subtracted before unmapping the memory.
 
 
 \section{Conclusions}
@@ -770,10 +786,8 @@ The effect is caused by the way speculative and out-of-order memory operations a
 By analyzing an example originally presented by Mytkowicz et al. \cite{Mytkowicz:2009:WrongData}, we determined that collisions between stack variables and static data resulted in aliasing for certain stack positions.
 In this case, the external trigger of bias is variations in environment size, which in turn offset the virtual addresses of stack allocated variables.
 
-
 In general, any change to virtual memory layout of data can potentially introduce bias effects from address aliasing. 
 We present a code example with extreme sensitivity of data alignment, with more than 50 \% performance variation between different memory layouts.
-
 
 We find that compilers, even when provided with architecture specific optimization flags, still generates code that suffers from aliasing. 
 Typical heap allocators return page-aligned memory by default, which is the worst case with respect to aliasing for many algorithms.
@@ -781,8 +795,6 @@ Despite recommendations from Intel, we are not aware of any allocators that spec
 We show how manual padding of variables, and alternative alias-free code paths, can be used to avoid aliasing at runtime.
 This means that an understanding of 4K address aliasing is sometimes needed to achieve optimal performance. 
 
-
-%\onecolumn
 
 \bibliographystyle{plain}
 \bibliography{references}

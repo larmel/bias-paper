@@ -3,7 +3,7 @@
 
 #define N 0x100000
 
-void convolve(int, float *, float *);
+void conv(int, float *, float *);
 
 int main(int argc, char **argv)
 {
@@ -23,7 +23,7 @@ int main(int argc, char **argv)
     // Repeat a variable number of times, to be able to subtract the 
     // constant overhead from allocating and initializing input arrays.
     for (i = 0; i < repeat; ++i) {
-        convolve(N, input, (output + offset));
+        conv(N, input, (output + offset));
     }
 
     //printf("Offset: %d : (%p, %p), repeat %d\n", offset, input, output, repeat);

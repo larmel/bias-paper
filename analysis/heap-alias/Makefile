@@ -20,34 +20,35 @@ bin/main.o: main.c | bin
 	cc -c $< -o $@
 
 # Compile convolution kernel in different configurations, -march=native should
-# translate to core-avx2 for gcc.
+# translate to core-avx2 for gcc. Assembly to ELF is handled by GNU make 
+# implicit rule
 
-bin/default.o: conv.c | bin
-	cc -c $< -o $@
+bin/default.s: conv.c | bin
+	cc -S -c $< -o $@
 
-bin/default-o1.o: conv.c | bin
-	cc -c $< -O1 -o $@
+bin/default-o1.s: conv.c | bin
+	cc -S -c $< -O1 -o $@
 
-bin/default-o2.o: conv.c | bin
-	cc -c $< -O2 -o $@
+bin/default-o2.s: conv.c | bin
+	cc -S -c $< -O2 -o $@
 
-bin/default-o2-native.o: conv.c | bin
-	cc -c $< -O2 -march=native -o $@
+bin/default-o2-native.s: conv.c | bin
+	cc -S -c $< -O2 -march=native -o $@
 
-bin/default-o3.o: conv.c | bin
-	cc -c $< -O3 -o $@
+bin/default-o3.s: conv.c | bin
+	cc -S -c $< -O3 -o $@
 
-bin/default-o3-native.o: conv.c | bin
-	cc -c $< -O3 -march=native -o $@
+bin/default-o3-native.s: conv.c | bin
+	cc -S -O3 -march=native -c $< -o $@
 
-bin/restrict-o3.o: conv-restrict.c | bin
-	cc -c $< -std=c99 -O3 -o $@
+bin/restrict-o3.s: conv-restrict.c | bin
+	cc -S -c $< -std=c99 -O3 -o $@
 
-bin/restrict-o2-native.o: conv-restrict.c | bin
-	cc -c $< -std=c99 -march=native -O2 -o $@
+bin/restrict-o2-native.s: conv-restrict.c | bin
+	cc -S -c $< -std=c99 -march=native -O2 -o $@
 
-bin/restrict-o3-native.o: conv-restrict.c | bin
-	cc -c $< -std=c99 -march=native -O3 -o $@
+bin/restrict-o3-native.s: conv-restrict.c | bin
+	cc -S -c $< -std=c99 -march=native -O3 -o $@
 
 
 # Performance counter stats for 'bin/default 1 0':
@@ -173,7 +174,7 @@ bin/%.quick-estimate.csv: bin/% | disable-aslr
 
 # Measure only cycles and alias for the full 4k offset (1024 floats)
 bin/%.4k.csv: bin/% | disable-aslr
-	$(lperf) -e cycles:u,r0107:u -n 1024 -r 1 --env-increment 0 --enumerate $< 1 > $@
+	$(lperf) -e cycles:u,r0107:u -n 1024 -r 10 --env-increment 0 --enumerate $< 1 > $@
 
 
 results: bin/default-o2.estimate.csv bin/default-o3.estimate.csv bin/default-o2.4k.csv bin/default-o3.4k.csv
