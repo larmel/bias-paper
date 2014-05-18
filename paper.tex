@@ -691,16 +691,9 @@ This is a speedup on top of aggressive compiler optimization, which is not able 
 
 \subsection{Behavior of other Allocators}
 As with the contents of environment variables, the exact behavior of dynamic memory allocation can typically not be known ahead of time.
-Heap allocation routines such as malloc and free are usually dynamically linked and resolved at runtime, which again represents a source of potential bias.
-For the code examples presented earlier, the dynamic linker will resolve malloc to some version of glibc, which is the default on our system.
+Heap allocation routines such as \texttt{malloc} and \texttt{free} are usually dynamically linked and resolved at runtime, which again represents a potential source of bias.
+For the code examples presented earlier, the dynamic linker will resolve \texttt{malloc} to some version of glibc, which is the default on our system.
 Variations between different versions of libc, or local configurations on parameters such as thresholds for when to use \texttt{mmap} over \texttt{brk}, could trigger aliasing cases.
-
-In addition to glibc's ptmalloc, we look at the following alternatives.
-\begin{itemize}
- \item Thread-Caching Malloc (tcmalloc) is developed by Google. It aims to be time and space efficient, and reduces lock contention for multithreaded applications. \cite{TCMalloc}
- \item jemalloc was originally developed for FreeBSD. It aims to be a scalable general purpose allocator in single or multithreaded environments. \cite{JEMalloc}
- \item Hoard is another project that focuses extensively on improving performance for multithreaded programs. \cite{Berger:2000:Hoard}
-\end{itemize}
 
 \begin{table*}[t]
   \caption{Addresses returned by different heap allocators when allocating pairs of equally sized buffers.}
@@ -709,7 +702,7 @@ In addition to glibc's ptmalloc, we look at the following alternatives.
     font=\small,
     col sep=comma,
     string type,
-    columns={Allocation, 64, 1024, 65536, 1048576, 4194304},
+    columns={Allocation, 64, 5120, 65536, 1048576, 4194304},
     column type=r,
     columns/Allocation/.style={
       string type, 
@@ -718,7 +711,7 @@ In addition to glibc's ptmalloc, we look at the following alternatives.
     every head row/.style={
       output empty row,
       before row={\toprule
-         & 64 B & 1,024 B & 65,536 B & 1,048,576 B & 4,194,304 B \\
+         & 64 B & 5,120 B & 65,536 B & 1,048,576 B & 4,194,304 B \\
         },
       after row=\midrule,
     },
@@ -728,39 +721,43 @@ In addition to glibc's ptmalloc, we look at the following alternatives.
 \end{table*}
 
 Table \ref{tab:mallocompare} illustrates some differences that can be observed by switching heap allocator\footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}.
-The addresses of two equally sized char buffers allocated with malloc are observed for size parameters 5120 and $2^{20}$ bytes. 
-We do not care about performance, only the actual memory addresses returned and whether they alias or not.
+In addition to glibc, where the heap allocator is called \emph{ptmalloc}, we look at the following alternatives:
+\begin{itemize}
+  \item Thread-Caching Malloc (tcmalloc) from Google. It claims to be time- and space efficient, and reduces lock contention for multithreaded applications~\cite{TCMalloc}.
+  \item jemalloc was originally developed for FreeBSD. It aims to be a scalable general purpose allocator in single or multithreaded environments~\cite{JEMalloc}.
+  \item Hoard is another project that focuses extensively on improving performance for multithreaded programs~\cite{Berger:2000:Hoard}.
+\end{itemize}
+The addresses of two equally sized \texttt{char} buffers allocated with \texttt{malloc} are observed for different size parameters. 
+We do not care about performance, only whether the actual memory addresses returned alias or not.
 
 For smaller allocations, we see that glibc and tcmalloc uses the normal heap area -- returning numerically low addresses.
-Interestingly, jemalloc and Hoard appears to never use brk, but always allocate to memory mapped areas even for smaller sizes.
-We see one example where one allocator yields aliasing buffers while another does not. 
+Interestingly, jemalloc and Hoard appears to never use the normal heap, but allocate to memory mapped areas even for smaller sizes.
+We see one example where one allocator yields aliasing buffers while another does not.
 Allocating $2 \times 5120$ bytes returns aliasing pointers for jemalloc and Hoard, but not with glibc or tcmalloc.
 Given that these results are deterministic (with ASLR disabled), it is not hard to construct a program with significant bias towards one or the other allocator.
 
-Most malloc alternatives focuses heavily on performance in multithreaded environments.
-Heap allocation is intrinsically inefficient in that all threads share the same address space, leading to a high potential lock contention on memory accesses.
-
-The purpose of this is to illustrate that allocators is yet another source of bias.
+%The purpose of this is to illustrate that allocators is yet another source of bias.
 Using heap allocated memory, address aliasing is an artifact of the allocator used.
 With different versions or configurations of memory allocators, any performance impact from aliasing can qualify as measurement bias.
+
+% Most malloc alternatives focuses heavily on performance in multithreaded environments.
+% Heap allocation is intrinsically inefficient in that all threads share the same address space, leading to a high potential lock contention on memory accesses.
+
 
 
 \subsection{Ways to Deal with Address Aliasing}
 Measurement bias from address aliasing can be significant in real applications, with potentially large performance penalties.
 However, with an understanding of the underlying mechanism that causes bias, the effects can to some extent be predicted and accounted for in software.
 The most relevant scenario to consider is probably code that can hit the aliasing \texttt{mmap} scenario, where performance impact can be consistently bad over all environments.
-In our convolution kernel example, there are several ways to limit the extent of aliasing.
 
 \paragraph{Mark buffers with \texttt{restrict}}
 In our convolution kernel implementation, the compiler has to account for the fact that input and output pointers might alias, or that the buffers partially overlap.
 This limits the extent generated code can keep data in registers without updating the values from memory, as a write to one buffer potentially could invalidate a cached value from the other.
 The C99 keyword \emph{restrict} can be used to explicitly tell the compiler that accesses through a pointer does not alias with any other, allowing for more efficient code generation with fewer memory accesses.
-\begin{lstlisting}[language=C]
-void conv( int n,
-            const float * restrict input,
-            float * restrict output );
+\begin{lstlisting}[breaklines=true]
+    void conv(int n, const float * restrict input, float * restrict output);
 \end{lstlisting}
-With this updated function prototype, most of the address aliasing events are gone for the default alignment.
+With this updated function prototype, the number of alias events is reduced by about 10 million on optimization level O2 for the default alignment, with a corresponding improvement in cycle count. % File backing this in results
 
 \paragraph{Use a special purpose allocator}
 We found that heap allocators are prone to generate pairwise aliasing buffers, the worst case for functions such as the convolution example.
@@ -781,16 +778,15 @@ The same pointer difference must of course by subtracted before unmapping the me
 
 \section{Conclusions}
 In this paper we have looked at how address aliasing can affect program performance under different memory layouts, and how it can explain certain cases of measurement bias. 
-The effect is caused by the way speculative and out-of-order memory operations are handled by the CPU, only considering the last 12 address bits to resolve conflicts load and store operations.
+The effect is caused by the way speculative and out-of-order memory operations are handled by the CPU, only considering the last 12 address bits to resolve conflicts between load and store operations.
 
 By analyzing an example originally presented by Mytkowicz et al. \cite{Mytkowicz:2009:WrongData}, we determined that collisions between stack variables and static data resulted in aliasing for certain stack positions.
 In this case, the external trigger of bias is variations in environment size, which in turn offset the virtual addresses of stack allocated variables.
 
 In general, any change to virtual memory layout of data can potentially introduce bias effects from address aliasing. 
-We present a code example with extreme sensitivity of data alignment, with more than 50 \% performance variation between different memory layouts.
+We present a code example with extreme sensitivity to heap address alignment, with more than 50 \% performance variation between different memory layouts.
 
-We find that compilers, even when provided with architecture specific optimization flags, still generates code that suffers from aliasing. 
-Typical heap allocators return page-aligned memory by default, which is the worst case with respect to aliasing for many algorithms.
+We find that typical heap allocators return page-aligned memory by default, which is the worst case with respect to aliasing for many algorithms.
 Despite recommendations from Intel, we are not aware of any allocators that specifically addresses this issue. 
 We show how manual padding of variables, and alternative alias-free code paths, can be used to avoid aliasing at runtime.
 This means that an understanding of 4K address aliasing is sometimes needed to achieve optimal performance. 
