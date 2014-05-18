@@ -54,7 +54,6 @@ main:
 
 	# This is the output of compiling loop.c with no optimization, with the addition
 	# of a small routine for printing the addresses of automatic variables g and inc.
-
 	# Writes contents of rax in human readable format. The additional code is not 
 	# enough to affect the location of static variables i, j, k, and does not 
 	# introduce any observer effects. Aliasing occurs at precisely the same 
@@ -102,8 +101,7 @@ write_char:
 	syscall
 	addq	$8, %rsp
 	ret
-
 .LFE0:
 	.size	main, .-main
-	.ident	"GCC: (Ubuntu/Linaro 4.8.1-10ubuntu9) 4.8.1"
+	.ident	"GCC: (Ubuntu 4.8.2-19ubuntu1) 4.8.2"
 	.section	.note.GNU-stack,"",@progbits

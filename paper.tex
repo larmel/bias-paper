@@ -13,7 +13,7 @@
 \usepackage{mathtools}
 \usepackage{underscore}
 \usepackage{url}
-\usepackage{rotating}
+\usepackage{lmodern}
 
 \usetikzlibrary{patterns,shapes,positioning,calc}
 
@@ -357,7 +357,7 @@ Still, no satisfactory explanation as to what actually causes bias was given in 
 % Large plot of cycle count for two 4K stack sections.
 \pgfplotstableread{bin/micro-kernel-cycles.dat}{\stackoffsettable}
 \begin{figure*}[t]
-  \caption{Bias from environment size for micro-kernel in Listing~\ref{lst:loopkernel}. Measured average of 100 cycle count samples for 512 different environments. Spikes show aliasing case, occurring once for each 4K period}
+  \caption{Bias from environment size for micro-kernel in Listing~\ref{lst:loopkernel}. Measured average of 10 cycle count samples for 512 different environments. Spikes show aliasing case, occurring once for each 4K period}
   \label{fig:envbias}
   \begin{tikzpicture}
     \begin{axis}[
@@ -382,10 +382,10 @@ We measure every 16 byte increment of environment size, covering two 4K periods 
 A finer sampling is not necessary, because the stack is by default aligned to 16 byte.
 The program is compiled with {\small{GCC}} using no optimization, as any optimization would likely disregard most of the function as redundant code, reducing it to return zero immediately.
 
-There are clearly two worst cases, indicated by significant spikes at the 3200 and 7296 byte offsets.
+There are clearly two worst cases, indicated by significant spikes at the 3184 and 7280 byte offsets.
 We sampled an extensive set of performance counters in addition to cycle count for each execution context.
 By looking at the \emph{median} value of each counter compared to the extreme cases, we narrowed down the performance events that behaved similarly to cycle count.
-Table \ref{tab:loopcorrelation} shows numerical counter values for median over all environments, compared to worst cases of 3200 and 7296 bytes added.
+Table \ref{tab:loopcorrelation} shows numerical counter values for worst cases of 3184 and 7280 bytes, compared to the median over all environments.
 
 % Detailed comparison between median and worst cases.
 \begin{table}[t]
@@ -420,8 +420,8 @@ Table \ref{tab:loopcorrelation} shows numerical counter values for median over a
 Notice the most extreme change from median to worst case is clearly the number of alias events.
 If we plot the graph for address aliasing, we see that it is near zero everywhere and spikes at exactly the points we observe bias. 
 The results show a high number of resource stalls and pending memory loads when the spikes occur, which is consistent with address aliasing issues.
-Some of the other counters are less interesting; for example, bus- and cpl cycles, which will naturally vary with the total cycle count.
-These counters are obviously not indicative of any causal relationship, and are omitted.
+% Some of the other counters are less interesting; for example bus cycles, which will naturally vary with the total cycle count.
+% Performance events that are obviously not indicative of any causal relationship are omitted.
 
 % Need input here, does this make sense?
 On the other end we get a much lower number of reservation station (RS) stalls in the aliasing case, with a reduction from about 270,000 to about 135,000.
@@ -429,12 +429,12 @@ The reservation station buffers micro-ops for scheduling to the execution units,
 Fewer stalls in the aliasing case could indicate less contention on the reservation station.
 This probably has to do with the overall \emph{decrease} in the number of micro-ops executed per port, as all but one of the in total 8 execution ports seem to have fewer operations going in parallel.
 Note that the number of micro-ops \emph{retired} overall does not change, but for some reason the micro-ops stays in the execution pipeline for a shorter time.
-Our assumption is that this is a by-product of stalls generated from aliasing.
+Our assumption is that this is a by-product of stalls generated from aliasing, causing micro-operations to be reissued.
 
 % More deep dive section (maybe separate headline...)
 \subsection{The Offending Variables}
-These numbers clearly points to address aliasing as a plausible explanation, thus the next step is to see exactly which memory accesses are aliasing. 
-For that we need to know the addresses of all variables at runtime.
+Our performance counter data clearly points to address aliasing as a plausible explanation, thus the next step is to see exactly which memory accesses are aliasing. 
+For that we need to know the addresses of each variable at runtime.
 The program contains five variables; \texttt{g} and \texttt{inc} which are stack allocated, and \texttt{i}, \texttt{j} and \texttt{k} which are statically allocated.
 Virtual memory layout of static data is decided at compile time, and we can find the location of these variables by looking at the symbol table in the ELF executable.
 We find the addresses to be \texttt{\&i} = 0x60103c, \texttt{\&j} = 0x601040, and \texttt{\&k} = 0x601044.\footnote{ELF symbol tables can be read using \texttt{readelf -s}}
@@ -496,38 +496,6 @@ This becomes much more enticing when the performance penalties are more signific
 
 
 \section{Bias from Heap Allocation}
-% Intro
-% - Bias from aliasing caused by accesses to any part of memory
-% - Dynamic memory usually from dynamically linked libs = bias
-% - More interesting: default behavior provokes aliasing 
-% - Intel warning, copy routine. 
-% - Trouble with aligned read/write buffers, creating constant conflicts in sliding window.
-% Heap allocation alias by default
-% - Normal heap with brk/sbrk syscalls
-%   - Manage heap and increase on demand
-% - Different depending on size (and other parameters)
-%   - Use mmap for performance, usually large allocations
-%   - Posix function, anonymous memory mapping
-%   - Page aligned
-% - Normal addr. vs mmap addr.
-% - Makes no difference ++ everything is conceptually the same heap, but alias by default!
-% Convolution kernel Analysis
-% - More contrived example; convolution
-%   - Simple code disregarding endpoints
-%   - Manipulate start addresses by offseting pointers
-%   - Compiled with gcc O3, shows bad performance (graph) + discussion
-% - Table with lots of data points, showing actual numbers for each offset
-% Architectural optimization
-% - Modified example with restrict and -march=native
-% - Vectorization -- probably less loads that causes reduction mostly
-% Bahavior of other Allocators
-% - Intro each allocator
-% - Present table
-% Conclude
-% - not good...
-% - Not tested other compilers, not the purpose of this paper. 
-% - How did we find this example? Intelligent design, literally first guess
-
 Address aliasing can be caused by conflicting pairs of load and store operations to any part of memory.
 In the previous sections we saw collisions between static data and stack, observing bias from external conditions that affected addresses of automatic variables.
 Most dynamic memory is allocated on the \emph{heap}, which is managed by an \emph{allocator}.
@@ -554,6 +522,7 @@ This distinction is of course unimportant for application developers, as everyth
 However, \texttt{mmap} has an interesting property in that allocations will always be page aligned.
 The page size is 4096 bytes, meaning two pointers returned by \texttt{mmap} will \emph{always} alias.\footnote{libc's version of malloc adds 16 bytes of metadata at the beginning, therefore every memory mapped address end with 0x010.}
 This behavior is often the worst case for functions that operate on two or more independent buffers, as we will see in the following sections.
+
 
 \subsection{Aligned Sequential Access}
 Many functions operate in a ``sliding window'' fashion; reading and writing to different buffers in some loop construction.
@@ -744,7 +713,6 @@ With different versions or configurations of memory allocators, any performance 
 % Heap allocation is intrinsically inefficient in that all threads share the same address space, leading to a high potential lock contention on memory accesses.
 
 
-
 \subsection{Ways to Deal with Address Aliasing}
 Measurement bias from address aliasing can be significant in real applications, with potentially large performance penalties.
 However, with an understanding of the underlying mechanism that causes bias, the effects can to some extent be predicted and accounted for in software.
@@ -792,7 +760,7 @@ This means that an understanding of 4K address aliasing is sometimes needed to a
 
 
 \section{Acknowledgements}
-This work is forked from a Master's thesis project under the supervision of Anne Cathrine Elster and Rune Erlend Jensen at IDI, NTNU, studying sources of measurment bias for the Intel Ivy Bridge architecture~\cite{MasterThesis}.
+This work is forked from a Master's thesis project under the supervision of Anne Cathrine Elster and Rune Erlend Jensen, looking at sources of measurment bias on the Intel Ivy Bridge architecture~\cite{MasterThesis}.
 
 
 \bibliographystyle{plain}
