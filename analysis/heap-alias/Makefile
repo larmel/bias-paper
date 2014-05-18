@@ -41,6 +41,9 @@ bin/default-o3.s: conv.c | bin
 bin/default-o3-native.s: conv.c | bin
 	cc -S -O3 -march=native -c $< -o $@
 
+bin/restrict-o2.s: conv-restrict.c | bin
+	cc -S -c $< -std=c99 -O2 -o $@
+
 bin/restrict-o3.s: conv-restrict.c | bin
 	cc -S -c $< -std=c99 -O3 -o $@
 
@@ -117,6 +120,17 @@ bin/default-o3-native: bin/main.o bin/default-o3-native.o
 	gcc $+ -o $@
 
 
+# Performance counter stats for 'bin/restrict-o2 1 0':
+
+#        41 098 261 cycles:u                 
+#         2 115 146 r0107:u                                                     
+#       100 791 669 instructions:u            #    2,45  insns per cycle        
+
+#       0,016604669 seconds time elapsed
+bin/restrict-o2: bin/main.o bin/restrict-o2.o
+	gcc $+ -o $@
+
+
 # Performance counter stats for 'bin/restrict-o3 1 0':
 
 #        32 496 212 cycles:u                  #    0,000 GHz                    
@@ -177,4 +191,4 @@ bin/%.4k.csv: bin/% | disable-aslr
 	$(lperf) -e cycles:u,r0107:u -n 1024 -r 10 --env-increment 0 --enumerate $< 1 > $@
 
 
-results: bin/default-o2.estimate.csv bin/default-o3.estimate.csv bin/default-o2.4k.csv bin/default-o3.4k.csv
+results: bin/default-o2.estimate.csv bin/default-o3.estimate.csv bin/default-o2.4k.csv bin/default-o3.4k.csv bin/restrict-o2.estimate.csv
