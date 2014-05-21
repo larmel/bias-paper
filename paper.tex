@@ -1,16 +1,13 @@
 % Typeset for Transactions on Architecture and Code Optimization
 \documentclass[prodmode,acmtaco]{acmsmall}
-%\usepackage{fullpage}
 \usepackage{graphicx}
 \usepackage{pgfplots}
 \usepackage{pgfplotstable}
 \usepackage{filecontents}
 \usepackage{booktabs}
-%\usepackage{tabularx}
 \usepackage{tikz}
 \usepackage{listings}
-%\usepackage{authblk} % acm error, \affil
-\usepackage{caption} % 
+\usepackage{caption}
 \usepackage{mathtools}
 \usepackage{underscore}
 \usepackage{url}
@@ -45,26 +42,33 @@ LARS KIRKHOLT MELHUS and RUNE ERLEND JENSEN
 Seemingly innocious properties of the environment, such as the contents of system environment variables, can affect the performance of computer programs.
 This effect is known as \emph{measurement bias}, and has been shown to be significant, but unpredictable and difficult to deal with.
 
-In this paper we identify one of the underlying mechanics resulting in measurement bias on modern Intel microarchitectures.
+In this article we identify one of the underlying mechanics resulting in measurement bias on modern Intel microarchitectures.
 Using hardware performance counters, we identify that bias is ultimately caused by \emph{address aliasing}.
 When issuing load operations, the CPU is only comparing the last 12 address bits to previous stores, sometimes resulting in performance penalties from \emph{false} dependencies.
 
-% In addition to environment variable size, we show how address aliasing can cause measurement bias from variations in dynamically linked heap allocation libraries.
-We find that performance penalties from unfavorable memory address allocations can be more than double the cycle count, even for real world applications.
-Furthermore, the dynamic memory allocation pattern for common libraries like libc tends to give \emph{worst case} performance by default for large allocations.
-An understanding of address aliasing is necessary in order to achieve optimal performance, and we outline how developers can utilize this knowledge.
+In addition to environment variable size, we show how bias can be triggered from variations in dynamically linked \emph{heap allocation} libraries.
+The impact of unfavorable memory address allocations can be significant, and we demonstrate up to $2x$ speedup for a real world application.
+Furthermore, the allocation pattern of common libraries such as glibc tends to give \emph{worst case} alignment by default, by favoring page alignment large allocations.
+An understanding of address aliasing is necessary in order to achieve optimal performance, and we outline how to programmatically optimize for it.
 \end{abstract}
 
-%\category{}{}{}
-\terms{Measurement bias, Optimization}
-\keywords{4K address aliasing, Intel ``Haswell'' architecture, heap allocators}
-\acmformat{Lars K. Melhus and Rune E. Jensen, 2014. Measurement Bias from Address Aliasing}
+% Choose from classification tree http://www.acm.org/about/class/ccs98-html
+\category{C.4}{Performance of Systems}{Measurement techniques; Performance attributes}
+
+% Terms come from a fixed list of predefined terms
+\terms{Measurement, Performance}
+
+% Free to choose keywords, but must be in alphabetical order
+\keywords{4K address aliasing, heap allocators, measurement bias, memory disambiguation}
+
+% Minimum is author, year and title
+\acmformat{Lars K. Melhus and Rune E. Jensen. 2014. Measurement Bias from Address Aliasing}
+
 
 \begin{document}
 
-
+% Acknowledgement of support, author(s) address(es)
 \begin{bottomstuff}
-
 \end{bottomstuff}
 
 \maketitle
@@ -710,7 +714,7 @@ The same pointer difference must of course by subtracted before unmapping the me
 
 
 \section{Conclusions}
-In this paper we have looked at how address aliasing can affect program performance under different memory layouts, and how it can explain certain cases of measurement bias. 
+In this article we have looked at how address aliasing can affect program performance under different memory layouts, and how it can explain certain cases of measurement bias. 
 The effect is caused by the way speculative and out-of-order memory operations are handled by the CPU, only considering the last 12 address bits to resolve conflicts between load and store operations.
 
 By analyzing an example originally presented by Mytkowicz et al. \cite{Mytkowicz:2009:WrongData}, we determined that collisions between stack variables and static data resulted in aliasing for certain stack positions.
