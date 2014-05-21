@@ -92,7 +92,7 @@ Consequentially, any environmental factor that can alter memory layout has a pot
 Failing to account for these effects lead to \emph{measurement bias}. 
 
 % This is basically former background section
-Bias in performance analysis has been shown to be commonplace and significant in real applications, while being unpredictable and difficult to deal with~%\cite{Mytkowicz:2008:OE&MB, Mytkowicz:2009:WrongData, Mytkowicz:2008:Easy}.
+Bias in performance analysis has been shown to be commonplace and significant in real applications, while being unpredictable and difficult to deal with~% todo: \cite{Mytkowicz:2008:OE&MB, Mytkowicz:2009:WrongData, Mytkowicz:2008:Easy}.
 Previous work looks at environmental factors such as the size of Unix environment variables, which can affect memory by offsetting the initial position of stack.
 Because of the complexity of modern hardware, it is often impossible to predict exactly how things such as environment variables ultimately affect program execution.
 Without an accurate understanding of the underlying memory interactions, the best one can do to accurately assess performance is generally to average over a large sample set of execution contexts.
@@ -124,11 +124,11 @@ Modern processors have a set of model specific registers (MSRs) that can be conf
 Recent Intel architectures have several hundred available events, which can give a very detailed view of what happens inside the CPU.
 
 Performance counters are supported in the Linux kernel, and we access them via a tool called \emph{perf}. 
-We use the \texttt{perf-stat} command in all experiments, which accepts raw event codes listed in the Intel reference manual \cite{Intel:2013:Volume3B}.
+We use the \texttt{perf-stat} command in all experiments, which accepts raw event codes listed in the Intel reference manual \cite{Volume3B}.
 A small Python script is used to collect an exhaustive set of all available counters, which amounts to about 200 on our architecture.
 The same script simulates changes to environment size, which is provoked by setting a dummy environment variable to $n$ number of zero characters, starting from a minimal environment.\footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
 Interesting events are identified by computing linear correlation to cycle count, measuring all counters over a series of execution contexts.
-Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{Intel:2012:OptimizationManual}.
+Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{OptimizationManual}.
 Results are averaged over multiple runs to reduce potential random error, supplying the \texttt{-r} option to perf-stat. % Not median, good question. man perf-stat says average + std.dev. 
 
 Because bias can be hardware dependent, and to keep the scope of this work manageable, we choose to focus on the Intel ``Haswell'' microarchitecture specifically.
@@ -160,7 +160,7 @@ Despite being independent, in these cases the memory order subsystem generates \
 The number of times this happens can be counted by the following performance counter:
 \begin{description}
   \item[LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS]
-  Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.~\cite{Intel:2012:OptimizationManual}
+  Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.~\cite{OptimizationManual} % todo: where
 \end{description}
 
 As address aliasing depends on the memory addresses of loads and stores, environmental factors that affects memory has the potential to induce aliasing conditions.
@@ -320,7 +320,7 @@ The results show a high number of resource stalls and pending memory loads when 
 % Performance events that are obviously not indicative of any causal relationship are omitted.
 
 On the other end we get a much lower number of reservation station (RS) stalls in the aliasing case, with a reduction from about 270,000 to about 135,000.
-The reservation station buffers micro-ops for scheduling to the execution units, and a stall event means that there are no free slots available~\cite[Table 19-2]{Intel:2013:Volume3B}.
+The reservation station buffers micro-ops for scheduling to the execution units, and a stall event means that there are no free slots available~\cite[Table 19-2]{Volume3B}.
 Fewer stalls in the aliasing case could indicate less contention on the reservation station.
 This probably has to do with the overall \emph{decrease} in the number of micro-ops executed per port, as all but one of the in total 8 execution ports seem to have fewer operations going in parallel.
 Note that the number of micro-ops \emph{retired} overall does not change, but for some reason the micro-ops stays in the execution pipeline for a shorter time.
