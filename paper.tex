@@ -114,22 +114,6 @@ The cost of address aliasing can be significant, exemplified by a simple program
 Fortunately, with an understanding of the underlying mechanisms, measurement bias from address aliasing can often be quite accurately predicted.
 For some applications it might even make sense for programmers to actively take aliasing into account for architecture specific optimization, as neither compilers nor heap allocators seem to handle it well.
 
-% Include preview of aliasing program early to provike interest, also lightly referenced in introduction/background
-% Cite does not work in acm style
-% Micro-kernel presented by Mytkowicz et al~\cite{Mytkowicz:2009:WrongData}, 
-\begin{lstlisting}[float=t, language=C, caption={Micro-kernel succeptible to bias from variations to system environment variables.}, label={lst:loopkernel}, frame=lines]
-static int i, j, k;
-int main() {
-    int g = 0, inc = 1;
-    for (; g < 65536; g++) {
-        i += inc;
-        j += inc;
-        k += inc; 
-    }
-    return 0;
-}
-\end{lstlisting}
-
 
 \subsection{Methodology}
 In order to understand biased behavior it is important to be able to do precise measurements.
@@ -159,77 +143,15 @@ All benchmarks are done on a machine under minimal load, and \emph{frequency sca
 Finally, we disable \emph{Hyper-threading}, which reduces the possibility for resource contention between threads.
 
 
-
-% === Random notes section on 4K alias ===
-% There seems to be two separate issues here
-% 1: store-to-load forwarding speculative, then discover that the addresses are not the same. (pp 500)
-% 2: store-load issuing the load first speculatively. WAR conflict in MOB, reissue load. VTune event "4K alias"
-%
-% MOB: "Accepts and processes all memory operations". pp 62
-%      Allows issue load before preceding store, speculatively
-
-
-% Discussed in Optimization manual (pp. 144, 403, 564, 583)
-% - Said to mean many things
-%   - "False store forwarding" -- Only checks last 12 bits. Does it attempt to forward?) (pp. 564)
-%   - Loads that have partial address match with preceding stores, causing the load to be reissued. 
-%     Estimate 5 cycle cost
-%   - "False dependencies in MOB due to partial compare on address"
-%   - Very clear separate event in VTune Amplifier documentation online 
-% - Detected by LOAD_BLOCK.OVERLAP_STORE on previous architectures (pp. 599)
-% - Present event code and description
-% Optimization guidelines
-% - Has some cost associated with it
-% - Intel suggests measures for mitigating cost
-%   - Change offsets between input and output buffers
-% Potentially bias inducing
-% - Anything that affects memory layout
-%   - Stack variable offset from env size
-%   - Heap addresses from dynamic allocation libraries
-
-% User/Source Coding Rule 8. (H impact, ML generality) Consider using a special memory allocation
-% library with address offset capability to avoid aliasing. .................................................. 3-55
-%   > Examples mention avoiding L1 and L2 cache conflicts.
-% User/Source Coding Rule 9. (M impact, M generality) When padding variable declarations to avoid
-% aliasing, the greatest benefit comes from avoiding aliasing on second-level cache lines, suggesting
-% an offset of 128 bytes or more ................................................................................... 3-55
-
-% Facts
-% * Loads can be issued before stores, speculating the store is not going to be to a conflicting address. (pp. 62)
-% * All memory operations go through the memory order buffer. (pp. 63)
-% * Memory disambiguation has to do with prediction. Predicted ok load from L1. (pp. 65)
-% * Example of speculative execution of loads, with mem. disambiguation (pp 131)
-% * Rule 56, 8 & 9. Aliasing case wrt Store forwarding. Claims 4K causes stall (not reissue) (pp. 141)
-% * Statement: 4K aliasing causes stall = included in LOAD_BLOCK.OVERLAP_STORE
-% * For Sandy Bridge, description of LD_BLOCKS_PARTIAL.ADDRESS_ALIAS states reissue. (pp. 583)
-
-
-
 \section{4K Address Aliasing}
-% Mechanisms for increased throughput and parallelism of memory operations
-% In particular loads that might depend on earlier stores
-% - Worst case have to wait for store to retire
-% - Supports /speculative/ issue based on prediction on whether load conflicts with previous store.
-%   - Later verified (memory disambiguation)
-% - If refer to same address, take value from sotre buffers via /store forwarding/. 
-%   - Don't have to wait for store to finish
-% An event known as 4K aliasing occurs when the load and store addresses match in the lower 12 bits
-% - CPU detects /false/ dependencies between memory operations.
-% - Counted by event ...
-% - Sometimes refered to as /false store forwarding/. (pp. 564)
-% Optimization guidelines
-%   - Avoid store and non-dependent load with 4K between (rule 56)
-%   - Special memory allocator (rule 8) -- for 64 KiB alias
-%   - Padding variables (rule 9) -- For 64 KiB alias
-% - All classified as "High" impact.
-% - We demonstrate how this effect causes bias for memory allocator and store/load single
-% - How programmers can adjust layout manually
 Modern processors are \emph{superscalar}, and achieves parallelism by issuing multiple instructions simultaneously and out of order.
 One of the issues that can limit throughput is dependencies between a load and previous stores.
-Typical software consists of about 38~\% memory operations, with about two thirds of them being loads~\cite{Intel:2006:InsideICM:SmartMemoryAccess}.
+According to Intel, typical software consists of about 38~\% memory access instructions, with about two thirds of them being loads.
+To increase parallelism, modern Intel architectures use a technique called \emph{memory disambiguation} to execute memory operations out of order~\cite{Intel:2006:InsideICM:SmartMemoryAccess}. 
 More often than not, loads can safely be issued before a previous store has completed and written its value to L1 cache.
-Loads can therefore be issued \emph{speculatively}, based on a prediction on whether it will conflict with a previous store.
-If the load and store locations are the same, the value can be \emph{forwarded} from the store before it retires.
+Loads are therefore issued \emph{speculatively}, based on a prediction on whether it will conflict with a previous store that is still not retired.
+The prediction is later verified, replaying any instructions that was wrongly assumed to have no dependencies.
+Similarly, if the load and store locations are the same, the value can be \emph{forwarded} from the store before it retires.
 
 While optimizations such as these are good on the average case, there are corner cases. 
 In particular, an event known as ``4K aliasing'' can occur when the memory addresses of a store followed by a load differ by a multiple of 4096.
@@ -237,7 +159,7 @@ A store to address 0x601020 followed by a load to address 0x821020 is an aliasin
 Despite being independent, in these cases the memory order subsystem generates \emph{false} dependencies, and causing the load to be reissued.
 The number of times this happens can be counted by the following performance counter:
 \begin{description}
-  \item LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS\marginpar{\vspace{0.0pt}\footnotesize\begin{tabular}{@{} l @{\hskip 2pt} l }Event & Mask \\ 0x07 & 0x01\end{tabular}} \hfill \\
+  \item[LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS]
   Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.~\cite{Intel:2012:OptimizationManual}
 \end{description}
 
@@ -245,12 +167,10 @@ As address aliasing depends on the memory addresses of loads and stores, environ
 In the following sections, we show how performance penalties from address aliasing can be the root cause of measurement bias.
 
 
-
 \section{Bias from Environment Size}
 Unless the program explicitly accesses environment variables, it is not the environment variables themselves that are important, but rather the effect their total size has on the alignment of stack.
 Environment variables and program arguments are allocated in the stack section of virtual memory, before the first call frame.
 Changing environment variables will therefore offset the addresses of stack, and consequently all stack allocated variables.
-
 
 % Generic intro to memory layout (with focus on stack/env interaction)
 Figure \ref{fig:virtualmemory} shows the relative positions of some important sections of memory at runtime, assuming a 64-bit process mapped to virtual memory. 
@@ -308,6 +228,21 @@ However, there will still be as many execution contexts with respect to aliasing
 
   \end{tikzpicture}
 \end{figure}
+
+% Cite does not work in acm style
+% Micro-kernel presented by Mytkowicz et al~\cite{Mytkowicz:2009:WrongData}, 
+\begin{lstlisting}[float=h, language=C, caption={Micro-kernel succeptible to bias from variations to system environment variables.}, label={lst:loopkernel}, frame=lines]
+static int i, j, k;
+int main() {
+    int g = 0, inc = 1;
+    for (; g < 65536; g++) {
+        i += inc;
+        j += inc;
+        k += inc; 
+    }
+    return 0;
+}
+\end{lstlisting}
 
 \subsection{Microkernel Analysis}
 To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!'' by T. Mytkowicz et. al.~\cite{Mytkowicz:2009:WrongData}, reproduced here in Listing~\ref{lst:loopkernel}. 
