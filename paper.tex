@@ -39,17 +39,16 @@ LARS KIRKHOLT MELHUS and RUNE ERLEND JENSEN
 
 % Motivation -- Problem statement -- Approach -- Results -- Conclusions
 \begin{abstract} % Should be 150 -- 200 words max
-Seemingly innocious properties of the environment, such as the contents of system environment variables, can affect the performance of computer programs.
-This effect is known as \emph{measurement bias}, and has been shown to be significant, but unpredictable and difficult to deal with.
+Understanding program performance and obtaining accure measurements is important in performance analysis, but measurements can be \emph{biased} by external factors.
+Predicting or accounting for measurment bias is challenging, as the interaction with low level hardware mechanisms is complex.  
+In this paper we show how \emph{address aliasing} can often be the underlying mechanism resulting in measurement bias on modern Intel microarchitectures.
+Our approach is to use hardware performance counter to analyze performance data over controlled series of execution contexts.
+We show how address aliasing can explain bias from two external factors: environment variable size, and characteristics of dynamically linked heap allocators.
 
-In this article we identify one of the underlying mechanics resulting in measurement bias on modern Intel microarchitectures.
-Using hardware performance counters, we identify that bias is ultimately caused by \emph{address aliasing}.
-When issuing load operations, the CPU is only comparing the last 12 address bits to previous stores, sometimes resulting in performance penalties from \emph{false} dependencies.
-
-In addition to environment variable size, we show how bias can be triggered from variations in dynamically linked \emph{heap allocation} libraries.
-The impact of unfavorable memory address allocations can be significant, and we demonstrate up to $2x$ speedup for a real world application.
-Furthermore, the allocation pattern of common libraries such as glibc tends to give \emph{worst case} alignment by default, by favoring page alignment large allocations.
-An understanding of address aliasing is necessary in order to achieve optimal performance, and we outline how to programmatically optimize for it.
+The perfomance impact of unfavorable memory contexts can be significant, with as much as $2x$ speedup in one of our examples.
+It also turns out the allocation pattern of common libraries tends to give \emph{worst case} alignment by default, by favoring page alignment large allocations.
+While the aliasing mechanism itself is not new, we provide the connection to measurement bias and show how to use this knowledge not only to account for bias but also explicitly optimize for it.
+Our results should provide motivation for more architecture specific optimization for example in heap allocator heuristics.
 \end{abstract}
 
 % Choose from classification tree http://www.acm.org/about/class/ccs98-html
@@ -83,11 +82,11 @@ Because of the complexity of modern processors, it is often hard or even impossi
 
 To alliviate the impact of measurement bias in performance analysis, researchers have proposed to use causal analysis techniques and randomization of execution contexts~\cite{Mytkowicz:2008:OE&MB}.
 Others treat the existence bias as a potential optimization problem, using search over variant spaces to find optimal environments~\cite{Knights:2009:BlindOpt}.
-Our approach is analyze isolated programs in detail using \emph{performance counters}, in an attempt to identify which underlying hardware mechanisms are causing bias.
+Our approach is to analyze isolated programs in detail using \emph{performance counters}, in an attempt to identify which underlying hardware mechanisms are causing bias.
 
 In this paper we show how some instances of measurement bias can be explained by \emph{address aliasing}, an artifact of a presumably Intel specific optimization on the out-of-order execution pipeline.
 The CPU uses a heuristic for determining whether loads are dependent on previous stores, comparing only the last 12 virtual address bits.
-False dependencies can happen for aliased memory accesses, incurring performance penalties.
+False dependencies can happen for aliased memory accesses, and incur performance penalties.
 We look at how address aliasing can trigger bias from two external factors; size of system environment variables and configuration of dynamic heap allocation libraries.
 
 Our results show that the cost of aliasing can be significant, exemplified by a simple program with more than $2x$ speedup based in heap address alignment alone.
