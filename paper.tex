@@ -125,7 +125,7 @@ We also have to ensure we are not affected by measurement bias beyond what we ar
 Most importantly, this means keeping the memory address space under control.
 For security reasons, addresses of stack, heap and dynamic libraries are often randomized at load time, a technique known as \emph{Address Space Layout Randomization}~\cite{Shackham:2004:ASLR}. % Should maybe have more generic reference
 By disabling ASLR, we are able to execute the same program multiple times with identical virtual address spaces.
-All benchmarks are done on a machine under minimal load, and \emph{frequency scaling} is disabled to keep the CPU's clock speed fixed.
+All experiments are done on a machine under minimal load, and \emph{frequency scaling} is disabled to keep the CPU's clock speed fixed.
 Finally, we disable \emph{Hyper-threading}, which reduces the possibility for resource contention between threads.
 
 
@@ -133,8 +133,8 @@ Finally, we disable \emph{Hyper-threading}, which reduces the possibility for re
 \label{sec:aliasing}
 Modern processors are \emph{superscalar}, and achieves parallelism by issuing multiple instructions simultaneously and out of order.
 One of the issues that can limit throughput is dependencies between a load and previous stores.
-According to Intel, typical software consists of about 38~\% memory access instructions, with about two thirds of them being loads.
-To increase parallelism, modern Intel architectures use a technique called \emph{memory disambiguation} to execute memory operations out of order~\cite{Intel:2006:InsideICM:SmartMemoryAccess}. 
+% According to Intel, typical software consists of about 38~\% memory access instructions, with about two thirds of them being loads.
+To increase parallelism, modern architectures use a technique called \emph{memory disambiguation} to execute memory operations out of order~\cite{Intel:2006:InsideICM:SmartMemoryAccess}. 
 More often than not, loads can safely be issued before a previous store has completed and written its value to L1 cache.
 Loads are therefore issued \emph{speculatively}, based on a prediction on whether it will conflict with a previous store that is still not retired.
 The prediction is later verified, replaying any instructions that was wrongly assumed to have no dependencies.
@@ -161,21 +161,21 @@ Environment variables and program arguments are allocated in the stack section o
 Changing environment variables will therefore offset the addresses of stack, and consequently all stack allocated variables.
 
 % Generic intro to memory layout (with focus on stack/env interaction)
+% todo: Consider removing?
 Figure \ref{fig:virtualmemory} shows the relative positions of some important sections of memory at runtime, assuming a 64-bit process mapped to virtual memory. 
-The stack is normally placed close to the upper address 0x7fff'ffffffff\footnote{Modern processors do not actually use the full 64-bit space, only the low order 47 bits are used for addressing memory}, but offset by environment variables.
-There is still some level of stack alignment happening, independent of environment offsets. 
-Normally, the stack is aligned to 16 bytes, which will be enforced by the compiler. % [ref]
+The stack is placed close to the upper address 0x7fff'ffffffff\footnote{Modern processors do not actually use the full 64-bit space, only the low order 47 bits are used for addressing memory}, but offset by environment variables and program arguments.
+After some variable amount of offset, the stack is normally aligned to a 16 byte boundary, which will be enforced by the compiler. % [ref]
 Within a span of 4096 bytes there are thus 256 possible initial addresses, each representing a different execution context.
 Any one of these contexts could trigger aliasing issues between stack and some other area of memory remaining unaffected by environment size.
 This includes dynamic memory allocateded on heap, memory mapped files, as well as statically allocated data. 
+% Note that there is no clear relationship between environment size and stack location with ASLR enabled. % todo: check again
+% However, there will still be as many execution contexts with respect to aliasing (considering stack only), making any occurrences of measurement bias indeed random.
 
-Note that there is no clear relationship between environment size and stack location with ASLR enabled.
-However, there will still be as many execution contexts with respect to aliasing (considering stack only), making any occurrences of measurement bias indeed random.
 % In addition to affecting stack, ASLR also randomizes location of dynamically linked files (memory mapped), and initial position of heap.
 % Moving to the lower end of the address space, we find the text, data and bss sections, which contains program code and statically allocated data.
 % The memory addresses of these sections are at compile time by the linker, and can be determined by inspecting the executable.
 
-\begin{figure}[h]
+\begin{figure}[t]
   \centering
   \caption{Organization of virtual memory for a 64-bit process.}
   \label{fig:virtualmemory}
@@ -217,6 +217,11 @@ However, there will still be as many execution contexts with respect to aliasing
   \end{tikzpicture}
 \end{figure}
 
+\subsection{Microkernel Analysis}
+To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!''~\cite{Mytkowicz:2009:WrongData}, reproduced here in Listing~\ref{lst:loopkernel}. 
+This example is interesting for several reasons; the bias effects are significant and easily reproducible, while the example code is simple and straightforward to analyze.
+Still, no satisfactory explanation as to what actually causes bias was given in the original paper.
+
 % Cite does not work in acm style
 % Micro-kernel presented by Mytkowicz et al~\cite{Mytkowicz:2009:WrongData}, 
 \begin{lstlisting}[float=h, language=C, caption={Micro-kernel succeptible to bias from variations to system environment variables.}, label={lst:loopkernel}, frame=lines]
@@ -231,11 +236,6 @@ int main() {
     return 0;
 }
 \end{lstlisting}
-
-\subsection{Microkernel Analysis}
-To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!'' by T. Mytkowicz et. al.~\cite{Mytkowicz:2009:WrongData}, reproduced here in Listing~\ref{lst:loopkernel}. 
-This example is interesting for several reasons; the bias effects are significant and easily reproducible, while the example code is simple and straightforward to analyze.
-Still, no satisfactory explanation as to what actually causes bias was given in the original paper.
 
 % Large plot of cycle count for two 4K stack sections.
 \pgfplotstableread{bin/micro-kernel-cycles.dat}{\stackoffsettable}
@@ -356,7 +356,7 @@ If the addresses do alias, a branch to an alternative but semantically equivalen
 Calling the function recursively will effectively allocate a new set of variables a bit further down the stack, and the alias condition is avoided.
 
 % See analysis for results showing this does not alias
-\begin{lstlisting}[float=b, language=C, caption={Dynamically detect aliasing case, and avoid by pushing another stack frame.}, label={lst:loopfixed}, frame=lines]
+\begin{lstlisting}[float=t, language=C, caption={Dynamically detect aliasing case, and avoid by pushing another stack frame.}, label={lst:loopfixed}, frame=lines]
 #define ALIAS(a, b) \
     (((long)&a) & 0xfff == ((long)&b) & 0xfff)
 static int i, j, k;
