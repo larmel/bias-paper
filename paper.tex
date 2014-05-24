@@ -75,47 +75,36 @@ An understanding of address aliasing is necessary in order to achieve optimal pe
 
 
 \section{Introduction}
-How fast does an algorithm run?
-Is program A faster than program B on \emph{my} machine?
-These types of questions are, perhaps surprisingly, not always trivial to answer.
-The usual approach to quantify performance is to simply measure some metric, such as the wall time or number of cycles executed.
-However, performance is not just a function of the instructions in an executable, but also dependent on various \emph{external} factors.
+Accurately measuring the performance of computer programs is important in order to evaluate new algorithms or compare different implementations.
+This process is complicated by \emph{measurment bias}, which can be a challenge for performance analysist and systems researchers.
+Changes to external factors of the system, such as link ordering or the contents of environment variables, has been shown to have potentially significant impacts on performance in real applications~\cite{Mytkowicz:2009:WrongData}.
+The reason this happens is because certain variables has the potential to offset memory addresses of code or data, which in turn interacts with various low level hardware buffers at runtime.
+Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes to things like system environment variables ultimately affect program execution.
 
-In other fields of science, accounting for bias is well understood.
-Trying to determine the political opinion of a country just by sampling a narrow geographical area will probably not be very accurate.
-The same concept applies to software; measuring performance for only one setup is analogous to sampling only a tiny geographical area in the set of possible system configurations.
+To alliviate the impact of measurement bias in performance analysis, researchers have proposed to use causal analysis techniques and randomization of execution contexts~\cite{Mytkowicz:2008:OE&MB}.
+Others treat the existence bias as a potential optimization problem, using search over variant spaces to find optimal environments~\cite{Knights:2009:BlindOpt}.
+Our approach is analyze isolated programs in detail using \emph{performance counters}, in an attempt to identify which underlying hardware mechanisms are causing bias.
 
-There are many external variables that has the potential to affect system performance.
-In particular, anything which can offset memory addresses of code or data at runtime can be significant.
-Memory accesses interact with low level hardware buffers, which can heavily favor certain memory layouts over others~\cite{Hundt:2011:MAO}.
-Consequentially, any environmental factor that can alter memory layout has a potential performance impact.
-Failing to account for these effects lead to \emph{measurement bias}. 
+In this paper we show how some instances of measurement bias can be explained by \emph{address aliasing}, an artifact of a presumably Intel specific optimization on the out-of-order execution pipeline.
+The CPU uses a heuristic for determining whether loads are dependent on previous stores, comparing only the last 12 virtual address bits.
+False dependencies can happen for aliased memory accesses, incurring performance penalties.
+We look at how address aliasing can trigger bias from two external factors; size of system environment variables and configuration of dynamic heap allocation libraries.
 
-% This is basically former background section
-Bias in performance analysis has been shown to be commonplace and significant in real applications, while being unpredictable and difficult to deal with~% todo: \cite{Mytkowicz:2008:OE&MB, Mytkowicz:2009:WrongData, Mytkowicz:2008:Easy}.
-Previous work looks at environmental factors such as the size of Unix environment variables, which can affect memory by offsetting the initial position of stack.
-Because of the complexity of modern hardware, it is often impossible to predict exactly how things such as environment variables ultimately affect program execution.
-Without an accurate understanding of the underlying memory interactions, the best one can do to accurately assess performance is generally to average over a large sample set of execution contexts.
-Previous work focuses mostly of how to account for bias by proper sampling, using randomization of execution contexts and statistical methods. % Cite is basically the same as above, all three are about the same -- difficult to split. 
+Our results show that the cost of aliasing can be significant, exemplified by a simple program with more than $2x$ speedup based in heap address alignment alone.
+We also find that many heap allocation libraries tend to produce worst case behavior by default with respect to aliasing, by favoring page alignment for large allocations.
+With an understanding of how false dependencies in the CPU can impact performance, measurement bias caused by it can to some extent be predicted and even accounted for in software.
+We show how techniques like manual padding of allocations and dynamic detection of aliasing conditions can be used to improve performance. 
+Accounting for address aliasing can give significant speedups, and our findings should motivate to exploit this in architecture-specific optimization.
 
-Our approach is instead to try to understand some of the underlying reasons to why bias can occur, in an attempt to utilize this knowledge for potential optimization. % Could have a sentence with cite of Blind Optimization.
-Usually, the explanation will be that different memory layouts interact with various hardware buffers, hitting ``performance'' cliffs for certain worst or best cases.
-Certain mechanisms such as cache conflicts or branch misprediction are already well understood, thus we are looking for the more esoteric processor features.
-
-Our starting point is a small program that was first presented by Mytkowicz et. al, exhibiting significant bias from environment size without any clear answer as to why in the original paper~\cite{Mytkowicz:2009:WrongData}.
-Collecting about 200 events using hardware performance counters, we find strong correlation with resource stalls from \emph{address aliasing}.
-Aliasing is an artifact of a much lesser known, presumably Intel specific, optimization on the out-of-order execution pipeline.
-In short, the CPU uses a heuristic for determining whether memory loads are dependent on previous stores, comparing only the last 12 virtual address bits.
-False dependencies incur performance penalties, and we show how this can explain many common cases of measurement bias.
-
-In addition to environment variables, we look at dynamic heap allocation libraries as an external factor that can trigger (or amplify) bias resulting from address aliasing.
-We find that most libraries tend to produce worst case behavior by default with respect to aliasing, caused by favoring page alignment for large allocations.
-The cost of address aliasing can be significant, exemplified by a simple program with more than $2x$ speedup based on heap address alignment alone.
-Fortunately, with an understanding of the underlying mechanisms, measurement bias from address aliasing can often be quite accurately predicted.
-For some applications it might even make sense for programmers to actively take aliasing into account for architecture specific optimization, as neither compilers nor heap allocators seem to handle it well.
+The rest of this paper is structured as follows: Our methodology and experimental setup is explained in the next section.
+Then section 3 introduces ``4K aliasing'', providing necessary background for interpreting the later results.
+Section 4 presents an analysis of how the size of environment variables causes bias.
+In Section 5 we provide a similar analysis for bias to heap address alignment.
+Section 6 concludes and discusses directions for future work.
 
 
-\subsection{Methodology}
+
+\section{Methodology}
 In order to understand biased behavior it is important to be able to do precise measurements.
 Besides measurement bias in itself, one must also consider \emph{observer effect}.
 Any kind of instrumentation added to the code, such as a counter variable for each invocation of a function, has the potential to produce misleading results~\cite{Mytkowicz:2008:OE&MB}.
