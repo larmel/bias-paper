@@ -80,7 +80,7 @@ Changes to external factors of the system, such as link ordering or the contents
 The reason this happens is because certain variables has the potential to offset memory addresses of code or data, which in turn interacts with various low level hardware buffers at runtime.
 Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes to things like system environment variables ultimately affect program execution.
 
-To alliviate the impact of measurement bias in performance analysis, researchers have proposed to use causal analysis techniques and randomization of execution contexts~\cite{Mytkowicz:2008:OE&MB}.
+To alleviate the impact of measurement bias in performance analysis, researchers have proposed to use causal analysis techniques and randomization of execution contexts~\cite{Mytkowicz:2008:OE&MB}.
 Others treat the existence bias as a potential optimization problem, using search over variant spaces to find optimal environments~\cite{Knights:2009:BlindOpt}.
 Our approach is to analyze isolated programs in detail using \emph{performance counters}, in an attempt to identify which underlying hardware mechanisms are causing bias.
 
@@ -96,28 +96,26 @@ We show how techniques like manual padding of allocations and dynamic detection 
 Accounting for address aliasing can give significant speedups, and our findings should motivate to exploit this in architecture-specific optimization.
 
 The rest of this paper is structured as follows: Our methodology and experimental setup is explained in the next section.
-Then section 3 introduces ``4K aliasing'', providing necessary background for interpreting the later results.
-Section 4 presents an analysis of how the size of environment variables causes bias.
-In Section 5 we provide a similar analysis for bias to heap address alignment.
-Section 6 concludes and discusses directions for future work.
+Then section \ref{sec:aliasing} introduces ``4K aliasing'', providing necessary background for interpreting the later results.
+Section \ref{sec:environment} presents an analysis of how the size of environment variables causes bias.
+In Section \ref{sec:heap} we provide a similar analysis for bias to heap address alignment.
+Section \ref{sec:conclusions} concludes and discusses directions for future work.
 
 
+\section{Experimental Methodology}
+\label{sec:methodology}
+In order to understand biased behavior it is important to be able to do precise and detailed measurements, without introducing \emph{observer effects}~\cite{Mytkowicz:2008:OE&MB}.
+This can be achieved by using performance counters, instrumentation support in hardware that can be used to \emph{count} various events, such as cycles executed, branch misses, instructions fetched, and so on.
+Recent Intel architectures have several hundred available events, providing a detailed view of what happens inside the CPU.
+Performance counters are supported in the Linux kernel, accessed via a tool called \emph{perf}.
+We use the perf-stat command in all experiments, which accepts raw event codes listed in the reference manual~\cite{Volume3B}.
 
-\section{Methodology}
-In order to understand biased behavior it is important to be able to do precise measurements.
-Besides measurement bias in itself, one must also consider \emph{observer effect}.
-Any kind of instrumentation added to the code, such as a counter variable for each invocation of a function, has the potential to produce misleading results~\cite{Mytkowicz:2008:OE&MB}.
-Instead, we use instrumentation provided directly by the hardware, in the form of performance counters. 
-Modern processors have a set of model specific registers (MSRs) that can be configured to \emph{count} various events, such as cycles executed, branch misses, instructions fetched, and so on.
-Recent Intel architectures have several hundred available events, which can give a very detailed view of what happens inside the CPU.
-
-Performance counters are supported in the Linux kernel, and we access them via a tool called \emph{perf}. 
-We use the \texttt{perf-stat} command in all experiments, which accepts raw event codes listed in the Intel reference manual \cite{Volume3B}.
 A small Python script is used to collect an exhaustive set of all available counters, which amounts to about 200 on our architecture.
-The same script simulates changes to environment size, which is provoked by setting a dummy environment variable to $n$ number of zero characters, starting from a minimal environment.\footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
+Only a small set of events are collected at a time, to ensure events are actually counted continuously and not sampled by multiplexing between a limited set of counter registers.
+Controlled variations in environment size is performed by setting a dummy environment variable to $n$ number of zero characters, starting from a minimal environment.\footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
 Interesting events are identified by computing linear correlation to cycle count, measuring all counters over a series of execution contexts.
-Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{OptimizationManual}.
-Results are averaged over multiple runs to reduce potential random error, supplying the \texttt{-r} option to perf-stat. % Not median, good question. man perf-stat says average + std.dev. 
+% Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{OptimizationManual}.
+Results are averaged over multiple runs to reduce potential random error, supplying the -r option to perf-stat.
 
 Because bias can be hardware dependent, and to keep the scope of this work manageable, we choose to focus on the Intel ``Haswell'' microarchitecture specifically.
 Our setup consists of a 4th generation Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7-4770K processor, running 64-bit Ubuntu 14.04 LTS on kernel version 3.13.0-24-generic.
@@ -132,6 +130,7 @@ Finally, we disable \emph{Hyper-threading}, which reduces the possibility for re
 
 
 \section{4K Address Aliasing}
+\label{sec:aliasing}
 Modern processors are \emph{superscalar}, and achieves parallelism by issuing multiple instructions simultaneously and out of order.
 One of the issues that can limit throughput is dependencies between a load and previous stores.
 According to Intel, typical software consists of about 38~\% memory access instructions, with about two thirds of them being loads.
@@ -156,6 +155,7 @@ In the following sections, we show how performance penalties from address aliasi
 
 
 \section{Bias from Environment Size}
+\label{sec:environment}
 Unless the program explicitly accesses environment variables, it is not the environment variables themselves that are important, but rather the effect their total size has on the alignment of stack.
 Environment variables and program arguments are allocated in the stack section of virtual memory, before the first call frame.
 Changing environment variables will therefore offset the addresses of stack, and consequently all stack allocated variables.
@@ -379,6 +379,7 @@ This becomes much more enticing when the performance penalties are more signific
 
 
 \section{Bias from Heap Allocation}
+\label{sec:heap}
 Address aliasing can be caused by conflicting pairs of load and store operations to any part of memory.
 In the previous sections we saw collisions between static data and stack, observing bias from external conditions that affected addresses of automatic variables.
 Most dynamic memory is allocated on the \emph{heap}, which is managed by an \emph{allocator}.
@@ -637,6 +638,7 @@ The same pointer difference must of course by subtracted before unmapping the me
 
 
 \section{Conclusions}
+\label{sec:conclusions}
 In this article we have looked at how address aliasing can affect program performance under different memory layouts, and how it can explain certain cases of measurement bias. 
 The effect is caused by the way speculative and out-of-order memory operations are handled by the CPU, only considering the last 12 address bits to resolve conflicts between load and store operations.
 
