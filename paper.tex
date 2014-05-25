@@ -353,22 +353,21 @@ Calling the function recursively will effectively allocate a new set of variable
 
 % See analysis for results showing this does not alias
 \begin{figure}
-  % [float=t, language=C, caption={Dynamically detect aliasing case, and avoid by pushing another stack frame.}, label={lst:loopfixed}, frame=lines]
-  \begin{lstlisting}
-  #define ALIAS(a, b) \
-      (((long)&a) & 0xfff == ((long)&b) & 0xfff)
-  static int i, j, k;
-  int main() {
-      int g = 0, inc = 1;
-      if (ALIAS(inc, i) || ALIAS(g, i))
-          return main();
-      for (; g < 65536; g++) {
-          i += inc;
-          j += inc;
-          k += inc;
-      }
-      return 0;
-  }
+  \begin{lstlisting}[frame=single, xleftmargin=.1\textwidth, xrightmargin=.1\textwidth]
+#define ALIAS(a, b) \
+    (((long)&a) & 0xfff == ((long)&b) & 0xfff)
+static int i, j, k;
+int main() {
+    int g = 0, inc = 1;
+    if (ALIAS(inc, i) || ALIAS(g, i))
+        return main();
+    for (; g < 65536; g++) {
+        i += inc;
+        j += inc;
+        k += inc;
+    }
+    return 0;
+}
   \end{lstlisting}
   \caption{Dynamically detect aliasing case, and avoid by pushing another stack frame.}
   \label{lst:loopfixed}
@@ -418,7 +417,9 @@ We will see that the performance of this program greatly depends on the address 
   \centering
   \lstinputlisting[
     language=C,
-    %frame=lines
+    frame=single,
+    xleftmargin=.1\textwidth,
+    xrightmargin=.1\textwidth
   ]{bin/convolution-kernel.c}
   \caption{Naive implementation of convolution, ignoring endpoints for simplicity. This program is highly sensitive to aliasing between input and output arrays.}
   \label{lst:conv}
