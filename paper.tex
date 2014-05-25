@@ -4,10 +4,10 @@
 \usepackage{pgfplots}
 \usepackage{pgfplotstable}
 \usepackage{filecontents}
-\usepackage{booktabs}
+\usepackage{booktabs} % Only used for horizontal lines
 \usepackage{tikz}
 \usepackage{listings}
-\usepackage{caption}
+%\usepackage{caption}
 \usepackage{mathtools}
 \usepackage{underscore}
 \usepackage{url}
@@ -153,32 +153,8 @@ The number of times this happens can be counted by the following performance cou
 As address aliasing depends on the memory addresses of loads and stores, environmental factors that affects memory has the potential to induce aliasing conditions.
 In the following sections, we show how performance penalties from address aliasing can be the root cause of measurement bias.
 
-
-\section{Bias from Environment Size}
-\label{sec:environment}
-Unless the program explicitly accesses environment variables, it is not the environment variables themselves that are important, but rather the effect their total size has on the alignment of stack.
-Environment variables and program arguments are allocated in the stack section of virtual memory, before the first call frame.
-Changing environment variables will therefore offset the addresses of stack, and consequently all stack allocated variables.
-
-% Generic intro to memory layout (with focus on stack/env interaction)
-% todo: Consider removing?
-Figure \ref{fig:virtualmemory} shows the relative positions of some important sections of memory at runtime, assuming a 64-bit process mapped to virtual memory. 
-The stack is placed close to the upper address 0x7fff'ffffffff\footnote{Modern processors do not actually use the full 64-bit space, only the low order 47 bits are used for addressing memory}, but offset by environment variables and program arguments.
-After some variable amount of offset, the stack is normally aligned to a 16 byte boundary, which will be enforced by the compiler. % [ref]
-Within a span of 4096 bytes there are thus 256 possible initial addresses, each representing a different execution context.
-Any one of these contexts could trigger aliasing issues between stack and some other area of memory remaining unaffected by environment size.
-This includes dynamic memory allocateded on heap, memory mapped files, as well as statically allocated data. 
-% Note that there is no clear relationship between environment size and stack location with ASLR enabled. % todo: check again
-% However, there will still be as many execution contexts with respect to aliasing (considering stack only), making any occurrences of measurement bias indeed random.
-
-% In addition to affecting stack, ASLR also randomizes location of dynamically linked files (memory mapped), and initial position of heap.
-% Moving to the lower end of the address space, we find the text, data and bss sections, which contains program code and statically allocated data.
-% The memory addresses of these sections are at compile time by the linker, and can be determined by inspecting the executable.
-
-\begin{figure}[t]
+\begin{narrowfig}{0.5\textwidth}[t]
   \centering
-  \caption{Organization of virtual memory for a 64-bit process.}
-  \label{fig:virtualmemory}
   \begin{tikzpicture}[font=\footnotesize]
 
     % See page 453 in pgf manual
@@ -215,33 +191,72 @@ This includes dynamic memory allocateded on heap, memory mapped files, as well a
       { \scriptsize{0x400000} } ;
 
   \end{tikzpicture}
-\end{figure}
+  \caption{Relative positions of some important sections of memory at runtime, assuming a 64-bit process mapped to virtual memory. 
+  The stack is placed close to the top, but offset by environment variables and program arguments. 
+  Program code and statically allocated data is allocated at the lower end of the address space.
+  The memory addresses of these sections are at compile time by the linker, and can be determined by inspecting the executable.}
+  % \footnote{Modern processors do not actually use the full 64-bit space, only the low order 47 bits are used for addressing memory}
+  \label{fig:virtualmemory}
+\end{narrowfig}
+
+
+\section{Bias from Environment Size}
+\label{sec:environment}
+Unless the program explicitly accesses environment variables, it is not the environment variables themselves that are important, but rather the effect their total size has on the alignment of stack.
+Environment variables and program arguments are allocated in the stack section of virtual memory, before the first call frame.
+Changing environment variables will therefore offset the addresses of stack, and consequently all stack allocated variables.
+
+% Generic intro to memory layout (with focus on stack/env interaction)
+% todo: Consider removing?
+
+% Figure \ref{fig:virtualmemory} shows the relative positions of some important sections of memory at runtime, assuming a 64-bit process mapped to virtual memory. 
+% The stack is placed close to the upper address 0x7fff'ffffffff\footnote{Modern processors do not actually use the full 64-bit space, only the low order 47 bits are used for addressing memory}, but offset by environment variables and program arguments.
+% After some variable amount of offset, the stack is normally aligned to a 16 byte boundary, which will be enforced by the compiler. % [ref]
+% Within a span of 4096 bytes there are thus 256 possible initial addresses, each representing a different execution context.
+% Any one of these contexts could trigger aliasing issues between stack and some other area of memory remaining unaffected by environment size.
+% This includes dynamic memory allocateded on heap, memory mapped files, as well as statically allocated data. 
+
+% Note that there is no clear relationship between environment size and stack location with ASLR enabled. % todo: check again
+% However, there will still be as many execution contexts with respect to aliasing (considering stack only), making any occurrences of measurement bias indeed random.
+
+% In addition to affecting stack, ASLR also randomizes location of dynamically linked files (memory mapped), and initial position of heap.
+% Moving to the lower end of the address space, we find the text, data and bss sections, which contains program code and statically allocated data.
+% The memory addresses of these sections are at compile time by the linker, and can be determined by inspecting the executable.
 
 \subsection{Microkernel Analysis}
-To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!''~\cite{Mytkowicz:2009:WrongData}, reproduced here in Listing~\ref{lst:loopkernel}. 
+To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!''~\cite{Mytkowicz:2009:WrongData}, reproduced below. 
 This example is interesting for several reasons; the bias effects are significant and easily reproducible, while the example code is simple and straightforward to analyze.
 Still, no satisfactory explanation as to what actually causes bias was given in the original paper.
 
 % Cite does not work in acm style
-% Micro-kernel presented by Mytkowicz et al~\cite{Mytkowicz:2009:WrongData}, 
-\begin{lstlisting}[float=h, language=C, caption={Micro-kernel succeptible to bias from variations to system environment variables.}, label={lst:loopkernel}, frame=lines]
-static int i, j, k;
-int main() {
-    int g = 0, inc = 1;
-    for (; g < 65536; g++) {
-        i += inc;
-        j += inc;
-        k += inc; 
+%\begin{figure}
+  % \lstset{%
+  %   basicstyle=\ttfamily\small\bfseries,
+  %   frame=tb,
+  %   xleftmargin=0.2\textwidth,
+  %   xrightmargin=0.2\textwidth
+  % }
+  % [xleftmargin=0.2\textwidth,xrightmargin=0.2\textwidth]
+  \begin{lstlisting}
+    static int i, j, k;
+    int main() {
+        int g = 0, inc = 1;
+        for (; g < 65536; g++) {
+            i += inc;
+            j += inc;
+            k += inc; 
+        }
+        return 0;
     }
-    return 0;
-}
-\end{lstlisting}
+  \end{lstlisting}
+
+  % Can have caption with figure environment
+  %\caption{Micro-kernel succeptible to bias from variations to system environment variables.\label{lst:loopkernel}}
+%\end{figure}
 
 % Large plot of cycle count for two 4K stack sections.
 \pgfplotstableread{bin/micro-kernel-cycles.dat}{\stackoffsettable}
 \begin{figure*}[t]
-  \caption{Bias from environment size for micro-kernel in Listing~\ref{lst:loopkernel}. Measured average of 10 cycle count samples for 512 different environments. Spikes show aliasing case, occurring once for each 4K period}
-  \label{fig:envbias}
   \begin{tikzpicture}
     \begin{axis}[
         width = \textwidth,
@@ -258,38 +273,9 @@ int main() {
       \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \stackoffsettable ;
     \end{axis}
   \end{tikzpicture}
+  \caption{Bias from environment size for microkernel. Measured average of 10 cycle count samples for 512 different environments. Spikes show aliasing case, occurring once for each 4K period}
+  \label{fig:envbias}
 \end{figure*}
-
-% Detailed comparison between median and worst cases.
-\begin{table}[b]
-  \centering
-  \caption{Events with significant correlation to cycle count}
-  \label{tab:loopcorrelation}
-  %\renewcommand{\tabcolsep}{1pt} % Less padding between cells
-  \renewcommand{\tabcolsep}{4pt} % Less padding between cells
-  \pgfplotstabletypeset[
-    font=\footnotesize,
-    int detect, % Output whole numbers for counter values
-    col sep=comma,
-    columns={Performance counter, Median, [index]3, [index]4},
-    column type=r,
-    columns/Performance counter/.style={
-      string type, 
-      column type=l,
-      postproc cell content/.append code={
-        \pgfkeysalso{@cell content=\perfctr{##1}}
-      }
-    },
-    every head row/.style={
-      output empty row,
-      before row={\toprule
-        Performance counter & Median & Spike 1 & Spike 2 \\
-        },
-      after row=\midrule,
-    },
-    every last row/.style={after row=\bottomrule}
-  ]{bin/micro-kernel-comparison.csv}
-\end{table}
 
 Performance counter measurements of cycle counts are shown for 512 different environment sizes in Figure~\ref{fig:envbias}.
 We measure every 16 byte increment of environment size, covering two 4K periods of initial stack addresses.
@@ -300,6 +286,33 @@ There are clearly two worst cases, indicated by significant spikes at the 3184 a
 We sampled an extensive set of performance counters in addition to cycle count for each execution context.
 By looking at the \emph{median} value of each counter compared to the extreme cases, we narrowed down the performance events that behaved similarly to cycle count.
 Table \ref{tab:loopcorrelation} shows numerical counter values for worst cases of 3184 and 7280 bytes, compared to the median over all environments.
+
+% Detailed comparison between median and worst cases.
+\begin{table}
+  \tbl{Events with significant correlation to cycle count\label{tab:loopcorrelation}}{
+    \pgfplotstabletypeset[
+      int detect, % Output whole numbers for counter values
+      col sep=comma,
+      columns={Performance counter, Median, [index]3, [index]4},
+      column type=r,
+      columns/Performance counter/.style={
+        string type, 
+        column type=l,
+        postproc cell content/.append code={
+          \pgfkeysalso{@cell content=\perfctr{##1}}
+        }
+      },
+      every head row/.style={
+        output empty row,
+        before row={\toprule
+          Performance counter & Median & Spike 1 & Spike 2 \\
+          },
+        after row=\midrule,
+      },
+      every last row/.style={after row=\bottomrule}
+    ]{bin/micro-kernel-comparison.csv}
+  }
+\end{table}
 
 Notice the most extreme change from median to worst case is clearly the number of alias events.
 If we plot the graph for address aliasing, we see that it is near zero everywhere and spikes at exactly the points we observe bias. 
@@ -330,6 +343,7 @@ There is only one store to variable \texttt{i}, which will alias with loads of \
 
 % Refer to relevant section of the generated assembly file (in gas syntax)
 \lstinputlisting[
+  basicstyle=\ttfamily\footnotesize,
   linerange={22-38}, 
   numbers=left,
   firstnumber=22
@@ -351,27 +365,32 @@ The program is \emph{biased} towards environment sizes that avoids this specific
 Addresses of automatic variables can not be determined statically, because the position of stack at runtime is generally unknown. 
 In addition to being offset by environment variables, the stack address can also be perturbed by other factors such as ASLR. 
 Although one can not easily know if a collision is going to happen for a given environment, it is possible to change the program to account for possible alias effects.
-Shown in Listing \ref{lst:loopfixed} is a proof of concept of how alias-free code could be generated in this particular case.
+Shown in Figure \ref{lst:loopfixed} is a proof of concept of how alias-free code could be generated in this particular case.
 If the addresses do alias, a branch to an alternative but semantically equivalent code path is performed.
 Calling the function recursively will effectively allocate a new set of variables a bit further down the stack, and the alias condition is avoided.
 
 % See analysis for results showing this does not alias
-\begin{lstlisting}[float=t, language=C, caption={Dynamically detect aliasing case, and avoid by pushing another stack frame.}, label={lst:loopfixed}, frame=lines]
-#define ALIAS(a, b) \
-    (((long)&a) & 0xfff == ((long)&b) & 0xfff)
-static int i, j, k;
-int main() {
-    int g = 0, inc = 1;
-    if (ALIAS(inc, i) || ALIAS(g, i))
-        return main();
-    for (; g < 65536; g++) {
-        i += inc;
-        j += inc;
-        k += inc;
-    }
-    return 0;
-}
-\end{lstlisting}
+\begin{figure}
+  % [float=t, language=C, caption={Dynamically detect aliasing case, and avoid by pushing another stack frame.}, label={lst:loopfixed}, frame=lines]
+  \begin{lstlisting}
+  #define ALIAS(a, b) \
+      (((long)&a) & 0xfff == ((long)&b) & 0xfff)
+  static int i, j, k;
+  int main() {
+      int g = 0, inc = 1;
+      if (ALIAS(inc, i) || ALIAS(g, i))
+          return main();
+      for (; g < 65536; g++) {
+          i += inc;
+          j += inc;
+          k += inc;
+      }
+      return 0;
+  }
+  \end{lstlisting}
+  \caption{Dynamically detect aliasing case, and avoid by pushing another stack frame.}
+  \label{lst:loopfixed}
+\end{figure}
 
 While this particular solution is clearly not something one would want to do in practice, it at least shows that compilers and programmers \emph{could} take measures to account for aliasing.
 This becomes much more enticing when the performance penalties are more significant, which we find is often the case for aliasing heap allocations.
@@ -391,13 +410,13 @@ The particular library used therefore constitutes an important part of the execu
 \subsection{\texttt{malloc} will Alias by Default}
 Acquiring dynamic memory at runtime is usually done by calling \texttt{malloc}, which takes a number of bytes to allocate as input, and returns a pointer to that area.
 A typical malloc implementation uses different strategies for how to allocate memory depending on the \emph{size} of the request.
-\begin{itemize}
+\begin{longitem}
   \item The ``regular'' heap area in virtual memory is used for smaller allocations. 
   Programs are initially given a relatively small heap, which the allocator can increase by calling \texttt{brk} or \texttt{sbrk} system calls.
 
   \item For larger allocations, it can be more efficient to use anonymous memory mapping by calling the Posix function \texttt{mmap} instead of growing the regular heap.
   One drawback of this is that it requires the memory to be zero initialized, and whether memory mapping is used or not is based on some cost heuristic employed by the allocator.
-\end{itemize}
+\end{longitem}
 The heap section starts at a relatively low address (close to the data section), growing upwards.
 Memory mapped chunks are placed towards the upper end of the virtual address space, closer to the stack.
 Whether a memory allocation request is served by the heap or by memory mapping is therefore easy to determine just by looking at the actual pointer values returned.
@@ -411,19 +430,23 @@ This behavior is often the worst case for functions that operate on two or more 
 \subsection{Aligned Sequential Access}
 Many functions operate in a ``sliding window'' fashion; reading and writing to different buffers in some loop construction.
 This type of program is potentially vulnerable to 4K aliasing, where the worst case will be when the read and write pointer addresses are aliased, continuously generating false conflicts.
-As an example of this, consider a naive implementation of linear correlation shown in Listing \ref{lst:conv} (for simplicity, endpoints are not handled).
+As an example of this, consider a naive implementation of linear correlation shown in Figure \ref{lst:conv} (for simplicity, endpoints are not handled).
 The function containins lots of interleaved loads and stores, iterating over two independent memory buffers in a tight loop.
 We will see that the performance of this program greatly depends on the address alignment of each buffer, favoring memory addresses that are not closely aligned on the last 12-bits.
 
-\lstinputlisting[
-  float=t, 
-  language=C, 
-  caption={Naive implementation of convolution. Highly sensitive to aliasing between input and output arrays.},
-  label={lst:conv},
-  frame=lines
-]{bin/convolution-kernel.c}
+\begin{figure}[t]
+  \centering
+  \lstinputlisting[
+    %float=t, 
+    language=C, 
+    %caption={Naive implementation of convolution. Highly sensitive to aliasing between input and output arrays.},
+    %label={lst:conv},
+    %frame=lines
+  ]{bin/convolution-kernel.c}
+  \caption{Naive implementation of convolution. Highly sensitive to aliasing between input and output arrays.}
+  \label{lst:conv}
+\end{figure}
 
-% Use mmap directly instead maybe?
 By using an input size of $n=2^{20}$ (4 MiB in memory for each array), glibc's heap allocator ends up always choosing \texttt{mmap} to serve requests.
 By default, even with address randomization enabled, both pointers will have the same address suffix of 0x010.
 To analyse performance for different addresses, we manually insert padding to offset one of the memory mapped pointers.
@@ -448,8 +471,6 @@ For every run, performance counter measurements is also averaged over 10 samples
 \pgfplotstableread{bin/conv-default-o3.estimate.dat}{\convtablethree}
 \begin{figure*}[t]
   \centering
-  \caption{Estimated cycle- and alias counts for different offsets between input and output arrays in convolution kernel from Listing~\ref{lst:conv}. Offset 0 means equal 12-bit address suffix, which is default behavior for \texttt{mmap} allocations. Input size $n=2^{20}$.}
-  \label{fig:conv-default}
   \begin{tikzpicture}
     \begin{axis}[
         title=\texttt{cc -O2},
@@ -480,42 +501,45 @@ For every run, performance counter measurements is also averaged over 10 samples
       \addlegendentry{Alias} ;
     \end{axis}
   \end{tikzpicture}
+  \label{fig:conv-default}
+  \caption{Estimated cycle- and alias counts for different offsets between input and output arrays in convolution kernel from Figure~\ref{lst:conv}. Offset 0 means equal 12-bit address suffix, which is default behavior for \texttt{mmap} allocations. Input size $n=2^{20}$.}
 \end{figure*}
 
 % Table with detailed performance data, use estimated for O2 because it does not need as many columns (!)
-\begin{table*}[t]
-  \centering
-  \caption{Most interesting performance counters and correlation with cycle count for optimization O2, estimated cost accounting for constant overhead.}
+\begin{table}[t]
+  %\centering
   \label{tab:convstats}
-  \renewcommand{\tabcolsep}{4pt} % Less padding between cells
-  \pgfplotstabletypeset[
-    font=\footnotesize,
-    int detect, % Output whole numbers for counter values
-    col sep=comma,
-    columns={Performance counter, Correlation, 0, 2, 4, 8},
-    column type=r,
-    columns/Performance counter/.style={
-      string type, 
-      column type=l,
-      postproc cell content/.append code={
-        \pgfkeysalso{@cell content=\perfctr{##1}}
-      }
-    },
-    columns/Correlation/.style={
-      fixed,
-      fixed zerofill,
-      precision=2
-    },
-    every head row/.style={
-      output empty row,
-      before row={\toprule
-        Performance counter & $r$ & 0 & 2 & 4 & 8 \\
-        },
-      after row=\midrule,
-    },
-    every last row/.style={after row=\bottomrule}
-  ]{bin/conv-default-o2.estimate.csv}
-\end{table*}
+  \renewcommand{\tabcolsep}{3pt} % Less padding between cells
+  \tbl{Most interesting performance counters and correlation with cycle count for optimization O2, estimated cost accounting for constant overhead.}{
+    \pgfplotstabletypeset[
+      font=\footnotesize,
+      int detect, % Output whole numbers for counter values
+      col sep=comma,
+      columns={Performance counter, Correlation, 0, 2, 4, 8},
+      column type=r,
+      columns/Performance counter/.style={
+        string type, 
+        column type=l,
+        postproc cell content/.append code={
+          \pgfkeysalso{@cell content=\perfctr{##1}}
+        }
+      },
+      columns/Correlation/.style={
+        fixed,
+        fixed zerofill,
+        precision=2
+      },
+      every head row/.style={
+        output empty row,
+        before row={\toprule
+          Performance counter & $r$ & 0 & 2 & 4 & 8 \\
+          },
+        after row=\midrule,
+      },
+      every last row/.style={after row=\bottomrule}
+    ]{bin/conv-default-o2.estimate.csv}
+  }
+\end{table}
 
 Figure~\ref{fig:conv-default} illustrates how the convolution kernel behaves for increasing offsets between heap addresses (modulo 4096), clearly indicating a relationship between address aliasing events and cycles executed.
 The effects are most distinct on optimization level 2 and 3, where the ratio of cycles to alias events is most significant.
@@ -557,29 +581,30 @@ Variations between different versions of libc, or local configurations on parame
 
 \begin{table*}[t]
   \centering
-  \caption{Addresses returned by different heap allocators when allocating pairs of equally sized buffers.}
   \label{tab:mallocompare}
   \renewcommand{\tabcolsep}{4pt} % Less padding between cells
-  \pgfplotstabletypeset[
-    font=\footnotesize,
-    col sep=comma,
-    string type,
-    columns={Allocation, 64, 5120, 65536, 1048576, 4194304},
-    column type=r,
-    columns/Allocation/.style={
-      string type, 
-      column type=l
-    },
-    every head row/.style={
-      output empty row,
-      before row={\toprule
-         & 64 B & 5,120 B & 65,536 B & 1,048,576 B & 4,194,304 B \\
-        },
-      after row=\midrule,
-    },
-    every odd row/.style={after row=\midrule},
-    every last row/.style={after row=\bottomrule}
-  ]{bin/malloc-comparison.csv}
+  \tbl{Addresses returned by different heap allocators when allocating pairs of equally sized buffers.}{
+    \pgfplotstabletypeset[
+      font=\footnotesize,
+      col sep=comma,
+      string type,
+      columns={Allocation, 64, 5120, 65536, 1048576, 4194304},
+      column type=r,
+      columns/Allocation/.style={
+        string type, 
+        column type=l
+      },
+      every head row/.style={
+        output empty row,
+        before row={\toprule
+           & 64 B & 5,120 B & 65,536 B & 1,048,576 B & 4,194,304 B \\
+          },
+        after row=\midrule,
+      },
+      every odd row/.style={after row=\midrule},
+      every last row/.style={after row=\bottomrule}
+    ]{bin/malloc-comparison.csv}
+  }
 \end{table*}
 
 Table \ref{tab:mallocompare} illustrates some differences that can be observed by switching heap allocator\footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}.
@@ -627,7 +652,7 @@ This goes somewhat agains conventional wisdom that more alignment is better.
 The Intel optimization manual actually mentiones this in \emph{User/Source Coding Rule 8}, suggesting that special purpose allocators could be used to avoid aliasing ~\cite{OptimizationManual}.
 However, to our knowledge there are no commonly used allocators that specifically tries to mitigate aliasing in heap allocated memory.
 
-\paragraph{Manually adjust memory}
+\paragraph{Manually adjust address offsets}
 In some cases it might make sense to explicitly control the memory addresses used, for example forcing some fixed relative offset between input and output pointers.
 This can be achieved by exploiting the fact the \texttt{mmap} is in fact guaranteed to be placed at a page boundary, and use that directly instead of \texttt{malloc}.
 The following approach can be used to make an anonymous memory mapping with offset \texttt{d} bytes away from page alignment.
