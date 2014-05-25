@@ -325,7 +325,7 @@ There is only one store to variable \texttt{i}, which will alias with loads of \
 
 % Refer to relevant section of the generated assembly file (in gas syntax)
 \lstinputlisting[
-  basicstyle=\ttfamily\footnotesize,
+  basicstyle=\ttfamily\small,
   linerange={22-38}, 
   numbers=left,
   firstnumber=22
@@ -378,54 +378,49 @@ While this particular solution is clearly not something one would want to do in 
 This becomes much more enticing when the performance penalties are more significant, which we find is often the case for aliasing heap allocations.
 
 
-
 \section{Bias from Heap Allocation}
 \label{sec:heap}
 Address aliasing can be caused by conflicting pairs of load and store operations to any part of memory.
 In the previous sections we saw collisions between static data and stack, observing bias from external conditions that affected addresses of automatic variables.
 Most dynamic memory is allocated on the \emph{heap}, which is managed by an \emph{allocator}.
 A heap allocator is responsible for managing dynamic memory, and ultimately assigns the actual addresses of heap allocated variables at runtime.
-Heap allocation routines such as \texttt{malloc} and \texttt{free} are typically dynamically linked, for example as part of glibc, or some other library.
+Heap allocation routines such as \texttt{malloc} and \texttt{free} are typically dynamically linked, for example as part of glibc.
 The particular library used therefore constitutes an important part of the execution context, as linking to a different library, or a library with some alternative configuration, can impact heap addresses at runtime.
 
 
-\subsection{\texttt{malloc} will Alias by Default}
+\subsection{Why \texttt{malloc} will Alias by Default}
 Acquiring dynamic memory at runtime is usually done by calling \texttt{malloc}, which takes a number of bytes to allocate as input, and returns a pointer to that area.
 A typical malloc implementation uses different strategies for how to allocate memory depending on the \emph{size} of the request.
-\begin{longitem}
+\begin{itemize}
   \item The ``regular'' heap area in virtual memory is used for smaller allocations. 
   Programs are initially given a relatively small heap, which the allocator can increase by calling \texttt{brk} or \texttt{sbrk} system calls.
-
   \item For larger allocations, it can be more efficient to use anonymous memory mapping by calling the Posix function \texttt{mmap} instead of growing the regular heap.
   One drawback of this is that it requires the memory to be zero initialized, and whether memory mapping is used or not is based on some cost heuristic employed by the allocator.
-\end{longitem}
+\end{itemize}
 The heap section starts at a relatively low address (close to the data section), growing upwards.
 Memory mapped chunks are placed towards the upper end of the virtual address space, closer to the stack.
 Whether a memory allocation request is served by the heap or by memory mapping is therefore easy to determine just by looking at the actual pointer values returned.
 While addresses in the regular heap can look something like 0x16e30a0 or 0x1723020, pointers returned by \texttt{mmap} are numerically much larger -- for example 0x7f0318a8f010 or 0x7f03105d2010.
 This distinction is of course unimportant for application developers, as everything is conceptually the same ``heap''.
 However, \texttt{mmap} has an interesting property in that allocations will always be page aligned.
-The page size is 4096 bytes, meaning two pointers returned by \texttt{mmap} will \emph{always} alias.\footnote{libc's version of malloc adds 16 bytes of metadata at the beginning, therefore every memory mapped address end with 0x010.}
+The page size is 4096 bytes, meaning two pointers returned by \texttt{mmap} will \emph{always} alias.\footnote{libc's version of malloc adds 16 bytes of metadata at the beginning, therefore every memory mapped address ends with 0x010.}
 This behavior is often the worst case for functions that operate on two or more independent buffers, as we will see in the following sections.
 
 
 \subsection{Aligned Sequential Access}
 Many functions operate in a ``sliding window'' fashion; reading and writing to different buffers in some loop construction.
 This type of program is potentially vulnerable to 4K aliasing, where the worst case will be when the read and write pointer addresses are aliased, continuously generating false conflicts.
-As an example of this, consider a naive implementation of linear correlation shown in Figure \ref{lst:conv} (for simplicity, endpoints are not handled).
+As an example of this, consider a naive implementation of linear correlation shown in Figure \ref{lst:conv}.
 The function containins lots of interleaved loads and stores, iterating over two independent memory buffers in a tight loop.
 We will see that the performance of this program greatly depends on the address alignment of each buffer, favoring memory addresses that are not closely aligned on the last 12-bits.
 
 \begin{figure}[t]
   \centering
   \lstinputlisting[
-    %float=t, 
     language=C, 
-    %caption={Naive implementation of convolution. Highly sensitive to aliasing between input and output arrays.},
-    %label={lst:conv},
     %frame=lines
   ]{bin/convolution-kernel.c}
-  \caption{Naive implementation of convolution. Highly sensitive to aliasing between input and output arrays.}
+  \caption{Naive implementation of convolution, ignoring endpoints for simplicity. This program is highly sensitive to aliasing between input and output arrays.}
   \label{lst:conv}
 \end{figure}
 
@@ -561,34 +556,6 @@ Heap allocation routines such as \texttt{malloc} and \texttt{free} are usually d
 For the code examples presented earlier, the dynamic linker will resolve \texttt{malloc} to some version of glibc, which is the default on our system.
 Variations between different versions of libc, or local configurations on parameters such as thresholds for when to use \texttt{mmap} over \texttt{brk}, could trigger aliasing cases.
 
-\begin{table*}[t]
-  \centering
-  \label{tab:mallocompare}
-  \renewcommand{\tabcolsep}{4pt} % Less padding between cells
-  \tbl{Addresses returned by different heap allocators when allocating pairs of equally sized buffers.}{
-    \pgfplotstabletypeset[
-      font=\footnotesize,
-      col sep=comma,
-      string type,
-      columns={Allocation, 64, 5120, 65536, 1048576, 4194304},
-      column type=r,
-      columns/Allocation/.style={
-        string type, 
-        column type=l
-      },
-      every head row/.style={
-        output empty row,
-        before row={\toprule
-           & 64 B & 5,120 B & 65,536 B & 1,048,576 B & 4,194,304 B \\
-          },
-        after row=\midrule,
-      },
-      every odd row/.style={after row=\midrule},
-      every last row/.style={after row=\bottomrule}
-    ]{bin/malloc-comparison.csv}
-  }
-\end{table*}
-
 Table \ref{tab:mallocompare} illustrates some differences that can be observed by switching heap allocator\footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}.
 In addition to glibc, where the heap allocator is called \emph{ptmalloc}, we look at the following alternatives:
 \begin{itemize}
@@ -598,6 +565,35 @@ In addition to glibc, where the heap allocator is called \emph{ptmalloc}, we loo
 \end{itemize}
 The addresses of two equally sized \texttt{char} buffers allocated with \texttt{malloc} are observed for different size parameters. 
 We do not care about performance, only whether the actual memory addresses returned alias or not.
+
+% Removed some data here, too much info
+\begin{table*}[t]
+  \centering
+  \label{tab:mallocompare}
+  %\renewcommand{\tabcolsep}{4pt} % Less padding between cells
+  \tbl{Addresses returned by different heap allocators when allocating pairs of equally sized buffers.}{
+    \pgfplotstabletypeset[
+      font=\footnotesize,
+      col sep=comma,
+      string type,
+      columns={Allocation, 64, 5120, 1048576},
+      column type=r,
+      columns/Allocation/.style={
+        string type, 
+        column type=l
+      },
+      every head row/.style={
+        output empty row,
+        before row={\toprule
+           & 64 B & 5,120 B & 1,048,576 B \\
+          },
+        after row=\midrule,
+      },
+      every odd row/.style={after row=\midrule},
+      every last row/.style={after row=\bottomrule}
+    ]{bin/malloc-comparison.csv}
+  }
+\end{table*}
 
 For smaller allocations, we see that glibc and tcmalloc uses the normal heap area -- returning numerically low addresses.
 Interestingly, jemalloc and Hoard appears to never use the normal heap, but allocate to memory mapped areas even for smaller sizes.
