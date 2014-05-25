@@ -643,6 +643,20 @@ The following approach can be used to make an anonymous memory mapping with offs
 The same pointer difference must of course by subtracted before unmapping the memory.
 
 
+\section{Related Work}
+\label{sec:related}
+Measurement bias and observer effect in performance analysis has been studied in detail by Mytkowicz et al~\shortcite{Mytkowicz:2008:OE&MB,Mytkowicz:2008:Easy}.
+The authors introduce environment variables and link ordering as examples of external bias triggers, showing how standardised {\small SPECint} benchmarks suffer from measurement bias when trying to evaluate the effectiveness of O3 over O2. 
+Strategies for detecting bias through causal analysis and randomization of experimental setups is introduced.
+The microkernel example we analyzed is taken from a followup paper by the same authors, presenting similar results for an older Core 2 processor~\cite{Mytkowicz:2009:WrongData}.
+Assuming the root causes of measurement bias were the same, our results indicate that address aliasing issues is probably relevant on several previous generations of Intel architectures as well.
+
+Techniques for ``Blind'' optimization using search over variant spaces, is introduced by \citeN{Knights:2009:BlindOpt}.
+Their space of variants consist of different position and alignments for each function and global variable, in principle exploring the different configurations possible by altering link order.
+The authors of MAO present a framework for extending compilers to provide very low level microarchitectural assembly optimization~\cite{Hundt:2011:MAO}.
+Different techniques are used, including rules, pattern matching, and random insertion of nop-instructions. 
+
+
 \section{Conclusions}
 \label{sec:conclusions}
 In this paper we have shown how address aliasing can affect program performance under different memory layouts, and how it can explain certain cases of measurement bias. 
