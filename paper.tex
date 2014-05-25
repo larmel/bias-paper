@@ -41,14 +41,14 @@ LARS KIRKHOLT MELHUS and RUNE ERLEND JENSEN
 \begin{abstract} % Should be 150 -- 200 words max
 Understanding program performance and obtaining accure measurements is important in performance analysis, but measurements can be \emph{biased} by external factors.
 Predicting or accounting for measurment bias is challenging, as the interaction with low level hardware mechanisms is complex.  
-In this paper we show how \emph{address aliasing} can often be the underlying mechanism resulting in measurement bias on modern Intel microarchitectures.
+In this paper we show how \emph{address aliasing} can be the underlying mechanism resulting in measurement bias on modern Intel microarchitectures.
 Our approach is to use hardware performance counter to analyze performance data over controlled series of execution contexts.
 We show how address aliasing can explain bias from two external factors: environment variable size, and characteristics of dynamically linked heap allocators.
 
 The perfomance impact of unfavorable memory contexts can be significant, with as much as $2x$ speedup in one of our examples.
 It also turns out the allocation pattern of common libraries tends to give \emph{worst case} alignment by default, by favoring page alignment large allocations.
 While the aliasing mechanism itself is not new, we provide the connection to measurement bias and show how to use this knowledge not only to account for bias but also explicitly optimize for it.
-Our results should provide motivation for more architecture specific optimization for example in heap allocator heuristics.
+Our results should provide motivation for more architecture specific optimization, for example in heap allocator heuristics.
 \end{abstract}
 
 % Choose from classification tree http://www.acm.org/about/class/ccs98-html
@@ -95,11 +95,10 @@ With an understanding of how false dependencies in the CPU can impact performanc
 We show how techniques like manual padding of allocations and dynamic detection of aliasing conditions can be used to improve performance. 
 Accounting for address aliasing can give significant speedups, and our findings should motivate to exploit this in architecture-specific optimization.
 
-The rest of this paper is structured as follows: Our methodology and experimental setup is explained in the next section.
-Then section \ref{sec:aliasing} introduces ``4K aliasing'', providing necessary background for interpreting the later results.
+The rest of this paper is structured as follows: Our methodology and experimental setup is explained in the next section, then section \ref{sec:aliasing} introduces ``4K aliasing'', providing necessary background for interpreting the later results.
 Section \ref{sec:environment} presents an analysis of how the size of environment variables causes bias.
-In Section \ref{sec:heap} we provide a similar analysis for bias to heap address alignment.
-Section \ref{sec:conclusions} concludes and discusses directions for future work.
+In Section \ref{sec:heap} we go through a similar analysis for bias to heap address alignment.
+Section \ref{sec:conclusions} includes a summary and conclusion.
 
 
 \section{Experimental Methodology}
@@ -146,8 +145,7 @@ A store to address 0x601020 followed by a load to address 0x821020 is an aliasin
 Despite being independent, in these cases the memory order subsystem generates \emph{false} dependencies, and causing the load to be reissued.
 The number of times this happens can be counted by the following performance counter:
 \begin{description}
-  \item[LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS]
-  Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.~\cite{OptimizationManual} % todo: where
+  \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS}] ``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.'' Intel Optimization Manual~\citeyear[B.3.4.4]{OptimizationManual}
 \end{description}
 
 As address aliasing depends on the memory addresses of loads and stores, environmental factors that affects memory has the potential to induce aliasing conditions.
@@ -208,7 +206,7 @@ Within a span of 4096 bytes there are thus 256 possible initial stack addresses,
 However, there will still be as many execution contexts with respect to aliasing (considering stack only), making any occurrences of measurement bias indeed random.}
 
 \subsection{Microkernel Analysis}
-To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!''~\cite{Mytkowicz:2009:WrongData}, reproduced below. 
+To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!'' by \citeN{Mytkowicz:2009:WrongData}, reproduced below. 
 This example is interesting for several reasons; the bias effects are significant and easily reproducible, while the example code is simple and straightforward to analyze.
 Still, no satisfactory explanation as to what actually causes bias was given in the original paper.
 
@@ -525,28 +523,29 @@ Numbers on the x axis represent the amount of offset, measured in number of \tex
 An offset of zero is the default behavior for this program when using \texttt{malloc} and moderately large inputs.
 Both for optimization level 2 and 3, the default alignment is close to worst case performance.
 The differences in cycles executed is significant, with about $1.7x$ speedup for O2 and as much as $2x$ speedup for O3 for increasing relative offset.
-This phenomenon is only observed for address offsets close to zero, thus we only show the first 32 data points.
+This phenomenon is only observed for address offsets close to zero, thus we only show the first 20 data points.
 If extended to cover the full width of possible offsets within a 4K segment, we see that the performance is uniform everywhere else.
 
 More detailed performance counter data is presented in Table~\ref{tab:convstats}, where we have selected a subset that seem to correlate well with the change to cycle count.
 The numbers are for the level 2 optimization case, which was chosen because the behavior was less chaotic and thus more easily represented by only a few numbers.
-However, the performance data looks fairly similar between the two data sets, with a couple of events that seem to stand out.
+However, the performance data looks fairly similar between the two data sets, with a couple of events that seem to stand out:
 \begin{itemize}
     \item A high number of resource stalls for the default alignment, which is reduced substantially together with increasing offsets. 
     \item A high number of cycles with memory loads pending, indicating that the pipeline is stalled waiting for load operations to resolve.
     \item Changes to the number of micro-ops executed for certain ports.
-    \item Offcore requests. (++) % todo!
 \end{itemize}
 Interestingly, it looks like small address offsets incur a massive increase in operations issued on port 0 for the O2 case. 
 On Haswell, this port handles various ALU operations, and branching together with port 6.~\cite[Figure 2.1]{OptimizationManual}
 As there is also variations in the number of branch instructions executed, it seems like these counters together show that certain branch micro-ops are being re-issued.
 
-It is also worth noticing that most cache related metrics does \emph{not} stand out in this experiment.
+It is worth noticing that most cache related metrics does \emph{not} stand out in this experiment.
 The L1 hit rate remains stable across all offsets, and only a neglible number of memory loads actually misses L1.
+On the other hand, we see a fairly strong correlation between cycle count and outstanding offcore requests. 
+These events count the number of outstanding loads to memory outside the processor core each cycle.
+Since we do not see any significant number of loads missing L1, the correlation to outstanding loads is probably a result of stalling and more cycles executed.
 
 Overall it seems reasonable to conclude that the resource stalling is causing delayed execution, ultimately generated by false dependencies from address aliasing.
 Variations in execution port activity, and in this case increased number of branches executed, is consistent with micro-ops being reissued after the potential conflict is detected.
-
 We do not attempt to pinpoint exactly which assembly instructions might alias, but on a high level we can assume that the processor thinks memory accesses to \texttt{input[i]} potentially conflicts with \texttt{output[i]}.
 By manually adjusting the address alignment of one of these buffers, cycle count can be reduced by as much as 50\%.
 This is a speedup on top of already aggressive compiler optimization.
@@ -568,9 +567,7 @@ The addresses of two equally sized \texttt{char} buffers allocated with \texttt{
 We do not care about performance, only whether the actual memory addresses returned alias or not.
 
 \begin{table}[t]
-  \centering
   \label{tab:mallocompare}
-  %\renewcommand{\tabcolsep}{4pt} % Less padding between cells
   \tbl{Addresses returned by different heap allocators when allocating pairs of equally sized buffers.}{
     \pgfplotstabletypeset[
       col sep=comma,
@@ -594,6 +591,10 @@ We do not care about performance, only whether the actual memory addresses retur
       every odd row/.style={after row=\hline},
     ]{bin/malloc-comparison.csv}
   }
+  \begin{tabnote}
+    \Note{Note:}{Memory mapped addresses starting with the 0x2aa... prefix is an artifact of using \emph{make} to generate results. Executing the test program from \emph{bash} directly result in 0x7fff... prefixes.
+    The difference is not important to our discussion.}
+  \end{tabnote}
 \end{table}
 
 For smaller allocations, we see that glibc and tcmalloc uses the normal heap area -- returning numerically low addresses.
@@ -610,7 +611,7 @@ With different versions or configurations of memory allocators, any performance 
 % Heap allocation is intrinsically inefficient in that all threads share the same address space, leading to a high potential lock contention on memory accesses.
 
 
-\subsection{Ways to Deal with Address Aliasing}
+\subsection{Ways to Deal with Heap Address Aliasing}
 Measurement bias from address aliasing can be significant in real applications, with potentially large performance penalties.
 However, with an understanding of the underlying mechanism that causes bias, the effects can to some extent be predicted and accounted for in software.
 The most relevant scenario to consider is probably code that can hit the aliasing \texttt{mmap} scenario, where performance impact can be consistently bad over all environments.
@@ -643,25 +644,29 @@ The same pointer difference must of course by subtracted before unmapping the me
 
 \section{Conclusions}
 \label{sec:conclusions}
-In this article we have looked at how address aliasing can affect program performance under different memory layouts, and how it can explain certain cases of measurement bias. 
+In this paper we have shown how address aliasing can affect program performance under different memory layouts, and how it can explain certain cases of measurement bias. 
 The effect is caused by the way speculative and out-of-order memory operations are handled by the CPU, only considering the last 12 address bits to resolve conflicts between load and store operations.
 
-By analyzing an example originally presented by Mytkowicz et al. \cite{Mytkowicz:2009:WrongData}, we determined that collisions between stack variables and static data resulted in aliasing for certain stack positions.
-In this case, the external trigger of bias is variations in environment size, which in turn offset the virtual addresses of stack allocated variables.
+In general, any change to virtual memory layout of data can potentially introduce bias effects from address aliasing.
+Analyzing an example with bias to enviornment size, we determined that collisions between automatic variables and static data resulted in aliasing for certain stack positions.
+Aliasing conditions were triggered because variations in environment size offset the virtual addresses of stack allocated variables.
+We show how aliasing can have significant performance impact in practice for algorithms operating on heap allocated buffers, analyzing and example with more than 50 \% performance variation between different memory layouts.
+Bacause typical heap allocators will return aliased pointers for large allocations, worst case performance is likely to be the default.
 
-In general, any change to virtual memory layout of data can potentially introduce bias effects from address aliasing. 
-We present a code example with extreme sensitivity to heap address alignment, with more than 50 \% performance variation between different memory layouts.
-We find that typical heap allocators return page-aligned memory by default, which is the worst case with respect to aliasing for many algorithms.
-Despite recommendations from Intel, we are not aware of any allocators that specifically addresses this issue. 
-We show how manual padding of variables, and alternative alias-free code paths, can be used to avoid aliasing at runtime.
-This means that an understanding of 4K address aliasing is sometimes needed to achieve optimal performance. 
+We show how techniques like padding of variables and alternative alias-free code paths can be used to avoid aliasing at runtime.
+For heap address aliasing especially, we find that manual intervention is sometimes required in order to achieve optimal performance.
+Our results should inspire more clever optimizations and heuristics taking address aliasing effects into account, as the potential performance improvements can be substantial. 
 
-
-\section{Acknowledgements}
+% Acknowledgements
+\begin{acks}
 This work is forked from a Master's thesis project under the supervision of Anne Cathrine Elster and Rune Erlend Jensen, looking at sources of measurment bias on the Intel Ivy Bridge architecture~\cite{MasterThesis}.
+\end{acks}
 
-
+% Bibliography
 \bibliographystyle{ACM-Reference-Format-Journals}
 \bibliography{references}
+
+% History dates
+\received{}{}{}
 
 \end{document}
