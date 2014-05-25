@@ -486,10 +486,9 @@ For every run, performance counter measurements is also averaged over 10 samples
 
 % Table with detailed performance data, use estimated for O2 because it does not need as many columns (!)
 \begin{table}[t]
-  %\renewcommand{\tabcolsep}{3pt} % Less padding between cells
-  \tbl{Most interesting performance counters and correlation with cycle count for optimization O2, estimated cost accounting for constant overhead.\label{tab:convstats}}{
+  \renewcommand{\tabcolsep}{3pt} % Less padding between cells
+  \tbl{Relevant performance counters and correlation ($r$) with cycle count for optimization O2. Estimated cost accounting for constant overhead.\label{tab:convstats}}{
     \pgfplotstabletypeset[
-      %font=\footnotesize,
       int detect, % Output whole numbers for counter values
       col sep=comma,
       columns={Performance counter, Correlation, 0, 2, 4, 8},
