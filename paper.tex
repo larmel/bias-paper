@@ -4,7 +4,7 @@
 \usepackage{pgfplots}
 \usepackage{pgfplotstable}
 \usepackage{filecontents}
-\usepackage{booktabs} % Only used for horizontal lines
+%\usepackage{booktabs} % Only used for horizontal lines
 \usepackage{tikz}
 \usepackage{listings}
 %\usepackage{caption}
@@ -281,18 +281,20 @@ Table \ref{tab:loopcorrelation} shows numerical counter values for worst cases, 
       columns/Performance counter/.style={
         string type, 
         column type=l,
+        column type/.add={|}{},
         postproc cell content/.append code={
           \pgfkeysalso{@cell content=\perfctr{##1}}
         }
       },
       every head row/.style={
         output empty row,
-        before row={\toprule
+        before row={\hline
           Performance counter & Median & Spike 1 & Spike 2 \\
-          },
-        after row=\midrule,
+        },
+        after row=\hline\hline
       },
-      every last row/.style={after row=\bottomrule}
+      every last row/.style={after row=\hline},
+      every last column/.style={column type/.add={}{|}}
     ]{bin/micro-kernel-comparison.csv}
   }
   \begin{tabnote}
@@ -417,7 +419,7 @@ We will see that the performance of this program greatly depends on the address 
 \begin{figure}[t]
   \centering
   \lstinputlisting[
-    language=C, 
+    language=C,
     %frame=lines
   ]{bin/convolution-kernel.c}
   \caption{Naive implementation of convolution, ignoring endpoints for simplicity. This program is highly sensitive to aliasing between input and output arrays.}
@@ -484,12 +486,10 @@ For every run, performance counter measurements is also averaged over 10 samples
 
 % Table with detailed performance data, use estimated for O2 because it does not need as many columns (!)
 \begin{table}[t]
-  %\centering
-  \label{tab:convstats}
-  \renewcommand{\tabcolsep}{3pt} % Less padding between cells
-  \tbl{Most interesting performance counters and correlation with cycle count for optimization O2, estimated cost accounting for constant overhead.}{
+  %\renewcommand{\tabcolsep}{3pt} % Less padding between cells
+  \tbl{Most interesting performance counters and correlation with cycle count for optimization O2, estimated cost accounting for constant overhead.\label{tab:convstats}}{
     \pgfplotstabletypeset[
-      font=\footnotesize,
+      %font=\footnotesize,
       int detect, % Output whole numbers for counter values
       col sep=comma,
       columns={Performance counter, Correlation, 0, 2, 4, 8},
@@ -497,6 +497,7 @@ For every run, performance counter measurements is also averaged over 10 samples
       columns/Performance counter/.style={
         string type, 
         column type=l,
+        column type/.add={|}{},
         postproc cell content/.append code={
           \pgfkeysalso{@cell content=\perfctr{##1}}
         }
@@ -508,12 +509,13 @@ For every run, performance counter measurements is also averaged over 10 samples
       },
       every head row/.style={
         output empty row,
-        before row={\toprule
+        before row={\hline
           Performance counter & $r$ & 0 & 2 & 4 & 8 \\
-          },
-        after row=\midrule,
+        },
+        after row=\hline\hline
       },
-      every last row/.style={after row=\bottomrule}
+      every last row/.style={after row=\hline},
+      every last column/.style={column type/.add={}{|}}
     ]{bin/conv-default-o2.estimate.csv}
   }
 \end{table}
@@ -566,34 +568,34 @@ In addition to glibc, where the heap allocator is called \emph{ptmalloc}, we loo
 The addresses of two equally sized \texttt{char} buffers allocated with \texttt{malloc} are observed for different size parameters. 
 We do not care about performance, only whether the actual memory addresses returned alias or not.
 
-% Removed some data here, too much info
-\begin{table*}[t]
+\begin{table}[t]
   \centering
   \label{tab:mallocompare}
   %\renewcommand{\tabcolsep}{4pt} % Less padding between cells
   \tbl{Addresses returned by different heap allocators when allocating pairs of equally sized buffers.}{
     \pgfplotstabletypeset[
-      font=\footnotesize,
       col sep=comma,
       string type,
       columns={Allocation, 64, 5120, 1048576},
       column type=r,
       columns/Allocation/.style={
         string type, 
-        column type=l
+        column type=l,
+        column type/.add={|}{}
       },
       every head row/.style={
         output empty row,
-        before row={\toprule
+        before row={\hline
            & 64 B & 5,120 B & 1,048,576 B \\
           },
-        after row=\midrule,
+        after row=\hline\hline,
       },
-      every odd row/.style={after row=\midrule},
-      every last row/.style={after row=\bottomrule}
+      every last row/.style={after row=\hline},
+      every last column/.style={column type/.add={}{|}},
+      every odd row/.style={after row=\hline},
     ]{bin/malloc-comparison.csv}
   }
-\end{table*}
+\end{table}
 
 For smaller allocations, we see that glibc and tcmalloc uses the normal heap area -- returning numerically low addresses.
 Interestingly, jemalloc and Hoard appears to never use the normal heap, but allocate to memory mapped areas even for smaller sizes.
