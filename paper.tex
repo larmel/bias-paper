@@ -191,44 +191,27 @@ In the following sections, we show how performance penalties from address aliasi
       { \scriptsize{0x400000} } ;
 
   \end{tikzpicture}
-  \caption{Relative positions of some important sections of memory at runtime, assuming a 64-bit process mapped to virtual memory. 
-  The stack is placed close to the top, but offset by environment variables and program arguments. 
-  Program code and statically allocated data is allocated at the lower end of the address space.
-  The memory addresses of these sections are at compile time by the linker, and can be determined by inspecting the executable.}
-  % \footnote{Modern processors do not actually use the full 64-bit space, only the low order 47 bits are used for addressing memory}
+  \caption{Relative positions of some important sections of memory at runtime, assuming a 64-bit process mapped to virtual memory.
+  Initial addresses of stack, heap and memory mapped files are often randomized for security reasons.
+  Addresses of code and statically allocated data are allocated at compile time by the linker, and can be determined by inspecting the executable.}
   \label{fig:virtualmemory}
 \end{narrowfig}
 
 
 \section{Bias from Environment Size}
 \label{sec:environment}
-Unless the program explicitly accesses environment variables, it is not the environment variables themselves that are important, but rather the effect their total size has on the alignment of stack.
-Environment variables and program arguments are allocated in the stack section of virtual memory, before the first call frame.
+Unless the program explicitly accesses environment variables, it is not the environment variables themselves that are important, but rather the effect their total size has on the position and alignment of stack.
+As indicated in Figure \ref{fig:virtualmemory}, environment variables and program arguments are allocated in the stack section of virtual memory close to the upper address 0x7fff'ffffffff\footnote{Modern processors do not actually use the full 64-bit space, only the low order 47 bits are used for addressing memory}, before the first call frame.
 Changing environment variables will therefore offset the addresses of stack, and consequently all stack allocated variables.
-
-% Generic intro to memory layout (with focus on stack/env interaction)
-% todo: Consider removing?
-
-% Figure \ref{fig:virtualmemory} shows the relative positions of some important sections of memory at runtime, assuming a 64-bit process mapped to virtual memory. 
-% The stack is placed close to the upper address 0x7fff'ffffffff\footnote{Modern processors do not actually use the full 64-bit space, only the low order 47 bits are used for addressing memory}, but offset by environment variables and program arguments.
-% After some variable amount of offset, the stack is normally aligned to a 16 byte boundary, which will be enforced by the compiler. % [ref]
-% Within a span of 4096 bytes there are thus 256 possible initial addresses, each representing a different execution context.
-% Any one of these contexts could trigger aliasing issues between stack and some other area of memory remaining unaffected by environment size.
-% This includes dynamic memory allocateded on heap, memory mapped files, as well as statically allocated data. 
-
-% Note that there is no clear relationship between environment size and stack location with ASLR enabled. % todo: check again
-% However, there will still be as many execution contexts with respect to aliasing (considering stack only), making any occurrences of measurement bias indeed random.
-
-% In addition to affecting stack, ASLR also randomizes location of dynamically linked files (memory mapped), and initial position of heap.
-% Moving to the lower end of the address space, we find the text, data and bss sections, which contains program code and statically allocated data.
-% The memory addresses of these sections are at compile time by the linker, and can be determined by inspecting the executable.
+After some variable amount of offset, the stack is normally aligned to a 16 byte boundary, which will be enforced by the compiler.
+Within a span of 4096 bytes there are thus 256 possible initial stack addresses, each representing a different execution context with respect to address aliasing.\footnote{Note that there is no clear relationship between environment size and stack location with ASLR enabled.
+However, there will still be as many execution contexts with respect to aliasing (considering stack only), making any occurrences of measurement bias indeed random.}
 
 \subsection{Microkernel Analysis}
 To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!''~\cite{Mytkowicz:2009:WrongData}, reproduced below. 
 This example is interesting for several reasons; the bias effects are significant and easily reproducible, while the example code is simple and straightforward to analyze.
 Still, no satisfactory explanation as to what actually causes bias was given in the original paper.
 
-% Cite does not work in acm style
 %\begin{figure}
   % \lstset{%
   %   basicstyle=\ttfamily\small\bfseries,
@@ -285,7 +268,7 @@ The program is compiled with {\small{GCC}} using no optimization, as any optimiz
 There are clearly two worst cases, indicated by significant spikes at the 3184 and 7280 byte offsets.
 We sampled an extensive set of performance counters in addition to cycle count for each execution context.
 By looking at the \emph{median} value of each counter compared to the extreme cases, we narrowed down the performance events that behaved similarly to cycle count.
-Table \ref{tab:loopcorrelation} shows numerical counter values for worst cases of 3184 and 7280 bytes, compared to the median over all environments.
+Table \ref{tab:loopcorrelation} shows numerical counter values for worst cases, compared to the median over all environments.
 
 % Detailed comparison between median and worst cases.
 \begin{table}
@@ -312,14 +295,14 @@ Table \ref{tab:loopcorrelation} shows numerical counter values for worst cases o
       every last row/.style={after row=\bottomrule}
     ]{bin/micro-kernel-comparison.csv}
   }
+  \begin{tabnote}
+    \Note{Note:}{Performance events that are obviously not indicative of any causal relationship are omitted, for example bus-cycles which will naturally vary with total cycle count.}
+  \end{tabnote}
 \end{table}
 
-Notice the most extreme change from median to worst case is clearly the number of alias events.
+We see the most extreme change from median to worst case is clearly the number of alias events.
 If we plot the graph for address aliasing, we see that it is near zero everywhere and spikes at exactly the points we observe bias. 
 The results show a high number of resource stalls and pending memory loads when the spikes occur, which is consistent with address aliasing issues.
-% Some of the other counters are less interesting; for example bus cycles, which will naturally vary with the total cycle count.
-% Performance events that are obviously not indicative of any causal relationship are omitted.
-
 On the other end we get a much lower number of reservation station (RS) stalls in the aliasing case, with a reduction from about 270,000 to about 135,000.
 The reservation station buffers micro-ops for scheduling to the execution units, and a stall event means that there are no free slots available~\cite[Table 19-2]{Volume3B}.
 Fewer stalls in the aliasing case could indicate less contention on the reservation station.
@@ -327,8 +310,7 @@ This probably has to do with the overall \emph{decrease} in the number of micro-
 Note that the number of micro-ops \emph{retired} overall does not change, but for some reason the micro-ops stays in the execution pipeline for a shorter time.
 Our assumption is that this is a by-product of stalls generated from aliasing, causing micro-operations to be reissued.
 
-\subsection{The Offending Variables}
-Our performance counter data clearly points to address aliasing as a plausible explanation, thus the next step is to see exactly which memory accesses are aliasing. 
+Performance counter data clearly points to address aliasing as a plausible explanation, thus the next step is to see exactly which memory accesses are aliasing. 
 For that we need to know the addresses of each variable at runtime.
 The program contains five variables; \texttt{g} and \texttt{inc} which are stack allocated, and \texttt{i}, \texttt{j} and \texttt{k} which are statically allocated.
 Virtual memory layout of static data is decided at compile time, and we can find the location of these variables by looking at the symbol table in the ELF executable.
@@ -363,7 +345,7 @@ The program is \emph{biased} towards environment sizes that avoids this specific
 
 \subsection{Avoiding Aliasing}
 Addresses of automatic variables can not be determined statically, because the position of stack at runtime is generally unknown. 
-In addition to being offset by environment variables, the stack address can also be perturbed by other factors such as ASLR. 
+In addition to being offset by environment variables, the stack address can also be perturbed by other factors such as ASLR or program arguments. 
 Although one can not easily know if a collision is going to happen for a given environment, it is possible to change the program to account for possible alias effects.
 Shown in Figure \ref{lst:loopfixed} is a proof of concept of how alias-free code could be generated in this particular case.
 If the addresses do alias, a branch to an alternative but semantically equivalent code path is performed.
