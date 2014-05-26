@@ -122,7 +122,7 @@ Code samples are compiled using the {\small GCC} toolchain, version 4.8.2-19ubun
 
 We also have to ensure we are not affected by measurement bias beyond what we are actually trying to observe, and in general follow best practices on gathering data~\cite{Mytkowicz:2009:WrongData}.
 Most importantly, this means keeping the memory address space under control.
-For security reasons, addresses of stack, heap and dynamic libraries are often randomized at load time, a technique known as \emph{Address Space Layout Randomization}~\cite{Shackham:2004:ASLR}. % Should maybe have more generic reference
+For security reasons, addresses of stack, heap and dynamic libraries are often randomized at load time, a technique known as \emph{Address Space Layout Randomization}~\cite{Pax:ASLR,Bhatkar:AddressObfuscation}. 
 By disabling ASLR, we are able to execute the same program multiple times with identical virtual address spaces.
 All experiments are done on a machine under minimal load, and \emph{frequency scaling} is disabled to keep the CPU's clock speed fixed.
 Finally, we disable \emph{Hyper-threading}, which reduces the possibility for resource contention between threads.
