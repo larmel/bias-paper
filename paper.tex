@@ -154,7 +154,6 @@ In the following sections, we show how performance penalties from address aliasi
 \begin{narrowfig}{0.5\textwidth}[t]
   \centering
   \begin{tikzpicture}[font=\footnotesize]
-
     % See page 453 in pgf manual
     \node [
       rectangle split, rectangle split parts=10, 
@@ -177,17 +176,13 @@ In the following sections, we show how performance penalties from address aliasi
         \nodepart{ten}
           text
       };
-
     \draw [decorate, decoration={brace, amplitude=5pt}] (m.south west) -- (m.seven split west) 
       node [black, midway, xshift=-1.5cm, text width=2.0cm] 
         { Program code and static data } ;
-
     \node[right] at (m.north east)
       { \scriptsize{0x7fff'ffffffff} } ;
-
     \node[right] at (m.south east)
       { \scriptsize{0x400000} } ;
-
   \end{tikzpicture}
   \caption{Relative positions of some important sections of memory at runtime, assuming a 64-bit process mapped to virtual memory.
   Initial addresses of stack, heap and memory mapped files are often randomized for security reasons.
@@ -389,17 +384,24 @@ The particular library used therefore constitutes an important part of the execu
 
 \subsection{Why \texttt{malloc} will Alias by Default}
 Acquiring dynamic memory at runtime is usually done by calling \texttt{malloc}, which takes a number of bytes to allocate as input, and returns a pointer to that area.
-A typical malloc implementation uses different strategies for how to allocate memory depending on the \emph{size} of the request.
-\begin{itemize}
-  \item The ``regular'' heap area in virtual memory is used for smaller allocations. 
-  Programs are initially given a relatively small heap, which the allocator can increase by calling \texttt{brk} or \texttt{sbrk} system calls.
-  \item For larger allocations, it can be more efficient to use anonymous memory mapping by calling the Posix function \texttt{mmap} instead of growing the regular heap.
-  One drawback of this is that it requires the memory to be zero initialized, and whether memory mapping is used or not is based on some cost heuristic employed by the allocator.
-\end{itemize}
-The heap section starts at a relatively low address (close to the data section), growing upwards.
-Memory mapped chunks are placed towards the upper end of the virtual address space, closer to the stack.
+Depending on the particular request and allocator used, the returned value will either point to the ``regular'' heap, or to a memory mapped area (see Figure \ref{fig:virtualmemory}).
+Different strategies for how to allocate memory will often depend on the \emph{size} of the request.
+
+\begin{enumerate}
+  \item The heap is marked by a brake point representing the end of uninitialized data in virtual memory, and more space is requested by the \texttt{brk} or \texttt{sbrk} system calls. 
+  Allocators typically use this area for smaller allocations.
+  \item Anonymous memory mappings, i.e. buffers not backed by a file, can be created through the \texttt{mmap} system call.
+  This mechanism is typically used for large allocations.
+  %For larger allocations, it can be more efficient to use anonymous memory mapping by calling the Posix function \texttt{mmap} instead of growing the regular heap.
+\end{enumerate}
+% One drawback of using memory mapping is that it requires the buffer to be zero initialized, so which mechanism is used can be based on some cost heuristic employed by the allocator.
+% A typical malloc implementation uses different strategies for how to allocate memory depending on the \emph{size} of the request.
+% The normal heap is often used for smaller requests, while memory mapping is used for large buffers.
+
+The heap section starts at a relatively low address right above static code and data.
+Memory mapped chunks are placed towards the upper end of the virtual address space, closer to stack.
 Whether a memory allocation request is served by the heap or by memory mapping is therefore easy to determine just by looking at the actual pointer values returned.
-While addresses in the regular heap can look something like 0x16e30a0 or 0x1723020, pointers returned by \texttt{mmap} are numerically much larger -- for example 0x7f0318a8f010 or 0x7f03105d2010.
+While addresses in the regular heap can look something like 0x16e30a0 or 0x1723020, pointers returned by \texttt{mmap} are numerically much larger, for example 0x7f0318a8f010 or 0x7f03105d2010.
 This distinction is of course unimportant for application developers, as everything is conceptually the same ``heap''.
 However, \texttt{mmap} has an interesting property in that allocations will always be page aligned.
 The page size is 4096 bytes, meaning two pointers returned by \texttt{mmap} will \emph{always} alias.\footnote{libc's version of malloc adds 16 bytes of metadata at the beginning, therefore every memory mapped address ends with 0x010.}
