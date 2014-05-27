@@ -50,7 +50,7 @@ LARS KIRKHOLT MELHUS and RUNE ERLEND JENSEN
 %While the aliasing mechanism itself is not new, we provide the connection to measurement bias and show how to use this knowledge not only to account for bias but also explicitly optimize for it.
 %Our results should provide motivation for more architecture specific optimization, for example in heap allocator heuristics.
 Understanding program performance and obtaining accurate measurements is important in performance analysis, but measurements can be \emph{biased} by external factors.
-Recent research has shown that there can be significant performance differences based on seemingly irrelevant factors like user name length.
+Recent research has shown that there can be significant performance differences based on seemingly irrelevant factors such as user name length.
 In this paper we identify an important underlying mechanism that cause this type of measurement bias on modern Intel microarchitectures.
 Our approach is to search for correlations between a large set of hardware performance counters and performance figures from multiple environment contexts.
 We find that \emph{address aliasing} can explain bias from two external factors: environment variable size, and characteristics of dynamically linked heap allocators.
@@ -60,7 +60,7 @@ We demonstrate this by implementing runtime detection and correction of address 
 Further, we show that the allocation logic of common libraries tends to give \emph{worst case} alignment by default, by favoring page alignment large allocations.
 The performance impact of unfavorable memory layout combinations can be significant, with as much as $2x$ speedup in one of our examples.
 %Our results should provide motivation for more architecture specific optimization, for example in heap allocator heuristics and compiler rules.
-In the longer term, our results can enable novel compiler and architectural optimization strategies.
+In the longer term, our results can enable new architecture specific optimization strategies.
 
 \end{abstract}
 
