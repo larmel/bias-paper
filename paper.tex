@@ -39,16 +39,28 @@ LARS KIRKHOLT MELHUS and RUNE ERLEND JENSEN
 
 % Motivation -- Problem statement -- Approach -- Results -- Conclusions
 \begin{abstract} % Should be 150 -- 200 words max
-Understanding program performance and obtaining accure measurements is important in performance analysis, but measurements can be \emph{biased} by external factors.
-Predicting or accounting for measurment bias is challenging, as the interaction with low level hardware mechanisms is complex.  
-In this paper we show how \emph{address aliasing} can be the underlying mechanism resulting in measurement bias on modern Intel microarchitectures.
-Our approach is to use hardware performance counter to analyze performance data over controlled series of execution contexts.
-We show how address aliasing can explain bias from two external factors: environment variable size, and characteristics of dynamically linked heap allocators.
+%Understanding program performance and obtaining accure measurements is important in performance analysis, but measurements can be \emph{biased} by external factors.
+%Predicting or accounting for measurment bias is challenging, as the interaction with low level hardware mechanisms is complex.  
+%In this paper we show how \emph{address aliasing} can be the underlying mechanism resulting in measurement bias on modern Intel microarchitectures.
+%Our approach is to use hardware performance counter to analyze performance data over controlled series of execution contexts.
+%We show how address aliasing can explain bias from two external factors: environment variable size, and characteristics of dynamically linked heap allocators.
 
-The perfomance impact of unfavorable memory contexts can be significant, with as much as $2x$ speedup in one of our examples.
+%The perfomance impact of unfavorable memory contexts can be significant, with as much as $2x$ speedup in one of our examples.
+%It also turns out the allocation pattern of common libraries tends to give \emph{worst case} alignment by default, by favoring page alignment large allocations.
+%While the aliasing mechanism itself is not new, we provide the connection to measurement bias and show how to use this knowledge not only to account for bias but also explicitly optimize for it.
+%Our results should provide motivation for more architecture specific optimization, for example in heap allocator heuristics.
+Understanding program performance and obtaining accurate measurements is important in performance analysis, but measurements can be \emph{biased} by external factors.
+It has been shown that there can be significant performance differences based seemingly irrelevant factors like user name length.
+In this paper we show an important underlying mechanism resulting in this type of measurement bias on modern Intel microarchitectures.
+
+Our approach is to search for correlations between a large set of hardware performance counters and performance figures from multiple environment contexts.
+We find that \emph{address aliasing} can explain bias from two external factors: environment variable size, and characteristics of dynamically linked heap allocators.
+
+This clear result not only makes accounting and avoiding measurement bias much simpler, but enables explicit optimizations for it.
 It also turns out the allocation pattern of common libraries tends to give \emph{worst case} alignment by default, by favoring page alignment large allocations.
-While the aliasing mechanism itself is not new, we provide the connection to measurement bias and show how to use this knowledge not only to account for bias but also explicitly optimize for it.
-Our results should provide motivation for more architecture specific optimization, for example in heap allocator heuristics.
+The performance impact of unfavorable memory contexts can be significant, with as much as $2x$ speedup in one of our examples.
+Our results should provide motivation for more architecture specific optimization, for example in heap allocator heuristics and compiler rules.
+
 \end{abstract}
 
 % Choose from classification tree http://www.acm.org/about/class/ccs98-html
