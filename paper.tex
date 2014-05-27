@@ -387,35 +387,36 @@ The particular library used therefore constitutes an important part of the execu
 \subsection{Most Allocators Alias by Default}
 Acquiring dynamic memory at runtime is usually done by calling \texttt{malloc}, which takes a number of bytes to allocate as input, and returns a pointer to that area.
 Depending on the particular request and allocator used, the returned value will either point to the ``regular'' heap, or to a memory mapped area (see Figure \ref{fig:virtualmemory}).
-Different strategies for how to allocate memory will often depend on the \emph{size} of the request.
-
-\begin{enumerate}
-  \item The heap is marked by a brake point representing the end of uninitialized data in virtual memory, and more space is requested by the \texttt{brk} or \texttt{sbrk} system calls. 
-  Allocators typically use this area for smaller allocations.
-  \item Anonymous memory mappings, i.e. buffers not backed by a file, can be created through the \texttt{mmap} system call.
-  This mechanism is typically used for large allocations.
-\end{enumerate}
+\begin{itemize}
+  \item The \emph{heap} is marked by a break point representing the end of uninitialized data in virtual memory, and more space is requested by the \texttt{brk} or \texttt{sbrk} system calls.
+  %Allocators typically use this area for smaller allocations.
+  \item The \texttt{mmap} system call is used to map file descriptors to virtual memory. \emph{Anonymous} mappings, i.e. buffers not backed by a file, can be used for general purpose allocations.
+  %This mechanism is typically used for large allocations.
+\end{itemize}
+The allocator included as part of glibc uses both mechanisms, choosing which based on the \emph{size} of the request~\cite{GlibcManual}.
+Small sizes generally live in the heap, while long lived and large allocations tend to be memory mapped.
 
 The heap section starts at a relatively low address right above static code and data.
 Memory mapped chunks are placed towards the upper end of the virtual address space, closer to stack.
-Whether a memory allocation request is served by the heap or by memory mapping is therefore easy to determine just by looking at the pointer values returned:
-While addresses in the regular heap can look something like 0x16e30a0 or 0x1723020, pointers returned by \texttt{mmap} are numerically much larger, for example 0x7f0318a8f010 or 0x7f03105d2010.
+Whether a request is served by the heap or by memory mapping is therefore easy to determine just by looking at the pointer values returned:
+Addresses in the regular heap can look something like 0x16e30a0 or 0x1723020, while pointers returned by \texttt{mmap} are numerically much larger, for example 0x7f0318a8f010 or 0x7f03105d2010.
 This distinction is of course unimportant for application developers, as everything is conceptually the same ``heap''.
 However, \texttt{mmap} has an interesting property in that allocations will always be page aligned.
-The page size is 4096 bytes, meaning two pointers returned by \texttt{mmap} will \emph{always} alias.\footnote{glibc's version of malloc adds 16 bytes of metadata at the beginning, therefore every memory mapped address ends with 0x010.}
-This behavior is often the worst case for functions that operate on two or more independent buffers, as we will see in the following sections.
+The page size is 4096 bytes, meaning two pointers returned by \texttt{mmap} will \emph{always} alias.\footnote{glibc's version of malloc adds 16 bytes of metadata at the beginning, therefore every memory mapped address end with 0x010.}
+This behavior is often the worst case for functions that operate on two or more independent buffers, as we will see in the following section.
 
-Table \ref{tab:mallocompare} illustrates how different dynamic allocators tend to produce aliasing conditions for large requests\footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}.
-The addresses of two equally sized \texttt{char} buffers allocated with \texttt{malloc} are observed for different size parameters, and equal three digit address suffix indicate an aliasing pair.
+Table \ref{tab:mallocompare} illustrates how using a different allocator can affect potential aliasing between heap pointers \footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}.
+We observe the addresses of two equally sized \texttt{char} buffers allocated with \texttt{malloc} for different size parameters.
+Equal three digit address suffix indicate an aliasing pair.
 In addition to glibc, where the heap allocator is called \emph{ptmalloc}, we look at the following alternatives:
-\begin{itemize}
+\begin{enumerate}
   \item Thread-Caching Malloc (tcmalloc) by Google~\cite{TCMalloc}.
   \item jemalloc, originally developed for FreeBSD~\cite{JEMalloc}.
   \item Hoard~\cite{Berger:2000:Hoard}.
-\end{itemize}
-All of the above focuses heavily on performance in multithreaded environments.
+\end{enumerate}
+All of the above focus heavily on performance in multithreaded environments.
 Heap allocation is intrinsically inefficient in that all threads share the same address space, leading to a high potential lock contention on memory accesses.
-Here we only look at behavior for a single thread, and whether the addresses returned alias or not.
+Here, we only look at behavior for a single thread, and whether the addresses returned alias or not.
 \begin{table}[t]
   \label{tab:mallocompare}
   \tbl{Addresses returned by different heap allocators when allocating pairs of equally sized buffers.}{
@@ -447,13 +448,13 @@ Here we only look at behavior for a single thread, and whether the addresses ret
   \end{tabnote}
 \end{table}
 
-For smaller allocations, we see that glibc and tcmalloc utilize the normal heap area -- returning numerically low addresses.
+We see that glibc and tcmalloc utilize the normal heap area for smaller allocations, returning numerically low addresses. % Verified by looking at strace that tcmalloc actually uses brk
 Interestingly, jemalloc and Hoard appears to never use the heap, but allocate to memory mapped areas even for smaller requests.
 Conversely, tcmalloc seem manage only the heap.
-We see one example where one allocator yields aliasing buffers while another does not.
+There is one example where an allocator yields aliasing buffers while another does not.
 Allocating $2 \times 5120$ bytes returns aliasing pointers for jemalloc and Hoard, but not with glibc or tcmalloc.
 Given that these results are deterministic (with ASLR disabled), it is not hard to construct a program with significant bias towards one or the other allocator.
-But even with randomization, addresses returned by \texttt{mmap} must still be page aligned.
+But even with randomization, pointers returned by \texttt{mmap} must still be page aligned.
 This means that addresses returned by allocators using this mechanism directly will \emph{always} alias, giving a deterministic execution context considering only the address suffix.
 From our limited experiment, this seems to be the case for glibc, jemalloc and Hoard.
 
@@ -461,9 +462,9 @@ From our limited experiment, this seems to be the case for glibc, jemalloc and H
 \subsection{Aligned Sequential Access}
 Many functions operate in a ``sliding window'' fashion; reading and writing to different buffers in some loop construction.
 This type of program is potentially vulnerable to 4K aliasing, where the worst case will be when the read and write pointer addresses are aliased, continuously generating false conflicts.
-As an example of this, consider a naive implementation of linear correlation shown in Figure \ref{lst:conv}.
+As an example of this, consider a na{\"i}ve implementation of linear correlation shown in Figure \ref{lst:conv}.
 The function contains lots of interleaved loads and stores, iterating over two independent memory buffers in a tight loop.
-We will see that the performance of this program greatly depends on the address alignment of each buffer, favoring memory addresses that are not closely aligned on the last 12-bits.
+The performance of this program greatly depends on the address alignment of each buffer, favoring memory addresses that are not closely aligned on the last 12-bits.
 
 \begin{figure}[t]
   \centering
@@ -477,11 +478,11 @@ We will see that the performance of this program greatly depends on the address 
   \label{lst:conv}
 \end{figure}
 
-By using an input size of $n=2^{20}$ (4 MiB in memory for each array), glibc's heap allocator ends up always choosing \texttt{mmap} to serve requests.
-By default, even with address randomization enabled, both pointers will have the same address suffix of 0x010.
+We use an input size of $n=2^{20}$ (4 MiB in memory for each array), which results in glibc's heap allocator always choosing \texttt{mmap} to serve requests.
+By default, even with address randomization enabled, both \texttt{input} and \texttt{output} will have start addresses with the same address suffix of 0x010.
 To analyze performance for different addresses, we manually insert padding to offset one of the memory mapped pointers.
 This is accomplished by requesting a bit more memory, and use pointer arithmetic to offset one of the function arguments.
-Controlling the offset parameter, we can create environments where the inputs are some number of \texttt{sizeof(float)} bytes apart.
+Controlling the offset parameter, we can create environments where the address suffixes are some number of \texttt{sizeof(float)} bytes apart.
 Allocating and managing these buffers at startup takes a non-negligible amount of work.
 The overhead can be masked by repeatedly invoking the convolution kernel after allocating and initializing all the inputs.
 \begin{lstlisting}
@@ -493,7 +494,7 @@ An estimate of the actual cost of one invocation can be calculated by averaging 
 t_{\text{estimate}} = \frac{t_{k} - t_{1}}{k - 1}
 \]
 Our results are with $k=11$, effectively using the average over 10 loop iterations to estimate the cost of a single invocation.
-For every run, performance counter measurements is also averaged over 10 samples, using the repeat mechanism of perf.
+For every run, performance counter measurements are also averaged over 10 samples, using the repeat mechanism of perf.
 
 \pgfplotstableread{bin/conv-default-o2.estimate.dat}{\convtabletwo}
 \pgfplotstableread{bin/conv-default-o3.estimate.dat}{\convtablethree}
@@ -577,9 +578,9 @@ The differences in cycles executed is significant, with about $1.7x$ speedup for
 This phenomenon is only observed for address offsets close to zero, thus we only show the first 20 data points.
 If extended to cover the full width of possible offsets within a 4K segment, we see that the performance is uniform everywhere else.
 
-More detailed performance counter data is presented in Table~\ref{tab:convstats}, where we have selected a subset that seem to correlate well with the change to cycle count.
+More detailed performance counter data is presented in Table~\ref{tab:convstats}, where we have selected a subset that correlates well with the change to cycle count.
 The numbers are for the level 2 optimization case, which was chosen because the behavior was less chaotic and thus more easily represented by only a few numbers.
-However, the performance data looks fairly similar between the two data sets, with a couple of events that seem to stand out:
+However, the performance data looks fairly similar between the two data sets, with a couple of events that appear to stand out:
 \begin{itemize}
     \item A high number of resource stalls for the default alignment, which is reduced substantially together with increasing offsets. 
     \item A high number of cycles with memory loads pending, indicating that the pipeline is stalled waiting for load operations to resolve.
