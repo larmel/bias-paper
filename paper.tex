@@ -50,15 +50,17 @@ LARS KIRKHOLT MELHUS and RUNE ERLEND JENSEN
 %While the aliasing mechanism itself is not new, we provide the connection to measurement bias and show how to use this knowledge not only to account for bias but also explicitly optimize for it.
 %Our results should provide motivation for more architecture specific optimization, for example in heap allocator heuristics.
 Understanding program performance and obtaining accurate measurements is important in performance analysis, but measurements can be \emph{biased} by external factors.
-Recent research has shown that there can be significant performance differences based seemingly irrelevant factors like user name length.
-In this paper we show an important underlying mechanism resulting in this type of measurement bias on modern Intel microarchitectures.
+Recent research has shown that there can be significant performance differences based on seemingly irrelevant factors like user name length.
+In this paper we identify an important underlying mechanism that cause this type of measurement bias on modern Intel microarchitectures.
 Our approach is to search for correlations between a large set of hardware performance counters and performance figures from multiple environment contexts.
 We find that \emph{address aliasing} can explain bias from two external factors: environment variable size, and characteristics of dynamically linked heap allocators.
 
 This result not only makes accounting for and avoiding measurement bias much simpler, but also enables explicit optimizations for it.
+We demonstrate this by implementing runtime detection and correction of address aliasing, eliminating the bias.
 Further, we show that the allocation logic of common libraries tends to give \emph{worst case} alignment by default, by favoring page alignment large allocations.
 The performance impact of unfavorable memory layout combinations can be significant, with as much as $2x$ speedup in one of our examples.
-Our results should provide motivation for more architecture specific optimization, for example in heap allocator heuristics and compiler rules.
+%Our results should provide motivation for more architecture specific optimization, for example in heap allocator heuristics and compiler rules.
+In the longer term, our results can enable novel compiler and architectural optimization strategies.
 
 \end{abstract}
 
@@ -86,7 +88,7 @@ Our results should provide motivation for more architecture specific optimizatio
 
 \section{Introduction}
 Accurately measuring the performance of computer programs is important in order to evaluate new algorithms or compare different implementations.
-This process is complicated by \emph{measurment bias}, which can be a challenge for performance analysist and systems researchers.
+This process is complicated by \emph{measurement bias}, which can be a challenge for performance analysist and systems researchers.
 Changes to external factors of the system, such as link ordering or the contents of environment variables, has been shown to have potentially significant impacts on performance in real applications~\cite{Mytkowicz:2009:WrongData}.
 The reason this happens is because certain variables has the potential to offset memory addresses of code or data, which in turn interacts with various low level hardware buffers at runtime.
 Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes to things like system environment variables ultimately affect program execution.
@@ -477,10 +479,10 @@ We will see that the performance of this program greatly depends on the address 
 
 By using an input size of $n=2^{20}$ (4 MiB in memory for each array), glibc's heap allocator ends up always choosing \texttt{mmap} to serve requests.
 By default, even with address randomization enabled, both pointers will have the same address suffix of 0x010.
-To analyse performance for different addresses, we manually insert padding to offset one of the memory mapped pointers.
+To analyze performance for different addresses, we manually insert padding to offset one of the memory mapped pointers.
 This is accomplished by requesting a bit more memory, and use pointer arithmetic to offset one of the function arguments.
 Controlling the offset parameter, we can create environments where the inputs are some number of \texttt{sizeof(float)} bytes apart.
-Allocating and managing these buffers at startup takes a non-neglegible amount of work.
+Allocating and managing these buffers at startup takes a non-negligible amount of work.
 The overhead can be masked by repeatedly invoking the convolution kernel after allocating and initializing all the inputs.
 \begin{lstlisting}
     for (i = 0; i < k; ++i)
@@ -588,7 +590,7 @@ On Haswell, this port handles various ALU operations, and branching together wit
 As there is also variations in the number of branch instructions executed, it seems like these counters together show that certain branch micro-ops are being re-issued.
 
 It is worth noticing that most cache related metrics does \emph{not} stand out in this experiment.
-The L1 hit rate remains stable across all offsets, and only a neglible number of memory loads actually misses L1.
+The L1 hit rate remains stable across all offsets, and only a negligible number of memory loads actually misses L1.
 On the other hand, we see a fairly strong correlation between cycle count and outstanding offcore requests. 
 These events count the number of outstanding loads to memory outside the processor core each cycle.
 Since we do not see any significant number of loads missing L1, the correlation to outstanding loads is probably a result of stalling and more cycles executed.
@@ -617,8 +619,8 @@ With this updated function prototype, the number of alias events is reduced by a
 \paragraph{Use a special purpose allocator}
 We found that heap allocators are prone to generate pairwise aliasing buffers, the worst case for functions such as the convolution example.
 A potential solution could be to apply some heuristic to randomize addresses more, and in particular not always return the same 12 bit suffix for large allocations.
-This goes somewhat agains conventional wisdom that more alignment is better.
-The Intel optimization manual actually mentiones this in \emph{User/Source Coding Rule 8}, suggesting that special purpose allocators could be used to avoid aliasing ~\cite{OptimizationManual}.
+This goes somewhat against conventional wisdom that more alignment is better.
+The Intel optimization manual actually mentions this in \emph{User/Source Coding Rule 8}, suggesting that special purpose allocators could be used to avoid aliasing ~\cite{OptimizationManual}.
 However, to our knowledge there are no commonly used allocators that specifically tries to mitigate aliasing in heap allocated memory.
 
 \paragraph{Manually adjust address offsets}
@@ -651,10 +653,10 @@ In this paper we have shown how address aliasing can affect program performance 
 The effect is caused by the way speculative and out-of-order memory operations are handled by the CPU, only considering the last 12 address bits to resolve conflicts between load and store operations.
 
 In general, any change to virtual memory layout of data can potentially introduce bias effects from address aliasing.
-Analyzing an example with bias to enviornment size, we determined that collisions between automatic variables and static data resulted in aliasing for certain stack positions.
+Analyzing an example with bias to environment size, we determined that collisions between automatic variables and static data resulted in aliasing for certain stack positions.
 Aliasing conditions were triggered because variations in environment size offset the virtual addresses of stack allocated variables.
 We show how aliasing can have significant performance impact in practice for algorithms operating on heap allocated buffers, analyzing and example with more than 50 \% performance variation between different memory layouts.
-Bacause typical heap allocators will return aliased pointers for large allocations, worst case performance is likely to be the default.
+Because typical heap allocators will return aliased pointers for large allocations, worst case performance is likely to be the default.
 
 We show how techniques like padding of variables and alternative alias-free code paths can be used to avoid aliasing at runtime.
 For heap address aliasing especially, we find that manual intervention is sometimes required in order to achieve optimal performance.
@@ -662,7 +664,7 @@ Our results should inspire more clever optimizations and heuristics taking addre
 
 % Acknowledgements
 \begin{acks}
-This work is forked from a Master's thesis project under the supervision of Anne Cathrine Elster and Rune Erlend Jensen, looking at sources of measurment bias on the Intel Ivy Bridge architecture~\cite{MasterThesis}.
+This work is forked from a Master's thesis project under the supervision of Anne Cathrine Elster and Rune Erlend Jensen, looking at sources of measurement bias on the Intel Ivy Bridge architecture~\cite{MasterThesis}.
 \end{acks}
 
 % Bibliography
