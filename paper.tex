@@ -116,9 +116,9 @@ With an understanding of how false dependencies in the CPU can impact performanc
 We show how techniques like manual padding of allocations and dynamic detection of aliasing conditions can be used to improve performance. 
 Understanding and handling address aliasing can give significant speedups, and our findings shows potential for further architecture-specific optimizations.
 
-The rest of this paper is structured as follows: Our methodology and experimental setup is explained in the next section, then section \ref{sec:aliasing} introduces ``4K aliasing'', providing necessary background for interpreting the later results.
-Section \ref{sec:environment} presents an analysis of how the size of environment variables causes bias.
-In Section \ref{sec:heap} we go through a similar analysis for bias to heap address alignment.
+The rest of this paper is structured as follows: Our methodology and experimental setup is explained in the next section.
+Then section \ref{sec:aliasing} introduces ``4K aliasing'', providing necessary background for interpreting the later results.
+Section \ref{sec:environment} presents an analysis of how the size of environment variables causes bias, and in Section \ref{sec:heap} we go through a similar analysis for bias to heap address alignment.
 Related work is discussed in Section \ref{sec:related}.
 Section \ref{sec:conclusions} includes a summary and conclusion.
 
@@ -130,16 +130,16 @@ This can be achieved by using performance counters, instrumentation support in h
 Recent Intel architectures have several hundred available events, providing a detailed view of what happens inside the CPU.
 Performance counters are supported in the Linux kernel, accessed via a tool called \emph{perf}.
 This tool instructs the kernel to enable the hardware Performance Monitoring Unit (PMU) for a different program, before it is executed.
-Using this technique avoids modifications to the executed program, unlike tools like PAPI [LARS cite: PAPI: A Portable Interface to Hardware Performance Counters].
+Using this technique avoids modifications to the executed program, unlike tools like PAPI~\cite{PAPI:PortableInterface}.
 We use the perf-stat command in all experiments, which accepts raw PMU event codes listed in the reference manual~\cite{Volume3B}.
 
-Reliability of PMU measurements have been evaluated by Weaver and Sally in [Can hardware performance counters be trusted? 2008].
+Reliability of PMU measurements have been evaluated by \citeN{Weaver:2008:PCTrusted}.
 The potential issues they find are either handled explicitly or are irrelevant to our setup.
 %They find intra-machine variations of up to 1.07\%, 
 
 A small Python script is used to iterate over an exhaustive set of all known counters, which amounts to about 200 on our architecture.
 Only a small set of events are collected at a time, to ensure events are actually counted continuously.
-We do not use multiplexing between a limited set of counter registers, as it will introduce too many variations [Lars cite: Toward Accurate Performance Evaluation using Hardware Counters].
+We do not use multiplexing between a limited set of counter registers, as it will introduce too many variations~\cite{Wiplove:ImproveEstimation}. % Paper is rename of "Toward Accurate Performance Evaluation using Hardware Counters".
 Controlled variations in environment size is performed by setting a dummy environment variable to $n$ number of zero characters, starting from a minimal environment.\footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
 Interesting events are identified by computing linear correlation to cycle count, measuring all counters over a series of execution contexts.
 % Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{OptimizationManual}.
@@ -156,30 +156,7 @@ By disabling ASLR, we are able to execute the same program multiple times with i
 All experiments are done on a dedicated machine under minimal load, and \emph{frequency scaling} is disabled to keep the CPU's clock speed fixed.
 Finally, we disable \emph{Hyper-threading}, which reduces the possibility for resource contention between threads.
 
-
-\section{4K Address Aliasing}
-\label{sec:aliasing}
-Modern processors are \emph{superscalar}, and achieves parallelism by issuing multiple instructions simultaneously and out of order.
-One of the issues that can limit throughput is dependencies between a load and previous stores.
-% According to Intel, typical software consists of about 38~\% memory access instructions, with about two thirds of them being loads.
-To increase parallelism, modern architectures use a technique called \emph{memory disambiguation} to execute memory operations out of order~\cite{Intel:2006:InsideICM:SmartMemoryAccess}. 
-More often than not, loads can safely be issued before a previous store has completed and written its value to L1 cache.
-Loads are therefore issued \emph{speculatively}, based on a prediction on whether it will conflict with a previous store that is still not retired.
-The prediction is later verified, replaying any instructions that was wrongly assumed to have no dependencies.
-Similarly, if the load and store locations are the same, the value can be \emph{forwarded} from the store before it retires.
-
-While optimizations such as these are good on the average case, there are corner cases. 
-In particular, an event known as ``4K aliasing'' can occur when the memory addresses of a store followed by a load differ by a multiple of 4096.
-A store to address 0x601020 followed by a load to address 0x821020 is an aliasing pair, because the 12-bit address suffix of 0x020 is the same in both. 
-Despite being independent, in these cases the memory order subsystem generates \emph{false} dependencies, and causing the load to be reissued.
-The number of times this happens can be counted by the following performance counter:
-\begin{description}
-  \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS}] ``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.'' Intel Optimization Manual~\citeyear[B.3.4.4]{OptimizationManual}
-\end{description}
-
-As address aliasing depends on the memory addresses of loads and stores, environmental factors that affects memory has the potential to induce aliasing conditions.
-In the following sections, we show how performance penalties from address aliasing can be the root cause of measurement bias.
-
+% Virtual memory/randomization illustration
 \begin{narrowfig}{0.5\textwidth}[t]
   \centering
   \begin{tikzpicture}[font=\footnotesize]
@@ -218,6 +195,30 @@ In the following sections, we show how performance penalties from address aliasi
   Addresses of code and statically allocated data are allocated at compile time by the linker, and can be determined by inspecting the executable.}
   \label{fig:virtualmemory}
 \end{narrowfig}
+
+
+\section{4K Address Aliasing}
+\label{sec:aliasing}
+Modern processors are \emph{superscalar}, and achieves parallelism by issuing multiple instructions simultaneously and out of order.
+One of the issues that can limit throughput is dependencies between a load and previous stores.
+% According to Intel, typical software consists of about 38~\% memory access instructions, with about two thirds of them being loads.
+To increase parallelism, modern architectures use a technique called \emph{memory disambiguation} to execute memory operations out of order~\cite{Intel:2006:InsideICM:SmartMemoryAccess}. 
+More often than not, loads can safely be issued before a previous store has completed and written its value to L1 cache.
+Loads are therefore issued \emph{speculatively}, based on a prediction on whether it will conflict with a previous store that is still not retired.
+The prediction is later verified, replaying any instructions that was wrongly assumed to have no dependencies.
+Similarly, if the load and store locations are the same, the value can be \emph{forwarded} from the store before it retires.
+
+While optimizations such as these are good on the average case, there are corner cases. 
+In particular, an event known as ``4K aliasing'' can occur when the memory addresses of a store followed by a load differ by a multiple of 4096.
+A store to address 0x601020 followed by a load to address 0x821020 is an aliasing pair, because the 12-bit address suffix of 0x020 is the same in both. 
+Despite being independent, in these cases the memory order subsystem generates \emph{false} dependencies, and causing the load to be reissued.
+The number of times this happens can be counted by the following performance counter:
+\begin{description}
+  \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS}] ``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.'' Intel Optimization Manual~\citeyear[B.3.4.4]{OptimizationManual}
+\end{description}
+
+As address aliasing depends on the memory addresses of loads and stores, environmental factors that affects memory has the potential to induce aliasing conditions.
+In the following sections, we show how performance penalties from address aliasing can be the root cause of measurement bias.
 
 
 \section{Bias from Environment Size}
