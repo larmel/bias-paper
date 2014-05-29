@@ -95,8 +95,10 @@ Accurately measuring the performance of computer programs is important in order 
 %This process is complicated by \emph{measurement bias}, which can be a challenge for performance analysist and systems researchers.
 A key challenge for performance analysist and systems researchers is handling \emph{measurement bias}.
 Changes to external factors of the system, such as link ordering or the contents of environment variables, has been shown to have potentially significant impacts on performance in real applications~\cite{Mytkowicz:2009:WrongData}.
-A likely reason this happens is because certain variables has the potential to offset memory addresses of code or data, which in turn interacts with various low level hardware buffers at runtime.
-Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes interact. %to things like system environment variables ultimately affect program execution.
+% A likely reason this happens is because certain variables has the potential to offset memory addresses of code or data, which in turn interacts with various low level hardware buffers at runtime.
+% Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes interact. %to things like system environment variables ultimately affect program execution.
+The underlying explanation is likely that this changes memory addresses of code and/or data, which in turn interacts with various low level hardware buffers at runtime.
+Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes to for example system environment variables ultimately affect program execution.
 
 A literature study of 88 papers showed that the median speedup was within the margin of bias, possibly invalidating the claimed speedups~\cite{Mytkowicz:2008:OE&MB}. 
 To alleviate the impact of measurement bias in performance analysis, researchers have proposed to use causal analysis techniques and randomization of execution contexts~\cite{Mytkowicz:2008:OE&MB}.
