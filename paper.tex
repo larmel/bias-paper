@@ -49,8 +49,12 @@ LARS KIRKHOLT MELHUS and RUNE ERLEND JENSEN
 %It also turns out the allocation pattern of common libraries tends to give \emph{worst case} alignment by default, by favoring page alignment large allocations.
 %While the aliasing mechanism itself is not new, we provide the connection to measurement bias and show how to use this knowledge not only to account for bias but also explicitly optimize for it.
 %Our results should provide motivation for more architecture specific optimization, for example in heap allocator heuristics.
-Understanding program performance and obtaining accurate measurements is important in performance analysis, but measurements can be \emph{biased} by external factors.
-Recent research has shown that there can be significant performance differences based on seemingly irrelevant factors such as user name length.
+
+%Understanding program performance and obtaining accurate measurements is important in performance analysis, but measurements can be \emph{biased} by external factors.
+%Understanding and accounting for external measurement \emph{bias} is important in all science.
+Understanding program performance and obtaining accurate measurements is important in all scientific work.
+Any source of \emph{bias} by external factors should therefore be known and accounted for.
+However, recent research has shown that there can be significant performance differences based on seemingly irrelevant factors such as user name length.
 In this paper we identify an important underlying mechanism that cause this type of measurement bias on modern Intel microarchitectures.
 Our approach is to search for correlations between a large set of hardware performance counters and performance figures from multiple environment contexts.
 We find that \emph{address aliasing} can explain bias from two external factors: environment variable size, and characteristics of dynamically linked heap allocators.
@@ -88,14 +92,16 @@ In the longer term, our results can enable new architecture specific optimizatio
 
 \section{Introduction}
 Accurately measuring the performance of computer programs is important in order to evaluate new algorithms or compare different implementations.
-This process is complicated by \emph{measurement bias}, which can be a challenge for performance analysist and systems researchers.
+%This process is complicated by \emph{measurement bias}, which can be a challenge for performance analysist and systems researchers.
+A key challenge for performance analysist and systems researchers is handling \emph{measurement bias}.
 Changes to external factors of the system, such as link ordering or the contents of environment variables, has been shown to have potentially significant impacts on performance in real applications~\cite{Mytkowicz:2009:WrongData}.
-The reason this happens is because certain variables has the potential to offset memory addresses of code or data, which in turn interacts with various low level hardware buffers at runtime.
-Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes to things like system environment variables ultimately affect program execution.
+A likely reason this happens is because certain variables has the potential to offset memory addresses of code or data, which in turn interacts with various low level hardware buffers at runtime.
+Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes interact. %to things like system environment variables ultimately affect program execution.
 
+A literature study of 88 papers showed that the median speedup was within the margin of bias, possibly invalidating the claimed speedups~\cite{Mytkowicz:2008:OE&MB}. 
 To alleviate the impact of measurement bias in performance analysis, researchers have proposed to use causal analysis techniques and randomization of execution contexts~\cite{Mytkowicz:2008:OE&MB}.
-Others treat the existence bias as a potential optimization problem, using search over variant spaces to find optimal environments~\cite{Knights:2009:BlindOpt}.
-Our approach is to analyze isolated programs in detail using \emph{performance counters}, in an attempt to identify which underlying hardware mechanisms are causing bias.
+Others treat the interaction complexity as a potential optimization problem, using search over variant spaces to find optimal environments~\cite{Knights:2009:BlindOpt}.
+Our approach is to analyze isolated programs in detail using \emph{hardware performance measurements}, in an attempt to identify which underlying mechanisms are causing bias.
 
 In this paper we show how some instances of measurement bias can be explained by \emph{address aliasing}, an artifact of a presumably Intel specific optimization on the out-of-order execution pipeline.
 The CPU uses a heuristic for determining whether loads are dependent on previous stores, comparing only the last 12 virtual address bits.
@@ -106,7 +112,7 @@ Our results show that the cost of aliasing can be significant, exemplified by a 
 We also find that many heap allocation libraries tend to produce worst case behavior by default with respect to aliasing, by favoring page alignment for large allocations.
 With an understanding of how false dependencies in the CPU can impact performance, measurement bias caused by it can to some extent be predicted and even accounted for in software.
 We show how techniques like manual padding of allocations and dynamic detection of aliasing conditions can be used to improve performance. 
-Accounting for address aliasing can give significant speedups, and our findings should motivate to exploit this in architecture-specific optimization.
+Understanding and handling address aliasing can give significant speedups, and our findings shows potential for further architecture-specific optimizations.
 
 The rest of this paper is structured as follows: Our methodology and experimental setup is explained in the next section, then section \ref{sec:aliasing} introduces ``4K aliasing'', providing necessary background for interpreting the later results.
 Section \ref{sec:environment} presents an analysis of how the size of environment variables causes bias.
@@ -121,14 +127,21 @@ In order to understand biased behavior it is important to be able to do precise 
 This can be achieved by using performance counters, instrumentation support in hardware that can be used to \emph{count} various events, such as cycles executed, branch misses, instructions fetched, and so on.
 Recent Intel architectures have several hundred available events, providing a detailed view of what happens inside the CPU.
 Performance counters are supported in the Linux kernel, accessed via a tool called \emph{perf}.
-We use the perf-stat command in all experiments, which accepts raw event codes listed in the reference manual~\cite{Volume3B}.
+This tool instructs the kernel to enable the hardware Performance Monitoring Unit (PMU) for a different program, before it is executed.
+Using this technique avoids modifications to the executed program, unlike tools like PAPI [LARS cite: PAPI: A Portable Interface to Hardware Performance Counters].
+We use the perf-stat command in all experiments, which accepts raw PMU event codes listed in the reference manual~\cite{Volume3B}.
 
-A small Python script is used to collect an exhaustive set of all available counters, which amounts to about 200 on our architecture.
-Only a small set of events are collected at a time, to ensure events are actually counted continuously and not sampled by multiplexing between a limited set of counter registers.
+Reliability of PMU measurements have been evaluated by Weaver and Sally in [Can hardware performance counters be trusted? 2008].
+The potential issues they find are either handled explicitly or are irrelevant to our setup.
+%They find intra-machine variations of up to 1.07\%, 
+
+A small Python script is used to iterate over an exhaustive set of all known counters, which amounts to about 200 on our architecture.
+Only a small set of events are collected at a time, to ensure events are actually counted continuously.
+We do not use multiplexing between a limited set of counter registers, as it will introduce too many variations [Lars cite: Toward Accurate Performance Evaluation using Hardware Counters].
 Controlled variations in environment size is performed by setting a dummy environment variable to $n$ number of zero characters, starting from a minimal environment.\footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
 Interesting events are identified by computing linear correlation to cycle count, measuring all counters over a series of execution contexts.
 % Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{OptimizationManual}.
-Results are averaged over multiple runs to reduce potential random error, supplying the -r option to perf-stat.
+Results are also averaged over multiple runs to reduce potential random error, using built-in perf rerun functionality.
 
 Because bias can be hardware dependent, and to keep the scope of this work manageable, we choose to focus on the Intel ``Haswell'' microarchitecture specifically.
 Our setup consists of a 4th generation Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7-4770K processor, running 64-bit Ubuntu 14.04 LTS on kernel version 3.13.0-24-generic.
@@ -138,7 +151,7 @@ We also have to ensure we are not affected by measurement bias beyond what we ar
 Most importantly, this means keeping the memory address space under control.
 For security reasons, addresses of stack, heap and dynamic libraries are often randomized at load time, a technique known as \emph{Address Space Layout Randomization}~\cite{Pax:ASLR,Bhatkar:AddressObfuscation}. 
 By disabling ASLR, we are able to execute the same program multiple times with identical virtual address spaces.
-All experiments are done on a machine under minimal load, and \emph{frequency scaling} is disabled to keep the CPU's clock speed fixed.
+All experiments are done on a dedicated machine under minimal load, and \emph{frequency scaling} is disabled to keep the CPU's clock speed fixed.
 Finally, we disable \emph{Hyper-threading}, which reduces the possibility for resource contention between threads.
 
 
