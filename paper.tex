@@ -210,13 +210,13 @@ In the following sections, we show how performance penalties from address aliasi
 Unless the program explicitly accesses environment variables, it is not the environment variables themselves that are important, but rather the effect their total size has on the position and alignment of stack.
 As indicated in Figure \ref{fig:virtualmemory}, environment variables and program arguments are allocated in the stack section of virtual memory close to the upper address 0x7fff'ffffffff\footnote{Modern processors do not actually use the full 64-bit space, only the low order 47 bits are used for addressing memory}, before the first call frame.
 Changing environment variables will therefore offset the addresses of stack, and consequently all stack allocated variables.
-After some variable amount of offset, the stack is normally aligned to a 16 byte boundary, which will be enforced by the compiler.
-Within a span of 4096 bytes there are thus 256 possible initial stack addresses, each representing a different execution context with respect to address aliasing.\footnote{Note that there is no clear relationship between environment size and stack location with ASLR enabled.
-However, there will still be as many execution contexts with respect to aliasing (considering stack only), making any occurrences of measurement bias indeed random.}
+After this offset, the stack is normally aligned to a 16 byte boundary, enforced by the compiler.
+Within a span of 4096 bytes there are thus 256 possible initial stack addresses, each representing a different execution context with respect to address aliasing. Note that there is no clear relationship between environment size and stack location with ASLR enabled.
+However, there will still be as many execution contexts with respect to aliasing (considering stack only), making any occurrences of measurement bias indeed random.
 
 \subsection{Microkernel Analysis}
 To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!'' by \citeN{Mytkowicz:2009:WrongData}, reproduced below. 
-This example is interesting for several reasons; the bias effects are significant and easily reproducible, while the example code is simple and straightforward to analyze.
+This example is interesting for several reasons; the bias effects are significant and easily reproducible, while the code itself is simple and straightforward to analyze.
 Still, no satisfactory explanation as to what actually causes bias was given in the original paper.
 
 \begin{lstlisting}
@@ -262,8 +262,9 @@ The program is compiled with {\small{GCC}} using no optimization, as any optimiz
 
 There are clearly two worst cases, indicated by significant spikes at the 3184 and 7280 byte offsets.
 We sampled an extensive set of performance counters in addition to cycle count for each execution context.
-By looking at the \emph{median} value of each counter compared to the extreme cases, we narrowed down the performance events that behaved similarly to cycle count.
-Table \ref{tab:loopcorrelation} shows numerical counter values for worst cases, compared to the median over all environments.
+To analyze the bias effects at these points, we calculate the \emph{median} value of each counter over all contexts, and compare that to the two extreme cases.
+Going through the list of events manually, we narrowed down to a set that seem to correlate well with cycle count.
+Table \ref{tab:loopcorrelation} shows numerical counter values for worst cases, compared to the median values.
 
 % Detailed comparison between median and worst cases.
 \begin{table}
@@ -293,7 +294,7 @@ Table \ref{tab:loopcorrelation} shows numerical counter values for worst cases, 
     ]{bin/micro-kernel-comparison.csv}
   }
   \begin{tabnote}
-    \Note{Note:}{Performance events that are obviously not indicative of any causal relationship are omitted, for example bus-cycles which will naturally vary with total cycle count.}
+    \Note{Note:}{Some correlating performance events are omitted, for example bus-cycles which will naturally vary with total cycle count.}
   \end{tabnote}
 \end{table}
 
@@ -311,30 +312,34 @@ With fewer instructions per cycle, there is also less pressure on the reservatio
 Performance counter data clearly points to address aliasing as a plausible explanation, thus the next step is to see exactly which memory accesses are aliasing. 
 For that we need to know the addresses of each variable at runtime.
 The program contains five variables; \texttt{g} and \texttt{inc} which are stack allocated, and \texttt{i}, \texttt{j} and \texttt{k} which are statically allocated.
-Virtual memory layout of static data is decided at compile time, and we can find the location of these variables by looking at the symbol table in the ELF executable.
+Memory layout of static data is decided at compile time, and we can find the location of these variables by looking at the symbol table in the ELF executable.
 We find the addresses to be \texttt{\&i} = 0x60103c, \texttt{\&j} = 0x601040, and \texttt{\&k} = 0x601044.\footnote{ELF symbol tables can be read using \texttt{readelf -s}}
 
 Observing addresses of stack allocated data at runtime is more challenging, as we have to make sure to not introduce any observer effects that alters the addresses as we are observing them.
-A small amount of assembly code was added to calculate the addresses of \texttt{g} and \texttt{inc}, outputting to stdout directly using the \texttt{syscall} instruction.
-Making no change to the stack allocation instructions and not affecting the addresses of static variables, the instrumented program have the exact same bias to environment size, free from observer effects.
-We find that the spike in cycle count occurs precisely when the address of \texttt{inc} alias with \texttt{i}, the first spike happening when \texttt{g} is at 0x7fffffffe{\underline{038} and \texttt{inc} is at 0x7fffffffe{\underline{03c}}.
-The assembly output of {\small GCC} for the inner loop is shown below, indicating the relevant load and store instructions.
-There is only one store to variable \texttt{i}, which will alias with loads of \texttt{inc}.
+Assembly code was injected to calculate and output the addresses of \texttt{g} and \texttt{inc}.
+We made no change to the stack allocation instructions, and the code offset did not affect the addresses of static variables.
+The same experiment was run again, showing that the modified program had the exact same bias to environment size.
+From the output at each spike, we found the addresses to be \texttt{\&g} = 0x7fffffffe038, \texttt{\&inc} = 0x7fffffffe03c, and \texttt{\&g} = 0x7fffffffd038, \texttt{\&inc} = 0x7fffffffd03c, respectively
+Notice the common suffix 0x03c between \texttt{inc} and \texttt{i}, which is the aliasing pair.
+
+% The assembly output of {\small GCC} for the inner loop is shown below, indicating the relevant load and store instructions.
+% There is only one store to variable \texttt{i}, which will alias with loads of \texttt{inc}.
 
 % Refer to relevant section of the generated assembly file (in gas syntax)
-\lstinputlisting[
-  basicstyle=\ttfamily\small,
-  linerange={22-38}, 
-  numbers=left,
-  firstnumber=22
-  ]{bin/micro-kernel-annotated.s}
+% \lstinputlisting[
+%   basicstyle=\ttfamily\small,
+%   linerange={22-38}, 
+%   numbers=left,
+%   firstnumber=22
+%   ]{bin/micro-kernel-annotated.s}
 
 Because the stack is aligned to 16 bytes, or 4 \emph{words}, there are a couple of different scenarios that could have been observed here.
 Static variables are fixed and covers 12 contiguous bytes (3 words), in our case the addresses end in 0x0, 0x4 and 0xc, leaving the 0x8 slot free.
-Automatic variables occupies 8 contiguous bytes on stack (2 words), in our case the addresses will always fit in the 0x8 and 0xc slots.
+The two automatic variables \texttt{g} and \texttt{inc} occupies 8 contiguous bytes on stack (2 words), in our case the addresses will always fit in the 0x8 and 0xc slots.
 In this scenario, \texttt{g} will never alias with any of the static variables -- as it always covers the 0x8 slot not occupied by either of \texttt{i}, \texttt{j} or \texttt{k}.
+
 A less fortunate scenario with respect to the number of alias events occurs when there can be collisions with both stack allocated variables, which can be achieved for example by reserving an extra 8 bytes to offset \texttt{i}, \texttt{j} into the 0x8, 0xc slots. 
-While this will give significantly more alias counts, it has little effect on the total number of cycles executed.
+While this will give significantly more alias counts, we found that it has little effect on the total number of cycles executed.
 
 In conclusion, we identified that address aliasing is the root cause of measurement bias from environment size for this program.
 Worst case occurs for precisely one out of 256 possible initial stack addresses in every 4K segment, where resource stalls are generated because of false dependencies between stack and static data.
@@ -371,8 +376,7 @@ int main() {
   \label{lst:loopfixed}
 \end{figure}
 
-While this particular solution is clearly not something one would want to do in practice, it at least shows that compilers and programmers \emph{could} take measures to account for aliasing.
-This becomes much more enticing when the performance penalties are more significant, which we find is often the case for aliasing heap allocations.
+While this particular solution is clearly not something one would want to do in practice, it shows that compilers and programmers \emph{could} take measures to account for aliasing.
 
 
 \section{Bias from Heap Allocation}
@@ -384,15 +388,12 @@ A heap allocator is responsible for managing dynamic memory, and ultimately assi
 Heap allocation routines such as \texttt{malloc} and \texttt{free} are typically dynamically linked, for example as part of glibc.
 The particular library used therefore constitutes an important part of the execution context, as linking to a different library, or a library with some alternative configuration, can impact heap addresses at runtime.
 
-
 \subsection{Most Allocators Alias by Default}
 Acquiring dynamic memory at runtime is usually done by calling \texttt{malloc}, which takes a number of bytes to allocate as input, and returns a pointer to that area.
 Depending on the particular request and allocator used, the returned value will either point to the ``regular'' heap, or to a memory mapped area (see Figure \ref{fig:virtualmemory}).
 \begin{itemize}
   \item The \emph{heap} is marked by a break point representing the end of uninitialized data in virtual memory, and more space is requested by the \texttt{brk} or \texttt{sbrk} system calls.
-  %Allocators typically use this area for smaller allocations.
   \item The \texttt{mmap} system call is used to map file descriptors to virtual memory. \emph{Anonymous} mappings, i.e. buffers not backed by a file, can be used for general purpose allocations.
-  %This mechanism is typically used for large allocations.
 \end{itemize}
 The allocator included as part of glibc uses both mechanisms, choosing which based on the \emph{size} of the request~\cite{GlibcManual}.
 Small sizes generally live in the heap, while long lived and large allocations tend to be memory mapped.
@@ -401,10 +402,10 @@ The heap section starts at a relatively low address right above static code and 
 Memory mapped chunks are placed towards the upper end of the virtual address space, closer to stack.
 Whether a request is served by the heap or by memory mapping is therefore easy to determine just by looking at the pointer values returned:
 Addresses in the regular heap can look something like 0x16e30a0 or 0x1723020, while pointers returned by \texttt{mmap} are numerically much larger, for example 0x7f0318a8f010 or 0x7f03105d2010.
-This distinction is of course unimportant for application developers, as everything is conceptually the same ``heap''.
+This distinction is unimportant for application developers, as everything is conceptually the same ``heap''.
 However, \texttt{mmap} has an interesting property in that allocations will always be page aligned.
 The page size is 4096 bytes, meaning two pointers returned by \texttt{mmap} will \emph{always} alias.\footnote{glibc's version of malloc adds 16 bytes of metadata at the beginning, therefore every memory mapped address end with 0x010.}
-This behavior is often the worst case for functions that operate on two or more independent buffers, as we will see in the following section.
+This behavior is often the worst case for functions that operate on two or more independent buffers.
 
 Table \ref{tab:mallocompare} illustrates how using a different allocator can affect potential aliasing between heap pointers \footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}.
 We observe the addresses of two equally sized \texttt{char} buffers allocated with \texttt{malloc} for different size parameters.
@@ -452,7 +453,7 @@ Here, we only look at behavior for a single thread, and whether the addresses re
 We see that glibc and tcmalloc utilize the normal heap area for smaller allocations, returning numerically low addresses. % Verified by looking at strace that tcmalloc actually uses brk
 Interestingly, jemalloc and Hoard appears to never use the heap, but allocate to memory mapped areas even for smaller requests.
 Conversely, tcmalloc seem manage only the heap.
-There is one example where an allocator yields aliasing buffers while another does not.
+We see one example where an allocator yields aliasing buffers while another does not.
 Allocating $2 \times 5120$ bytes returns aliasing pointers for jemalloc and Hoard, but not with glibc or tcmalloc.
 Given that these results are deterministic (with ASLR disabled), it is not hard to construct a program with significant bias towards one or the other allocator.
 But even with randomization, pointers returned by \texttt{mmap} must still be page aligned.
