@@ -515,13 +515,14 @@ For every run, performance counter measurements are also averaged over 10 sample
 
 \pgfplotstableread{bin/conv-default-o2.estimate.dat}{\convtabletwo}
 \pgfplotstableread{bin/conv-default-o3.estimate.dat}{\convtablethree}
-\begin{figure*}[t]
+\begin{figure}[t]
   \centering
   \begin{tikzpicture}
     \begin{axis}[
         title=\texttt{cc -O2},
         font=\footnotesize,
         xlabel=Relative offset in \lstinline!sizeof(float)! bytes,
+        ylabel=Event count,
         cycle list name=black white,
         width=\textwidth/1.9, % Make it fit to text width side by side
         skip coords between index={20}{32} % Limit level of detail to fit page width nicely
@@ -537,6 +538,7 @@ For every run, performance counter measurements are also averaged over 10 sample
         title=\texttt{cc -O3},
         font=\footnotesize,
         xlabel=Relative offset in \lstinline!sizeof(float)! bytes,
+        ylabel=Event count,
         cycle list name=black white,
         width=\textwidth/1.9,
         skip coords between index={20}{32}
@@ -548,8 +550,8 @@ For every run, performance counter measurements are also averaged over 10 sample
     \end{axis}
   \end{tikzpicture}
   \label{fig:conv-default}
-  \caption{Estimated cycle- and alias counts for different offsets between input and output arrays in convolution kernel from Figure~\ref{lst:conv}. Offset 0 means equal 12-bit address suffix, which is default behavior for \texttt{mmap} allocations. Input size $n=2^{20}$.}
-\end{figure*}
+  \caption{Cycle- and alias counts for different offsets between input and output arrays in convolution kernel from Figure~\ref{lst:conv}. Offset 0 means equal 12-bit address suffix, which is default behavior for \texttt{mmap} allocations. Showing optimization levels O2 and O3, input size $n=2^{20}$.}
+\end{figure}
 
 % Table with detailed performance data, use estimated for O2 because it does not need as many columns (!)
 \begin{table}[t]
@@ -592,11 +594,12 @@ Numbers on the x axis represent the amount of offset, measured in number of \tex
 An offset of zero is the default behavior for this program when using \texttt{malloc} and moderately large inputs.
 Both for optimization level 2 and 3, the default alignment is close to worst case performance.
 The differences in cycles executed is significant, with about $1.7x$ speedup for O2 and as much as $2x$ speedup for O3 for increasing relative offset.
-This phenomenon is only observed for address offsets close to zero, thus we only show the first 20 data points.
+This phenomenon is only observed for address delta close to zero, thus we only show the first 20 data points.
 If extended to cover the full width of possible offsets within a 4K segment, we see that the performance is uniform everywhere else.
 
 More detailed performance counter data is presented in Table~\ref{tab:convstats}, where we have selected a subset that correlates well with the change to cycle count.
-The numbers are for the level 2 optimization case, which was chosen because the behavior was less chaotic and thus more easily represented by only a few numbers.
+The numbers are for the level 2 optimization case, which we choose to study in more detail.
+ % which was chosen because the behavior was less chaotic and thus more easily represented by only a few numbers.
 However, the performance data looks fairly similar between the two data sets, with a couple of events that appear to stand out:
 \begin{itemize}
     \item A high number of resource stalls for the default alignment, which is reduced substantially together with increasing offsets. 
