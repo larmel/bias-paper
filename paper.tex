@@ -300,12 +300,13 @@ Table \ref{tab:loopcorrelation} shows numerical counter values for worst cases, 
 We see the most extreme change from median to worst case is clearly the number of alias events.
 If we plot the graph for address aliasing, we see that it is near zero everywhere and spikes at exactly the points we observe bias. 
 The results show a high number of resource stalls and pending memory loads when the spikes occur, which is consistent with address aliasing issues.
-On the other end we get a much lower number of reservation station (RS) stalls in the aliasing case, with a reduction from about 270,000 to about 135,000.
+On the other end we get a much lower number of reservation station (RS) stalls in the aliasing case, with a reduction from around 270,000 to 135,000.
 The reservation station buffers micro-ops for scheduling to the execution units, and a stall event means that there are no free slots available~\cite[Table 19-2]{Volume3B}.
 Fewer stalls in the aliasing case could indicate less contention on the reservation station.
-This probably has to do with the overall \emph{decrease} in the number of micro-ops executed per port, as all but one of the in total 8 execution ports seem to have fewer operations going in parallel.
-Note that the number of micro-ops \emph{retired} overall does not change, but for some reason the micro-ops stays in the execution pipeline for a shorter time.
-Our assumption is that this is a by-product of stalls generated from aliasing, causing micro-operations to be reissued.
+This probably has to do with the overall \emph{decrease} in the number of micro-ops executed per port, as all but one of the in total 8 execution ports have fewer operations going in parallel.
+Note that the number of micro-ops \emph{retired} overall does not change, but for some reason the micro-ops stay in the execution pipeline for a shorter time.
+Our assumption is that this is caused by the CPU being more conservative in the aliasing case, issuing fewer operations (speculatively) in parallel.
+With fewer instructions per cycle, there is also less pressure on the reservation station.
 
 Performance counter data clearly points to address aliasing as a plausible explanation, thus the next step is to see exactly which memory accesses are aliasing. 
 For that we need to know the addresses of each variable at runtime.
