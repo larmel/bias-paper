@@ -474,14 +474,13 @@ Allocating $2 \times 5120$ bytes returns aliasing pointers for jemalloc and Hoar
 Given that these results are deterministic (with ASLR disabled), it is not hard to construct a program with significant bias towards one or the other allocator.
 But even with randomization, pointers returned by \texttt{mmap} must still be page aligned.
 This means that addresses returned by allocators using this mechanism directly will \emph{always} alias, giving a deterministic execution context considering only the address suffix.
-From our limited experiment, this seems to be the case for glibc, jemalloc and Hoard.
+From our limited analysis, this seems to be the case for glibc, jemalloc and Hoard.
 
 
 \subsection{Aligned Sequential Access}
 Many functions operate in a ``sliding window'' fashion; reading and writing to different buffers in some loop construction.
-This type of program is potentially vulnerable to 4K aliasing, where the worst case will be when the read and write pointer addresses are aliased, continuously generating false conflicts.
-As an example of this, consider a na{\"i}ve implementation of linear correlation shown in Figure \ref{lst:conv}.
-The function contains lots of interleaved loads and stores, iterating over two independent memory buffers in a tight loop.
+This type of access pattern is potentially vulnerable to 4K aliasing, where the worst case will be when the read and write pointer addresses are aliased, continuously generating false conflicts.
+As an example of this, consider a simple implementation of convolution shown in Figure \ref{lst:conv}.
 The performance of this program greatly depends on the address alignment of each buffer, favoring memory addresses that are not closely aligned on the last 12-bits.
 
 \begin{figure}[t]
@@ -492,27 +491,28 @@ The performance of this program greatly depends on the address alignment of each
     xleftmargin=.1\textwidth,
     xrightmargin=.1\textwidth
   ]{bin/convolution-kernel.c}
-  \caption{Naive implementation of convolution, ignoring endpoints for simplicity. This program is highly sensitive to aliasing between input and output arrays.}
+  \caption{Basic implementation of convolution with a fixed kernel, ignoring endpoints for simplicity. This program is highly sensitive to aliasing between input and output arrays.}
   \label{lst:conv}
 \end{figure}
 
 We use an input size of $n=2^{20}$ (4 MiB in memory for each array), which results in glibc's heap allocator always choosing \texttt{mmap} to serve requests.
 By default, even with address randomization enabled, both \texttt{input} and \texttt{output} will have start addresses with the same address suffix of 0x010.
-To analyze performance for different addresses, we manually insert padding to offset one of the memory mapped pointers.
+To analyze performance for different addresses, we manually insert padding to offset the start address of one buffer.
 This is accomplished by requesting a bit more memory, and use pointer arithmetic to offset one of the function arguments.
-Controlling the offset parameter, we can create environments where the address suffixes are some number of \texttt{sizeof(float)} bytes apart.
+Controlling the offset parameter, we can create environments where the address suffixes are any desired number of \texttt{sizeof(float)} bytes apart.
 Allocating and managing these buffers at startup takes a non-negligible amount of work.
 The overhead can be masked by repeatedly invoking the convolution kernel after allocating and initializing all the inputs.
+Repeated invocation can also even out performance by warming up cache.
 \begin{lstlisting}
     for (i = 0; i < k; ++i)
         conv(n, input, output + offset);
 \end{lstlisting}
-An estimate of the actual cost of one invocation can be calculated by averaging over a number of repeated function calls, after subtracting the constant overhead of invoking it only once.
+An estimate of the actual cost a single invocation can be calculated by averaging over a number of repeated function calls, after subtracting the constant overhead of invoking it only once.
 \[
 t_{\text{estimate}} = \frac{t_{k} - t_{1}}{k - 1}
 \]
 Our results are with $k=11$, effectively using the average over 10 loop iterations to estimate the cost of a single invocation.
-For every run, performance counter measurements are also averaged over 10 samples, using the repeat mechanism of perf.
+In addition, performance counter measurements are averaged over 10 samples using the repeat mechanism of perf.
 
 \pgfplotstableread{bin/conv-default-o2.estimate.dat}{\convtabletwo}
 \pgfplotstableread{bin/conv-default-o3.estimate.dat}{\convtablethree}
@@ -520,7 +520,7 @@ For every run, performance counter measurements are also averaged over 10 sample
   \centering
   \begin{tikzpicture}
     \begin{axis}[
-        title=\texttt{cc -O2},
+        title=Optimization -O2,
         font=\footnotesize,
         xlabel=Relative offset in \lstinline!sizeof(float)! bytes,
         ylabel=Event count,
@@ -536,7 +536,7 @@ For every run, performance counter measurements are also averaged over 10 sample
   \end{tikzpicture}
   \begin{tikzpicture}
     \begin{axis}[
-        title=\texttt{cc -O3},
+        title=Optimization -O3,
         font=\footnotesize,
         xlabel=Relative offset in \lstinline!sizeof(float)! bytes,
         ylabel=Event count,
@@ -551,7 +551,7 @@ For every run, performance counter measurements are also averaged over 10 sample
     \end{axis}
   \end{tikzpicture}
   \label{fig:conv-default}
-  \caption{Cycle- and alias counts for different offsets between input and output arrays in convolution kernel from Figure~\ref{lst:conv}. Offset 0 means equal 12-bit address suffix, which is default behavior for \texttt{mmap} allocations. Showing optimization levels O2 and O3, input size $n=2^{20}$.}
+  \caption{Cycle- and alias counts for different offsets between input and output arrays in convolution kernel from Figure~\ref{lst:conv}. Offset 0 means equal 12-bit address suffix, which is default behavior for \texttt{mmap} allocations. Showing results for optimization levels O2 and O3 compiled with GCC, input size $n=2^{20}$.}
 \end{figure}
 
 % Table with detailed performance data, use estimated for O2 because it does not need as many columns (!)
@@ -595,7 +595,7 @@ Numbers on the x axis represent the amount of offset, measured in number of \tex
 An offset of zero is the default behavior for this program when using \texttt{malloc} and moderately large inputs.
 Both for optimization level 2 and 3, the default alignment is close to worst case performance.
 The differences in cycles executed is significant, with about $1.7x$ speedup for O2 and as much as $2x$ speedup for O3 for increasing relative offset.
-This phenomenon is only observed for address delta close to zero, thus we only show the first 20 data points.
+This phenomenon is only observed for address deltas close to zero, thus we only show the first 20 data points.
 If extended to cover the full width of possible offsets within a 4K segment, we see that the performance is uniform everywhere else.
 
 More detailed performance counter data is presented in Table~\ref{tab:convstats}, where we have selected a subset that correlates well with the change to cycle count.
@@ -625,9 +625,10 @@ This is a speedup on top of already aggressive compiler optimization.
 
 
 \subsection{Ways to Deal with Heap Address Aliasing}
-Measurement bias from address aliasing can be significant in real applications, with potentially large performance penalties.
+Performance penalties caused by address aliasing can be significant in real applications, creating bias towards certain memory layouts.
 However, with an understanding of the underlying mechanism that causes bias, the effects can to some extent be predicted and accounted for in software.
 The most relevant scenario to consider is probably code that can hit the aliasing \texttt{mmap} scenario, where performance impact can be consistently bad over all environments.
+We identify some mitigation or optimization techniques that can be used:
 
 \paragraph{Mark buffers with \texttt{restrict}}
 In our convolution kernel implementation, the compiler has to account for the fact that input and output pointers might alias, or that the buffers partially overlap.
@@ -636,21 +637,25 @@ The C99 keyword \emph{restrict} can be used to explicitly tell the compiler that
 \begin{lstlisting}[breaklines=true]
     void conv(int n, const float * restrict input, float * restrict output);
 \end{lstlisting}
-With this updated function prototype, the number of alias events is reduced by about 10 million on optimization level O2 for the default alignment, with a corresponding improvement in cycle count. % File backing this in results
+With this updated function prototype, the compiler is able to move a store instruction out of the inner loop, reducing the number of stores executed by more than 80 \% on optimization level O2.
+Alias events is reduced by about 10 million for the default alignment, with a corresponding improvement in cycle count. % File backing this in results
 
 \paragraph{Use a special purpose allocator}
-We found that heap allocators are prone to generate pairwise aliasing buffers, the worst case for functions such as the convolution example.
-A potential solution could be to apply some heuristic to randomize addresses more, and in particular not always return the same 12 bit suffix for large allocations.
-This goes somewhat against conventional wisdom that more alignment is better.
-The Intel optimization manual actually mentions this in \emph{User/Source Coding Rule 8}, suggesting that special purpose allocators could be used to avoid aliasing ~\cite{OptimizationManual}.
+The Intel optimization manual mentions this in \emph{User/Source Coding Rule 8}, suggesting that special purpose allocators could be used to avoid aliasing ~\cite{OptimizationManual}.
 However, to our knowledge there are no commonly used allocators that specifically tries to mitigate aliasing in heap allocated memory.
+We show that heap allocators are prone to generate pairwise aliasing buffers, the worst case for functions such as the convolution example.
+%his goes somewhat against conventional wisdom that more alignment is better.
+
+A potential solution could be to apply some heuristic to randomize addresses more, and in particular not always return the same 12 bit suffix for large allocations.
+The allocator could also accept hints to which buffers are going to be accessed in parallel, for example as an optional argument to a custom version of \texttt{malloc}.
+
 
 \paragraph{Manually adjust address offsets}
 In some cases it might make sense to explicitly control the memory addresses used, for example forcing some fixed relative offset between input and output pointers.
 This can be achieved by exploiting the fact the \texttt{mmap} is in fact guaranteed to be placed at a page boundary, and use that directly instead of \texttt{malloc}.
 The following approach can be used to make an anonymous memory mapping with offset \texttt{d} bytes away from page alignment.
 \begin{lstlisting}[breaklines=true]
-    mmap(NULL, (n + d), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) + d;
+    mmap(NULL, (n + d), PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) + d;
 \end{lstlisting}
 The same pointer difference must of course by subtracted before unmapping the memory.
 
@@ -671,18 +676,19 @@ Different techniques are used, including rules, pattern matching, and random ins
 
 \section{Conclusions}
 \label{sec:conclusions}
-In this paper we have shown how address aliasing can affect program performance under different memory layouts, and how it can explain certain cases of measurement bias. 
-The effect is caused by the way speculative and out-of-order memory operations are handled by the CPU, only considering the last 12 address bits to resolve conflicts between load and store operations.
+We have shown how address aliasing can affect program performance under different memory layouts, and how it can explain certain cases of measurement bias. 
+The effect is caused by how speculative and out-of-order memory operations are handled by the CPU, which only considers the last 12 address bits to resolve conflicts between load and store operations.
 
-In general, any change to virtual memory layout of data can potentially introduce bias effects from address aliasing.
+In general, any change to memory layout of data can potentially introduce bias effects from address aliasing.
 Analyzing an example with bias to environment size, we determined that collisions between automatic variables and static data resulted in aliasing for certain stack positions.
 Aliasing conditions were triggered because variations in environment size offset the virtual addresses of stack allocated variables.
-We show how aliasing can have significant performance impact in practice for algorithms operating on heap allocated buffers, analyzing and example with more than 50 \% performance variation between different memory layouts.
-Because typical heap allocators will return aliased pointers for large allocations, worst case performance is likely to be the default.
+We show how aliasing can have significant performance impact in practice for algorithms operating on heap allocated buffers, analyzing an example with more than $2x$ performance variation between different memory layouts.
+Heap memory is controlled by allocators, and we show that most libraries tend to favor page alignment for larger requests.
+This means that pointers to structures such as arrays and matrices are likely to alias by default, which can be worst case input for many algorithms.
 
 We show how techniques like padding of variables and alternative alias-free code paths can be used to avoid aliasing at runtime.
-For heap address aliasing especially, we find that manual intervention is sometimes required in order to achieve optimal performance.
-Our results should inspire more clever optimizations and heuristics taking address aliasing effects into account, as the potential performance improvements can be substantial. 
+For heap address aliasing especially, we find that manual intervention can be required in order to achieve optimal performance.
+Our results should inspire more clever optimizations and heuristics taking address aliasing effects into account, as the potential performance improvements can be substantial.
 
 % Acknowledgements
 \begin{acks}
