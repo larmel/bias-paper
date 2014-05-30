@@ -4,10 +4,8 @@
 \usepackage{pgfplots}
 \usepackage{pgfplotstable}
 \usepackage{filecontents}
-%\usepackage{booktabs} % Only used for horizontal lines
 \usepackage{tikz}
 \usepackage{listings}
-%\usepackage{caption}
 \usepackage{mathtools}
 \usepackage{underscore}
 \usepackage{url}
@@ -39,19 +37,6 @@ LARS KIRKHOLT MELHUS and RUNE ERLEND JENSEN
 
 % Motivation -- Problem statement -- Approach -- Results -- Conclusions
 \begin{abstract} % Should be 150 -- 200 words max
-%Understanding program performance and obtaining accure measurements is important in performance analysis, but measurements can be \emph{biased} by external factors.
-%Predicting or accounting for measurment bias is challenging, as the interaction with low level hardware mechanisms is complex.  
-%In this paper we show how \emph{address aliasing} can be the underlying mechanism resulting in measurement bias on modern Intel microarchitectures.
-%Our approach is to use hardware performance counter to analyze performance data over controlled series of execution contexts.
-%We show how address aliasing can explain bias from two external factors: environment variable size, and characteristics of dynamically linked heap allocators.
-
-%The perfomance impact of unfavorable memory contexts can be significant, with as much as $2x$ speedup in one of our examples.
-%It also turns out the allocation pattern of common libraries tends to give \emph{worst case} alignment by default, by favoring page alignment large allocations.
-%While the aliasing mechanism itself is not new, we provide the connection to measurement bias and show how to use this knowledge not only to account for bias but also explicitly optimize for it.
-%Our results should provide motivation for more architecture specific optimization, for example in heap allocator heuristics.
-
-%Understanding program performance and obtaining accurate measurements is important in performance analysis, but measurements can be \emph{biased} by external factors.
-%Understanding and accounting for external measurement \emph{bias} is important in all science.
 Understanding program performance and obtaining accurate measurements is important in all scientific work.
 Any source of \emph{bias} by external factors should therefore be known and accounted for.
 However, recent research has shown that there can be significant performance differences based on seemingly irrelevant factors such as user name length.
@@ -63,9 +48,7 @@ This result not only makes accounting for and avoiding measurement bias much sim
 We demonstrate this by implementing runtime detection and correction of address aliasing, eliminating the bias.
 Further, we show that the allocation logic of common libraries tends to give \emph{worst case} alignment by default, by favoring page alignment large allocations.
 The performance impact of unfavorable memory layout combinations can be significant, with as much as $2x$ speedup in one of our examples.
-%Our results should provide motivation for more architecture specific optimization, for example in heap allocator heuristics and compiler rules.
 In the longer term, our results can enable new architecture specific optimization strategies.
-
 \end{abstract}
 
 % Choose from classification tree http://www.acm.org/about/class/ccs98-html
@@ -95,12 +78,9 @@ Sem S{\ae}lands vei 9, Gl{\o}shaugen, 7491 Trondheim, Norway; email: larskirk@al
 
 \section{Introduction}
 Accurately measuring the performance of computer programs is important in order to evaluate new algorithms or compare different implementations.
-%This process is complicated by \emph{measurement bias}, which can be a challenge for performance analysist and systems researchers.
 A key challenge for performance analysist and systems researchers is handling \emph{measurement bias}.
 Changes to external factors of the system, such as link ordering or the contents of environment variables, has been shown to have potentially significant impacts on performance in real applications~\cite{Mytkowicz:2009:WrongData}.
-% A likely reason this happens is because certain variables has the potential to offset memory addresses of code or data, which in turn interacts with various low level hardware buffers at runtime.
-% Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes interact. %to things like system environment variables ultimately affect program execution.
-The underlying explanation is likely that this changes memory addresses of code and/or data, which in turn interacts with various low level hardware buffers at runtime.
+The underlying explanation is likely that this changes memory addresses of code or data, which in turn interacts with various low level hardware buffers at runtime.
 Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes to for example system environment variables ultimately affect program execution.
 
 A literature study of 88 papers showed that the median speedup was within the margin of bias, possibly invalidating the claimed speedups~\cite{Mytkowicz:2008:OE&MB}. 
@@ -113,7 +93,7 @@ The CPU uses a heuristic for determining whether loads are dependent on previous
 False dependencies can happen for aliased memory accesses, and incur performance penalties.
 We look at how address aliasing can trigger bias from two external factors; size of system environment variables and configuration of dynamic heap allocation libraries.
 
-Our results show that the cost of aliasing can be significant, exemplified by a simple program with more than $2x$ speedup based in heap address alignment alone.
+Our results show that the cost of aliasing can be significant, exemplified by a simple program with up to $2x$ speedup based in heap address alignment alone.
 We also find that many heap allocation libraries tend to produce worst case behavior by default with respect to aliasing, by favoring page alignment for large allocations.
 With an understanding of how false dependencies in the CPU can impact performance, measurement bias caused by it can to some extent be predicted and even accounted for in software.
 We show how techniques like manual padding of allocations and dynamic detection of aliasing conditions can be used to improve performance. 
@@ -193,8 +173,10 @@ Finally, we disable \emph{Hyper-threading}, which reduces the possibility for re
     \node[right] at (m.south east)
       { \scriptsize{0x400000} } ;
   \end{tikzpicture}
-  \caption{Relative positions of some important sections of memory at runtime, assuming a 64-bit process mapped to virtual memory.
+  \caption{Memory execution context, assuming a 64-bit process running on a Linux system.
+  %Relative positions of some important sections of memory at runtime
   Initial addresses of stack, heap and memory mapped files are often randomized for security reasons.
+  The stack is also offset by environment variables and program arguments.
   Addresses of code and statically allocated data are allocated at compile time by the linker, and can be determined by inspecting the executable.}
   \label{fig:virtualmemory}
 \end{narrowfig}
@@ -437,7 +419,7 @@ However, \texttt{mmap} has an interesting property in that allocations will alwa
 The page size is 4096 bytes, meaning two pointers returned by \texttt{mmap} will \emph{always} alias.\footnote{glibc's version of malloc adds 16 bytes of metadata at the beginning, therefore every memory mapped address end with 0x010.}
 This behavior is often the worst case for functions that operate on two or more independent buffers.
 
-Table \ref{tab:mallocompare} illustrates how using a different allocator can affect potential aliasing between heap pointers \footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}.
+Table \ref{tab:mallocompare} illustrates how using a different allocator can affect potential aliasing between heap pointers.\footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}
 We observe the addresses of two equally sized \texttt{char} buffers allocated with \texttt{malloc} for different size parameters.
 Equal three digit address suffix indicate an aliasing pair.
 In addition to glibc, where the heap allocator is called \emph{ptmalloc}, we look at the following alternatives:
@@ -620,27 +602,29 @@ However, the performance data looks fairly similar between the two data sets, wi
     \item A high number of cycles with memory loads pending, indicating that the pipeline is stalled waiting for load operations to resolve.
     \item Changes to the number of micro-ops executed for certain ports.
 \end{itemize}
+
 Interestingly, it looks like small address offsets incur a massive increase in operations issued on port 0 for the O2 case.
 On Haswell, this port handles various ALU operations, and branching together with port 6~\cite[Figure 2.1]{OptimizationManual}.
 As there is also variations in the number of branch instructions executed, it seems like these counters together show that certain branches are being re-issued.
 Unlike the microkernel in section \ref{sec:microkernel}, the micro-ops executed and RS stall counts drop together with aliasing events.
 Speculation is possible in this kernel, as there are many independent store addresses.
-False dependencies will limit the amount of speculation, making the CPU incorrectly discard executed instructions.
+However, false dependencies will limit the amount of speculation, making the CPU incorrectly discard executed instructions.
 This can explain the inverted behavior compared to the microkernel, where the store addresses were fixed between loop iterations.
 
-It is worth noticing that most cache related metrics do \emph{not} stand out in this experiment.
+It is worth noting that most cache related metrics do \emph{not} stand out in this experiment.
 For cycles\_ldm\_pending and stalls\_l2\_pending, we see similar behavior to the microkernel analysis in section \ref{sec:microkernel}.
 These events can be explained by pipeline stalls waiting for aliasing store operations to be retired.
-The L1 hit rate remains stable across all offsets, and only a negligible number of memory accesses actually miss L1.
+The L1 hit rate also remains stable across all offsets, and only a negligible number of memory accesses actually miss L1.
 On the other hand, we see a fairly strong correlation between cycle count and outstanding offcore requests. 
 These events count the number of outstanding loads to memory outside the processor core each cycle.
 Since we do not see any significant number of L1 misses, the correlation to outstanding loads is probably a result of stalling and more cycles executed.
 
 Overall, it seems reasonable to conclude that the resource stalling is causing the slowdown, ultimately generated by false dependencies from address aliasing.
-Variations in execution port activity, and in this case increased number of branches executed, is consistent with micro-ops being reissued after the potential conflict is detected.
-We do not attempt to pinpoint exactly which assembly instructions might alias, but one can assume that the processor thinks memory accesses to \texttt{input[i]} potentially conflicts with \texttt{output[i]}.
+We do not attempt to pinpoint exactly which accesses generates these conflicts, but at a high level the CPU falsely assumes dependencies between \texttt{input[i]} and \texttt{output[i]}.
 By manually adjusting the address alignment of one of these buffers, cycle count can be reduced by as much as 50\%.
 This is a speedup on top of already aggressive compiler optimization.
+% Variations in execution port activity, and in this case increased number of branches executed, is consistent with micro-ops being reissued after the potential conflict is detected.
+% We do not attempt to pinpoint exactly which assembly instructions might alias, but one can assume that the processor thinks memory accesses to \texttt{input[i]} potentially conflicts with \texttt{output[i]}.
 
 
 \subsection{Ways to Deal with Heap Address Aliasing}
@@ -663,9 +647,8 @@ Alias events is reduced by about 10 million for the default alignment, with a co
 \paragraph{Use a special purpose allocator}
 The Intel optimization manual mentions this in \emph{User/Source Coding Rule 8}, suggesting that special purpose allocators could be used to avoid aliasing ~\cite{OptimizationManual}.
 However, to our knowledge there are no commonly used allocators that specifically tries to mitigate aliasing in heap allocated memory.
-Similarly none offset their allocations based on the initial stack frame.
+%Similarly none offset their allocations based on the initial stack frame.
 We show that heap allocators are prone to generate pairwise aliasing buffers, the worst case for functions such as the convolution example.
-%his goes somewhat against conventional wisdom that more alignment is better.
 
 A potential solution could be to apply some heuristic to randomize addresses more, and in particular not always return the same 12 bit suffix for large allocations.
 The allocator could also accept hints to which buffers are going to be accessed in parallel, for example as an optional argument to a custom version of \texttt{malloc}.
@@ -676,7 +659,7 @@ In some cases it might make sense to explicitly control the memory addresses use
 This can be achieved by exploiting the fact the \texttt{mmap} is in fact guaranteed to be placed at a page boundary, and use that directly instead of \texttt{malloc}.
 The following approach can be used to make an anonymous memory mapping with offset \texttt{d} bytes away from page alignment.
 \begin{lstlisting}[breaklines=true]
-    mmap(NULL, (n + d), PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) + d;
+    mmap(NULL, (n + d), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) + d;
 \end{lstlisting}
 The same pointer difference must of course by subtracted before unmapping the memory.
 
@@ -698,15 +681,17 @@ The authors of MAO present a framework for extending compilers to provide very l
 
 \section{Conclusions}
 \label{sec:conclusions}
-We have shown how address aliasing can affect program performance under different memory layouts, and how it can explain certain cases of measurement bias. 
+We have shown how address aliasing can affect program performance under different memory contexts, and how it can explain certain cases of measurement bias. 
 The effect is caused by how speculative and out-of-order memory operations are handled by the Intel ``Haswell'' CPU, which only considers the last 12 address bits to resolve conflicts between load and store operations.
 
 In general, any change to memory layout of data can potentially introduce bias effects from address aliasing.
 Analyzing an example with bias to environment size, we determined that collisions between automatic variables and static data resulted in aliasing for certain stack positions.
 Aliasing conditions were triggered because variations in environment size offset the virtual addresses of stack allocated variables.
-We show how aliasing can have significant performance impact for algorithms operating on heap allocated buffers, analyzing an example with more than $2x$ performance variation between different memory layouts.
-Heap memory is controlled by allocators, and we show that most libraries tend to favor page alignment for larger requests.
-This means structures such as vectors and matrices are likely to alias by default, which can be worst case scenarios for many algorithms.
+Dynamically allocated data is controlled by heap allocators, which we introduce as another source of bias.
+Comparing four different libraries, we show that most implementations tend to favor page alignment for larger requests.
+This means that structures such as vectors and matrices are likely to alias by default, which can be worst case scenarios for many algorithms.
+%Address aliasing can have significant performance impact for algorithms operating on heap allocated buffers, which 
+We analyze an example with up to $2x$ variation in cycle count between different heap alignments, showing that address aliasing can have a significant performance impact in practice.
 
 We show how techniques like padding of variables and alternative alias-free code paths can be used to avoid aliasing at runtime.
 For heap address aliasing especially, we find that manual intervention can be required in order to achieve optimal performance.
