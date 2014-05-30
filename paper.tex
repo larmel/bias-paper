@@ -158,7 +158,7 @@ We also have to ensure we are not affected by measurement bias beyond what we ar
 Most importantly, this means keeping the memory address space under control.
 For security reasons, addresses of stack, heap and dynamic libraries are often randomized at load time, a technique known as \emph{Address Space Layout Randomization}~\cite{Pax:ASLR,Bhatkar:AddressObfuscation}. 
 By disabling ASLR, we are able to execute the same program multiple times with identical virtual address spaces.
-All experiments are done on a dedicated machine under minimal load, and \emph{frequency scaling} is disabled to keep the CPU's clock speed fixed.
+All experiments are done on a dedicated machine under minimal load, with \emph{frequency scaling} disabled to keep the CPU's clock speed fixed.
 Finally, we disable \emph{Hyper-threading}, which reduces the possibility for resource contention between threads.
 
 % Virtual memory/randomization illustration
@@ -214,7 +214,7 @@ The prediction is later verified, replaying any instructions that was wrongly as
 Similarly, if the load and store locations are the same, the value can be \emph{forwarded} from the store before it retires.
 
 While optimizations such as these are good on the average case, there are corner cases. 
-In particular, an event known as ``4K aliasing'' can occur when the memory addresses of a store followed by a load differ by a multiple of 4096.
+In particular, an event known as ``4K aliasing'' can occur when the memory addresses of a store followed by a load differ by a multiple of 4096 bytes.
 A store to address 0x601020 followed by a load to address 0x821020 is an aliasing pair, because the 12-bit address suffix of 0x020 is the same in both. 
 Despite being independent, in these cases the memory order subsystem generates \emph{false} dependencies, and causing the load to be reissued.
 The number of times this happens can be counted by the following performance counter:
@@ -231,8 +231,9 @@ In the following sections, we show how performance penalties from address aliasi
 Unless the program explicitly accesses environment variables, it is not the environment variables themselves that are important, but rather the effect their total size has on the position and alignment of stack.
 As indicated in Figure \ref{fig:virtualmemory}, environment variables and program arguments are allocated in the stack section of virtual memory close to the upper address 0x7fff'ffffffff\footnote{Modern processors do not actually use the full 64-bit space, only the low order 47 bits are used for addressing memory}, before the first call frame.
 Changing environment variables will therefore offset the addresses of stack, and consequently all stack allocated variables.
-After this offset, the stack is normally aligned to a 16 byte boundary, enforced by the compiler.
-Within a span of 4096 bytes there are thus 256 possible initial stack addresses, each representing a different execution context with respect to address aliasing. Note that there is no clear relationship between environment size and stack location with ASLR enabled.
+After this offset, the stack is normally realigned to a 16 byte boundary, enforced by the compiler.
+Within a span of 4096 bytes there are thus 256 possible initial stack addresses, each representing a different execution context with respect to address aliasing. 
+Note that there is no clear relationship between environment size and stack location with ASLR enabled.
 However, there will still be as many execution contexts with respect to aliasing (considering stack only), making any occurrences of measurement bias indeed random.
 
 \subsection{Microkernel Analysis}
@@ -285,8 +286,8 @@ The program is compiled with {\small{GCC}} using no optimization, as any optimiz
 There are clearly two worst cases, indicated by significant spikes at the 3184 and 7280 byte offsets.
 We sampled an extensive set of performance counters in addition to cycle count for each execution context.
 To analyze the bias effects at these points, we calculate the \emph{median} value of each counter over all contexts, and compare that to the two extreme cases.
-Going through the list of events manually, we narrowed down to a set that seem to correlate well with cycle count.
-Table \ref{tab:loopcorrelation} shows numerical counter values for worst cases, compared to the median values.
+Going through the list of events manually, we selected the set that had the highest correlation with cycle count.
+Table \ref{tab:loopcorrelation} shows numerical counter values for these cases, compared to the median values.
 
 % Detailed comparison between median and worst cases.
 \begin{table}
@@ -320,7 +321,7 @@ Table \ref{tab:loopcorrelation} shows numerical counter values for worst cases, 
   \end{tabnote}
 \end{table}
 
-We see the most extreme change from median to worst case is clearly the number of alias events. 
+We see the most extreme change from median to worst case in the number of alias events. 
 If we plot the graph for address aliasing, we see that it is near zero everywhere and spikes at exactly the points we observe bias. 
 The results show a high number of resource stalls and pending memory loads when the spikes occur, which is consistent with address aliasing issues.
 On the other end we get a much lower number of reservation station (RS) stalls in the aliasing case, with a reduction from around 270,000 to 135,000.
@@ -369,18 +370,26 @@ The two automatic variables \texttt{g} and \texttt{inc} occupies 8 contiguous by
 In this scenario, \texttt{g} will never alias with any of the static variables -- as it always covers the 0x8 slot not occupied by either of \texttt{i}, \texttt{j} or \texttt{k}.
 
 A less fortunate scenario with respect to the number of alias events occurs when there can be collisions with both stack allocated variables, which can be achieved for example by reserving an extra 8 bytes to offset \texttt{i}, \texttt{j} into the 0x8, 0xc slots. 
-While this will give significantly more alias counts, we found that it has little effect on the total number of cycles executed.
+While this will give significantly more alias counts, we found that it had little effect on the total number of cycles executed.
 
 In conclusion, we identified that address aliasing is the root cause of measurement bias from environment size for this program.
 Worst case occurs for precisely one out of 256 possible initial stack addresses in every 4K segment, where resource stalls are generated because of false dependencies between stack and static data.
 The program is \emph{biased} towards environment sizes that avoids this specific stack alignment.
 
 
+% TODO: Lars: make this a separate section or move it up a bit?
+This type of bias can occur in a number of memory configurations.
+Here the aliasing was caused by interactions between the stack and static variables.
+The stack and heap can interact the same way, depending on how the malloc function behaves.
+Since the stack is used for local variables complex code is likely contain many potential conflicts.
+A evaluation of how malloc behaves is presented in \ref{sec:heap}.
+
+
 \subsection{Avoiding Aliasing}
 Addresses of automatic variables can not be determined statically, because the position of stack at runtime is generally unknown. 
 In addition to being offset by environment variables, the stack address can also be perturbed by other factors such as ASLR or program arguments. 
 Although one can not easily know if a collision is going to happen for a given environment, it is possible to change the program to account for possible alias effects.
-Shown in Figure \ref{lst:loopfixed} is a proof of concept of how alias-free code could be generated in this particular case.
+A proof of concept of how alias-free code could be generated in this particular case is shown in Figure \ref{lst:loopfixed}.
 If the addresses do alias, a branch to an alternative but semantically equivalent code path is performed.
 Calling the function recursively will effectively allocate a new set of variables a bit further down the stack, and the alias condition is avoided.
 
@@ -406,8 +415,7 @@ int main() {
   \label{lst:loopfixed}
 \end{figure}
 
-While this particular solution is clearly not something one would want to do in practice, it shows that compilers and programmers \emph{could} take measures to account for aliasing.
-
+While this particular solution is impractical, it shows that compilers and programmers \emph{could} take measures to account for aliasing.
 
 \section{Bias from Heap Allocation}
 \label{sec:heap}
@@ -416,6 +424,7 @@ In the previous sections we saw collisions between static data and stack, observ
 Most dynamic memory is allocated on the \emph{heap}, which is managed by an \emph{allocator}.
 A heap allocator is responsible for managing dynamic memory, and ultimately assigns the actual addresses of heap allocated variables at runtime.
 Heap allocation routines such as \texttt{malloc} and \texttt{free} are typically dynamically linked, for example as part of glibc.
+If this assignment is independent of the initial stack offset all heap memory accesses can be biased.
 The particular library used therefore constitutes an important part of the execution context, as linking to a different library, or a library with some alternative configuration, can impact heap addresses at runtime.
 
 \subsection{Most Allocators Alias by Default}
@@ -483,10 +492,10 @@ Here, we only look at behavior for a single thread, and whether the addresses re
 We see that glibc and tcmalloc utilize the normal heap area for smaller allocations, returning numerically low addresses. % Verified by looking at strace that tcmalloc actually uses brk
 Interestingly, jemalloc and Hoard appears to never use the heap, but allocate to memory mapped areas even for smaller requests.
 Conversely, tcmalloc seem manage only the heap.
-We see one example where an allocator yields aliasing buffers while another does not.
+We also find an example where one allocator yields aliasing buffers while another does not.
 Allocating $2 \times 5120$ bytes returns aliasing pointers for jemalloc and Hoard, but not with glibc or tcmalloc.
 Given that these results are deterministic (with ASLR disabled), it is not hard to construct a program with significant bias towards one or the other allocator.
-But even with randomization, pointers returned by \texttt{mmap} must still be page aligned.
+But even with ASLR, pointers returned by \texttt{mmap} must still be page aligned.
 This means that addresses returned by allocators using this mechanism directly will \emph{always} alias, giving a deterministic execution context considering only the address suffix.
 From our limited analysis, this seems to be the case for glibc, jemalloc and Hoard.
 
@@ -521,7 +530,7 @@ Repeated invocation will also even out performance by warming up the cache.
     for (i = 0; i < k; ++i)
         conv(n, input, output + offset);
 \end{lstlisting}
-An estimate of the actual cost a single invocation can be calculated by averaging over a number of repeated function calls, after subtracting the constant overhead of invoking it only once.
+An estimate of the actual cost a single invocation can be calculated by averaging over a number of repeated function calls, after subtracting the overhead of invoking it the first time.
 \[
 t_{\text{estimate}} = \frac{t_{k} - t_{1}}{k - 1}
 \]
@@ -603,16 +612,16 @@ In addition, performance counter measurements are averaged over 10 samples using
   }
 \end{table}
 
-Figure~\ref{fig:conv-default} illustrates how the convolution kernel behaves for increasing offsets between heap addresses (modulo 4096), clearly indicating a relationship between address aliasing events and cycles executed.
+Figure~\ref{fig:conv-default} illustrates how the convolution kernel behaves for increasing offsets between the heap addresses (modulo 4096), clearly indicating a relationship between address aliasing events and cycles executed.
 The effects are most distinct on optimization level 2 and 3, where the ratio of cycles to alias events is most significant.
 Numbers on the x axis represent the amount of offset, measured in number of \texttt{sizeof(float)} bytes.
 An offset of zero is the default behavior for this program when using \texttt{malloc} and moderately large inputs.
 Both for optimization level 2 and 3, the default alignment is close to worst case performance.
 The differences in cycles executed is significant, with about $1.7x$ speedup for O2 and as much as $2x$ speedup for O3 for increasing relative offset.
-This phenomenon is only observed for address deltas close to zero, thus we only show the first 20 data points.
+This phenomenon is only observed for address separations close to zero, thus we only show the first 20 data points.
 If extended to cover the full width of possible offsets within a 4K segment, we see that the performance is uniform everywhere else.
 
-More detailed performance counter data is presented in Table~\ref{tab:convstats}, where we have selected a subset that correlates well with the change to cycle count.
+More detailed performance counter data is presented in Table~\ref{tab:convstats}, where we show the subset that correlates best with the cycle count.
 The numbers are for the level 2 optimization case, which we choose to study in more detail.
  % which was chosen because the behavior was less chaotic and thus more easily represented by only a few numbers.
 However, the performance data looks fairly similar between the two data sets, with a couple of events that appear to stand out:
@@ -639,14 +648,14 @@ Since we do not see any significant number of loads missing L1, the correlation 
 
 Overall it seems reasonable to conclude that the resource stalling is causing delayed execution, ultimately generated by false dependencies from address aliasing.
 Variations in execution port activity, and in this case increased number of branches executed, is consistent with micro-ops being reissued after the potential conflict is detected.
-We do not attempt to pinpoint exactly which assembly instructions might alias, but on a high level we can assume that the processor thinks memory accesses to \texttt{input[i]} potentially conflicts with \texttt{output[i]}.
+We do not attempt to pinpoint exactly which assembly instructions might alias, but we assume that the processor thinks memory accesses to \texttt{input[i]} potentially conflicts with \texttt{output[i]}.
 By manually adjusting the address alignment of one of these buffers, cycle count can be reduced by as much as 50\%.
 This is a speedup on top of already aggressive compiler optimization.
 
 
 \subsection{Ways to Deal with Heap Address Aliasing}
 Performance penalties caused by address aliasing can be significant in real applications, creating bias towards certain memory layouts.
-However, with an understanding of the underlying mechanism that causes bias, the effects can to some extent be predicted and accounted for in software.
+However, with an understanding of the underlying mechanism that causes bias, the effects can be predicted and to some extent eliminated in software.
 The most relevant scenario to consider is probably code that can hit the aliasing \texttt{mmap} scenario, where performance impact can be consistently bad over all environments.
 We identify some mitigation or optimization techniques that can be used:
 
@@ -660,9 +669,11 @@ The C99 keyword \emph{restrict} can be used to explicitly tell the compiler that
 With this updated function prototype, the compiler is able to move a store instruction out of the inner loop, reducing the number of stores executed by more than 80 \% on optimization level O2.
 Alias events is reduced by about 10 million for the default alignment, with a corresponding improvement in cycle count. % File backing this in results
 
+
 \paragraph{Use a special purpose allocator}
 The Intel optimization manual mentions this in \emph{User/Source Coding Rule 8}, suggesting that special purpose allocators could be used to avoid aliasing ~\cite{OptimizationManual}.
 However, to our knowledge there are no commonly used allocators that specifically tries to mitigate aliasing in heap allocated memory.
+Similarly none offset their allocations based on the initial stack frame.
 We show that heap allocators are prone to generate pairwise aliasing buffers, the worst case for functions such as the convolution example.
 %his goes somewhat against conventional wisdom that more alignment is better.
 
@@ -697,14 +708,14 @@ Different techniques are used, including rules, pattern matching, and random ins
 \section{Conclusions}
 \label{sec:conclusions}
 We have shown how address aliasing can affect program performance under different memory layouts, and how it can explain certain cases of measurement bias. 
-The effect is caused by how speculative and out-of-order memory operations are handled by the CPU, which only considers the last 12 address bits to resolve conflicts between load and store operations.
+The effect is caused by how speculative and out-of-order memory operations are handled by the Intel ``Haswell'' CPU, which only considers the last 12 address bits to resolve conflicts between load and store operations.
 
 In general, any change to memory layout of data can potentially introduce bias effects from address aliasing.
 Analyzing an example with bias to environment size, we determined that collisions between automatic variables and static data resulted in aliasing for certain stack positions.
 Aliasing conditions were triggered because variations in environment size offset the virtual addresses of stack allocated variables.
-We show how aliasing can have significant performance impact in practice for algorithms operating on heap allocated buffers, analyzing an example with more than $2x$ performance variation between different memory layouts.
+We show how aliasing can have significant performance impact for algorithms operating on heap allocated buffers, analyzing an example with more than $2x$ performance variation between different memory layouts.
 Heap memory is controlled by allocators, and we show that most libraries tend to favor page alignment for larger requests.
-This means that pointers to structures such as arrays and matrices are likely to alias by default, which can be worst case input for many algorithms.
+This means structures such as vectors and matrices are likely to alias by default, which can be worst case scenarios for many algorithms.
 
 We show how techniques like padding of variables and alternative alias-free code paths can be used to avoid aliasing at runtime.
 For heap address aliasing especially, we find that manual intervention can be required in order to achieve optimal performance.
