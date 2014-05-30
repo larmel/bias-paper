@@ -49,20 +49,23 @@
 # http://research.google.com/pubs/pub37077.html
 # http://dl.acm.org/citation.cfm?id=2190077
 @inproceedings { Hundt:2011:MAO,
-    author = {Robert Hundt and Easwaran Raman and Martin Thuresson and Neil Vachharajani},
-    title = {MAO -- an Extensible Micro-Architectural Optimizer},
+    author = {Hundt, Robert and Raman, Easwaran and Thuresson, Martin and Vachharajani, Neil},
+    title = {MAO -- An Extensible Micro-architectural Optimizer},
     booktitle = {Proceedings of the 9th Annual IEEE/ACM International Symposium on Code Generation and Optimization},
     series = {CGO '11},
     year = {2011},
+    isbn = {978-1-61284-356-8},
     pages = {1--10},
     numpages = {10},
+    url = {http://dl.acm.org/citation.cfm?id=2190025.2190077},
+    acmid = {2190077},
     publisher = {IEEE Computer Society},
-    address = {Washington, DC, USA}
-}
+    address = {Washington, DC, USA},
+} 
 
 @manual { OptimizationManual,
-    author = {{Intel Corporation}},
-    title = {{Intel\textsuperscript{\textregistered} 64 and IA-32 Architectures Optimization Reference Manual}},
+    author = {Intel Corporation},
+    title = {Intel\textsuperscript{\textregistered} 64 and IA-32 Architectures Optimization Reference Manual},
     year = {2014},
     month = {March},
     number = {248966-029},
@@ -76,18 +79,23 @@
     number = {253669-050US}
 }
 
-@misc { Mytkowicz:2008:OE&MB,
-    author = {Todd Mytkowicz and Peter F. Sweeney and Matthias Hauswirth and Amer Diwan},
-    title = {Observer Effect and Measurement Bias in Performance Analysis},
-    year = {2008}
+@techreport { Mytkowicz:2008:OE&MB, 
+    author = {Todd Mytkowicz and Peter F. Sweeney and Matthias Hauswirth and Amer Diwan}, 
+    title = {Observer Effect and Measurement Bias in Performance Analysis}, 
+    institution = {University of Colorado}, 
+    number = {CU-CS-1042-08}, 
+    year = {2008}, 
+    month = {June} 
 }
 
+% http://dblp.uni-trier.de/rec/bibtex/conf/ipps/MytkowiczDHS08
 @inproceedings { Mytkowicz:2008:Easy,
-    author = {Todd Mytkowicz and Amer Diwan and Matthias Hauswirth and Peter Sweeney},
+    author = {Todd Mytkowicz and Amer Diwan and Matthias Hauswirth and Peter F. Sweeney},
     title = {We have it easy, but do we have it right?},
-    booktitle = {NSF Next Generation Systems Workshop},
+    booktitle = {22nd IEEE International Symposium on Parallel and Distributed Processing, IPDPS 2008, Miami, Florida USA, April 14-18, 2008},
     year = {2008},
-    pages = {1--5}
+    pages = {1-7},
+    ee = {http://dx.doi.org/10.1109/IPDPS.2008.4536408}
 }
 
 @inproceedings { Knights:2009:BlindOpt,
@@ -103,17 +111,23 @@
     address = {Berlin, Heidelberg}
 }
 
+% http://dl.acm.org/citation.cfm?id=1508275
 @inproceedings { Mytkowicz:2009:WrongData,
     author = {Mytkowicz, Todd and Diwan, Amer and Hauswirth, Matthias and Sweeney, Peter F.},
-    title = {Producing wrong data without doing anything obviously wrong!},
-    booktitle = {Proceedings of the 14th international conference on Architectural support for programming languages and operating systems},
+    title = {Producing Wrong Data Without Doing Anything Obviously Wrong!},
+    booktitle = {Proceedings of the 14th International Conference on Architectural Support for Programming Languages and Operating Systems},
     series = {ASPLOS XIV},
     year = {2009},
+    isbn = {978-1-60558-406-5},
     location = {Washington, DC, USA},
     pages = {265--276},
     numpages = {12},
+    url = {http://doi.acm.org/10.1145/1508244.1508275},
+    doi = {10.1145/1508244.1508275},
+    acmid = {1508275},
     publisher = {ACM},
-    address = {New York, NY, USA}
+    address = {New York, NY, USA},
+    keywords = {bias, measurement, performance},
 }
 
 @inproceedings { Shackham:2004:ASLR,
@@ -131,11 +145,18 @@
 }
 
 @inproceedings { Bhatkar:AddressObfuscation,
-    author = {Eep Bhatkar and Daniel C. Duvarney and R. Sekar},
-    title = {Address obfuscation: an efficient approach to combat a broad range of memory error exploits},
-    booktitle = {In Proceedings of the 12th USENIX Security Symposium},
+    author = {Bhatkar, Sandeep and DuVarney, Daniel C. and Sekar, R.},
+    title = {Address Obfuscation: An Efficient Approach to Combat a Board Range of Memory Error Exploits},
+    booktitle = {Proceedings of the 12th Conference on USENIX Security Symposium - Volume 12},
+    series = {SSYM'03},
     year = {2003},
-    pages = {105--120}
+    location = {Washington, DC},
+    pages = {8--8},
+    numpages = {1},
+    url = {http://dl.acm.org/citation.cfm?id=1251353.1251361},
+    acmid = {1251361},
+    publisher = {USENIX Association},
+    address = {Berkeley, CA, USA},
 }
 
 @misc { Pax:ASLR,
@@ -180,11 +201,12 @@
 
 @inproceedings { Weaver:2008:PCTrusted,
     author = {Vincent M. Weaver and Sally A. Mckee},
-    title = {{Can Hardware Performance Counters be Trusted?}},
-    booktitle = {IEEE International Symposium on Workload Characterization},
+    title = {Can Hardware Performance Counters be Trusted?},
+    booktitle = {Proceedings of the IEEE International Symposium on Workload Characterization, IISWC},
     year = {2008},
+    month = {Sept}, 
     pages = {141--150},
-    masid = {4334229}
+    doi = {10.1109/IISWC.2008.4636099}
 }
 
 @inproceedings { Wiplove:ImproveEstimation,
@@ -193,6 +215,7 @@
     booktitle = {13th International Symposium on Modeling, Analysis, and Simulation of Computer and Telecommunication Systems (MASCOTS 2005), 27-29 September 2005, Atlanta, GA, USA},
     year = {2005},
     pages = {23-34},
+    doi = {10.1109/MASCOTS.2005.34},
     publisher = {IEEE Computer Society}
 }
 
