@@ -55,7 +55,7 @@ LARS KIRKHOLT MELHUS and RUNE ERLEND JENSEN
 Understanding program performance and obtaining accurate measurements is important in all scientific work.
 Any source of \emph{bias} by external factors should therefore be known and accounted for.
 However, recent research has shown that there can be significant performance differences based on seemingly irrelevant factors such as user name length.
-In this paper we identify an important underlying mechanism that cause this type of measurement bias on modern Intel microarchitectures.
+In this paper, we identify an important underlying mechanism that causes this type of measurement bias on modern Intel microarchitectures.
 Our approach is to search for correlations between a large set of hardware performance counters and performance figures from multiple environment contexts.
 We find that \emph{address aliasing} can explain bias from two external factors: environment variable size, and characteristics of dynamically linked heap allocators.
 
@@ -85,10 +85,15 @@ In the longer term, our results can enable new architecture specific optimizatio
 
 % Acknowledgement of support, author(s) address(es)
 \begin{bottomstuff}
+New Paper, Not an Extension of a Conference Paper.
+Authors' addresses: Lars Kirkholt Melhus, Rune Erlend Jensen, Computer and Information Science Department, Norwegian University of Science and Technology, 
+Sem S{\ae}lands vei 9, Gl{\o}shaugen, 7491 Trondheim, Norway; email: runeerle@idi.ntnu.no
+%LARS: din addresse er ok (NTNU)
 \end{bottomstuff}
 
 \maketitle
 
+%\footnote{New Paper, Not an Extension of a Conference Paper.}
 
 \section{Introduction}
 Accurately measuring the performance of computer programs is important in order to evaluate new algorithms or compare different implementations.
@@ -231,6 +236,7 @@ Within a span of 4096 bytes there are thus 256 possible initial stack addresses,
 However, there will still be as many execution contexts with respect to aliasing (considering stack only), making any occurrences of measurement bias indeed random.
 
 \subsection{Microkernel Analysis}
+\label{sec:microkernel}
 To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!'' by \citeN{Mytkowicz:2009:WrongData}, reproduced below. 
 This example is interesting for several reasons; the bias effects are significant and easily reproducible, while the code itself is simple and straightforward to analyze.
 Still, no satisfactory explanation as to what actually causes bias was given in the original paper.
@@ -314,16 +320,24 @@ Table \ref{tab:loopcorrelation} shows numerical counter values for worst cases, 
   \end{tabnote}
 \end{table}
 
-We see the most extreme change from median to worst case is clearly the number of alias events.
+We see the most extreme change from median to worst case is clearly the number of alias events. 
 If we plot the graph for address aliasing, we see that it is near zero everywhere and spikes at exactly the points we observe bias. 
 The results show a high number of resource stalls and pending memory loads when the spikes occur, which is consistent with address aliasing issues.
 On the other end we get a much lower number of reservation station (RS) stalls in the aliasing case, with a reduction from around 270,000 to 135,000.
 The reservation station buffers micro-ops for scheduling to the execution units, and a stall event means that there are no free slots available~\cite[Table 19-2]{Volume3B}.
 Fewer stalls in the aliasing case could indicate less contention on the reservation station.
 This probably has to do with the overall \emph{decrease} in the number of micro-ops executed per port, as all but one of the in total 8 execution ports have fewer operations going in parallel.
-Note that the number of micro-ops \emph{retired} overall does not change, but for some reason the micro-ops stay in the execution pipeline for a shorter time.
-Our assumption is that this is caused by the CPU being more conservative in the aliasing case, issuing fewer operations (speculatively) in parallel.
-With fewer instructions per cycle, there is also less pressure on the reservation station.
+Note that the number of micro-ops \emph{retired} overall does not change.%, but for some reason the micro-ops stay in the execution pipeline for a shorter time.
+This match with the fact that the memory disambiguation system do not handle address aliasing, limiting the potential for out of order execution~\cite[Page 2-20]{OptimizationManual}.
+We assume that the tiny kernel size immediately prevents instructions from executing out of order, leading to the lower counts.
+%Our assumption is that this is caused by the CPU being more conservative in the aliasing case, issuing fewer operations (speculatively) in parallel.
+%With fewer instructions per cycle, there is also less pressure on the reservation station.
+
+The \texttt{cycles_ldm_pending} and \texttt{stalls_l2_pending} are interesting as they are related to the memory and cache system.
+However, this program use only 2 cache-lines except for the initial startup.
+Using the L1 hit and miss counts also revealed that the L1 load is 99.3\% and store hit rate is ~100\%.
+Thus, these events do not indicate a cache hit rate issue, and is probably linked to how the CPU handles address alias.
+
 
 Performance counter data clearly points to address aliasing as a plausible explanation, thus the next step is to see exactly which memory accesses are aliasing. 
 For that we need to know the addresses of each variable at runtime.
@@ -502,7 +516,7 @@ This is accomplished by requesting a bit more memory, and use pointer arithmetic
 Controlling the offset parameter, we can create environments where the address suffixes are any desired number of \texttt{sizeof(float)} bytes apart.
 Allocating and managing these buffers at startup takes a non-negligible amount of work.
 The overhead can be masked by repeatedly invoking the convolution kernel after allocating and initializing all the inputs.
-Repeated invocation can also even out performance by warming up cache.
+Repeated invocation will also even out performance by warming up the cache.
 \begin{lstlisting}
     for (i = 0; i < k; ++i)
         conv(n, input, output + offset);
@@ -610,12 +624,18 @@ However, the performance data looks fairly similar between the two data sets, wi
 Interestingly, it looks like small address offsets incur a massive increase in operations issued on port 0 for the O2 case. 
 On Haswell, this port handles various ALU operations, and branching together with port 6.~\cite[Figure 2.1]{OptimizationManual}
 As there is also variations in the number of branch instructions executed, it seems like these counters together show that certain branch micro-ops are being re-issued.
+Unlike the microkernel in \ref{sec:microkernel} the execution and RS stall counts drop with together with aliasing events.
+Speculation is possible in this kernel as there are many independent store addresses.
+False aliasing limits this speculation however, and makes the CPU incorrectly discard executed instructions.
+This leads to the inverted behavior compared to the microkernel.
 
 It is worth noticing that most cache related metrics does \emph{not} stand out in this experiment.
+Again the \texttt{cycles_ldm_pending} and \texttt{stalls_l2_pending} behavior is the same as in the microkernel in \ref{sec:microkernel}.
 The L1 hit rate remains stable across all offsets, and only a negligible number of memory loads actually misses L1.
 On the other hand, we see a fairly strong correlation between cycle count and outstanding offcore requests. 
 These events count the number of outstanding loads to memory outside the processor core each cycle.
 Since we do not see any significant number of loads missing L1, the correlation to outstanding loads is probably a result of stalling and more cycles executed.
+
 
 Overall it seems reasonable to conclude that the resource stalling is causing delayed execution, ultimately generated by false dependencies from address aliasing.
 Variations in execution port activity, and in this case increased number of branches executed, is consistent with micro-ops being reissued after the potential conflict is detected.
