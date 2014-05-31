@@ -208,8 +208,9 @@ In the following sections, we show how performance penalties from address aliasi
 
 \section{Bias from Environment Size}
 \label{sec:environment}
-Unless the program explicitly accesses environment variables, it is not the environment variables themselves that are important, but rather the effect their total size has on the position and alignment of stack.
-As indicated in Figure \ref{fig:virtualmemory}, environment variables and program arguments are allocated in the stack section of virtual memory close to the upper address 0x7fff'ffffffff\footnote{Modern processors do not actually use the full 64-bit space, only the low order 47 bits are used for addressing memory}, before the first call frame.
+System environment variables contain things like the name of the logged in user, home directory, shell state, and various other settings.
+As a source of bias, it is not the environment variables themselves that are important, but rather the effect their total \emph{size} has on the position and alignment of stack.
+As indicated in Figure \ref{fig:virtualmemory}, environment variables and program arguments are allocated in the stack section of virtual memory, close to the upper address 0x7fff'ffffffff\footnote{Modern processors do not actually use the full 64-bit space, only the low order 47 bits are used for addressing memory} and before the first call frame.
 Changing environment variables will therefore offset the addresses of stack, and consequently all stack allocated variables.
 After this offset, the stack is normally realigned to a 16 byte boundary, enforced by the compiler.
 Within a span of 4096 bytes there are thus 256 possible initial stack addresses, each representing a different execution context with respect to address aliasing. 
@@ -352,7 +353,7 @@ While this will give significantly more alias counts, we found that it had littl
 
 In conclusion, we identified that address aliasing is the root cause of measurement bias from environment size for this program.
 Worst case occurs for precisely one out of 256 possible initial stack addresses in every 4K segment, where resource stalls are generated because of false dependencies between stack and static data.
-The program is \emph{biased} towards environment sizes that avoids this specific stack alignment.
+The program is \emph{biased} towards environment sizes that avoids this specific stack alignment, which in principle could be triggered just by changing to a different user name.
 This type of bias can occur in a number of memory configurations.
 Here, the aliasing was caused by interactions between the stack and static variables, but we can imagine similar conflicts between stack and heap, depending also on how dynamic memory allocators behave.
 Because the stack is used for local variables, complex code is likely to contain many potential conflicts with other areas of memory.
