@@ -37,21 +37,18 @@ LARS KIRKHOLT MELHUS and RUNE ERLEND JENSEN
 
 % Motivation -- Problem statement -- Approach -- Results -- Conclusions
 \begin{abstract} % Should be 150 -- 200 words max
-% Understanding program performance and obtaining accurate measurements is important in all scientific work.
-% Any source of \emph{bias} by external factors should therefore be known and accounted for.
-% However, recent research has shown that there can be significant performance differences based on seemingly irrelevant factors such as user name length.
-Understanding program performance through accurate measurements is important in performance analysis, but experiments can be \emph{biased} by external factors.
-Seemingly irrelevant variables, such as the length of your user name, has been shown to potentially impact performance.
+Understanding program behavior and obtaining accurate measurements is important in performance analysis.
+However, recent research has shown that performance measurements can be \emph{biased} by external factors in unpredictable ways.
+Seemingly irrelevant variables, such as the length of your user name, can impact program performance.
 In this paper, we identify an important underlying mechanism that causes this type of measurement bias on modern Intel microarchitectures.
-Our approach is to search for correlations between a large set of hardware performance counters from a controlled series of execution contexts.
+Our approach is to search for correlations over multiple environment configurations, using a large set of hardware performance counter measurements.
 We find that \emph{address aliasing} can explain bias from two external factors: environment variable size, and characteristics of dynamically linked heap allocators.
 
-This result not only makes accounting for, and avoiding measurement bias much simpler, but also enables explicit optimizations for it.
+This result not only makes accounting for and avoiding measurement bias much simpler, but also enables explicit optimizations for it.
 We demonstrate this by implementing runtime detection and correction of aliasing conditions.
-%Further, we show that the allocation logic of common libraries tends to give \emph{worst case} alignment by default, by favoring page alignment large allocations.
-For heap allocators, we show that common libraries tend to give worst case alignment by default, favoring page alignment for large allocations.
+For heap allocators, we show that common implementations tend to give worst case alignment by default, favoring page alignment for large allocations.
 The performance impact of unfavorable memory layouts can be significant, with as much as $2x$ speedup in one of our examples.
-Our results show there is a need for new architecture specific optimization strategies to account for this phenomenon.
+Our results can enable new architecture specific optimization strategies to account for this phenomenon.
 \end{abstract}
 
 % Choose from classification tree http://www.acm.org/about/class/ccs98-html
