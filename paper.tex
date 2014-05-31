@@ -37,18 +37,21 @@ LARS KIRKHOLT MELHUS and RUNE ERLEND JENSEN
 
 % Motivation -- Problem statement -- Approach -- Results -- Conclusions
 \begin{abstract} % Should be 150 -- 200 words max
-Understanding program performance and obtaining accurate measurements is important in all scientific work.
-Any source of \emph{bias} by external factors should therefore be known and accounted for.
-However, recent research has shown that there can be significant performance differences based on seemingly irrelevant factors such as user name length.
+% Understanding program performance and obtaining accurate measurements is important in all scientific work.
+% Any source of \emph{bias} by external factors should therefore be known and accounted for.
+% However, recent research has shown that there can be significant performance differences based on seemingly irrelevant factors such as user name length.
+Understanding program performance through accurate measurements is important in performance analysis, but experiments can be \emph{biased} by external factors.
+Seemingly irrelevant variables, such as the length of your user name, has been shown to potentially impact performance.
 In this paper, we identify an important underlying mechanism that causes this type of measurement bias on modern Intel microarchitectures.
-Our approach is to search for correlations between a large set of hardware performance counters and performance figures from multiple environment contexts.
+Our approach is to search for correlations between a large set of hardware performance counters from a controlled series of execution contexts.
 We find that \emph{address aliasing} can explain bias from two external factors: environment variable size, and characteristics of dynamically linked heap allocators.
 
-This result not only makes accounting for and avoiding measurement bias much simpler, but also enables explicit optimizations for it.
-We demonstrate this by implementing runtime detection and correction of address aliasing, eliminating the bias.
-Further, we show that the allocation logic of common libraries tends to give \emph{worst case} alignment by default, by favoring page alignment large allocations.
-The performance impact of unfavorable memory layout combinations can be significant, with as much as $2x$ speedup in one of our examples.
-In the longer term, our results can enable new architecture specific optimization strategies.
+This result not only makes accounting for, and avoiding measurement bias much simpler, but also enables explicit optimizations for it.
+We demonstrate this by implementing runtime detection and correction of aliasing conditions.
+%Further, we show that the allocation logic of common libraries tends to give \emph{worst case} alignment by default, by favoring page alignment large allocations.
+For heap allocators, we show that common libraries tend to give worst case alignment by default, favoring page alignment for large allocations.
+The performance impact of unfavorable memory layouts can be significant, with as much as $2x$ speedup in one of our examples.
+Our results show there is a need for new architecture specific optimization strategies to account for this phenomenon.
 \end{abstract}
 
 % Choose from classification tree http://www.acm.org/about/class/ccs98-html
@@ -77,13 +80,13 @@ Sem S{\ae}lands vei 9, Gl{\o}shaugen, 7491 Trondheim, Norway; email: larskirk@al
 
 
 \section{Introduction}
-Accurately measuring the performance of computer programs is important in order to evaluate new algorithms or compare different implementations.
+Accurately measuring the performance of computer programs is important in order to evaluate new algorithms, or compare different implementations.
 A key challenge for performance analysts and systems researchers is handling \emph{measurement bias}.
 Changes to external factors of the system, such as link ordering or the contents of environment variables, has been shown to have potentially significant impacts on performance in real applications~\cite{Mytkowicz:2009:WrongData}.
 The underlying explanation is likely that this changes memory addresses of code or data, which in turn interacts with various low level hardware buffers at runtime.
 Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes to for example system environment variables ultimately affect program execution.
 
-A literature study of 88 papers showed that the median speedup was within the margin of bias, possibly invalidating the claimed speedups~\cite{Mytkowicz:2008:OE&MB}. 
+A literature study of 88 papers by \citeN{Mytkowicz:2008:OE&MB} showed that the median reported speedup was within the margin of bias, possibly invalidating the claimed speedups. 
 To alleviate the impact of measurement bias in performance analysis, researchers have proposed to use causal analysis techniques and randomization of execution contexts~\cite{Mytkowicz:2008:OE&MB}.
 Others treat the interaction complexity as a potential optimization problem, using search over variant spaces to find optimal environments~\cite{Knights:2009:BlindOpt}.
 Our approach is to analyze isolated programs in detail using \emph{hardware performance measurements}, in an attempt to identify which underlying mechanisms are causing bias.
