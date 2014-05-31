@@ -353,7 +353,7 @@ While this will give significantly more alias counts, we found that it had littl
 
 In conclusion, we identified that address aliasing is the root cause of measurement bias from environment size for this program.
 Worst case occurs for precisely one out of 256 possible initial stack addresses in every 4K segment, where resource stalls are generated because of false dependencies between stack and static data.
-The program is \emph{biased} towards environment sizes that avoids this specific stack alignment, which in principle could be triggered just by changing to a different user name.
+The program is \emph{biased} towards environment sizes that avoids this specific stack alignment, which in principle could be triggered just by changing user name.
 This type of bias can occur in a number of memory configurations.
 Here, the aliasing was caused by interactions between the stack and static variables, but we can imagine similar conflicts between stack and heap, depending also on how dynamic memory allocators behave.
 Because the stack is used for local variables, complex code is likely to contain many potential conflicts with other areas of memory.
