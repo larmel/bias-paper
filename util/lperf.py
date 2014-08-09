@@ -125,12 +125,7 @@ haswell = [Counter(code if mnemonic == "" else mnemonic, name) for code, mnemoni
     ("r08a2:u", "", "RESOURCE_STALLS.SB"),
     ("r10a2:u", "", "RESOURCE_STALLS.ROB"),
     ("r01a3:u", "", "CYCLE_ACTIVITY.CYCLES_L2_PENDING"),
-    ("r02a3:u", "", "CYCLE_ACTIVITY.CYCLES_LDM_PENDING_NO_CMASK"),
-    ("r20002a3:u", "", "CYCLE_ACTIVITY.CYCLES_LDM_PENDING_CMASK_2"),
-    ("r06a3:u", "", "CYCLE_ACTIVITY.STALLS_LDM_PENDING_NO_CMASK"),
-    ("r20006a3:u", "", "CYCLE_ACTIVITY.STALLS_LDM_PENDING_CMASK_2"),
-    ("r40006a3:u", "", "CYCLE_ACTIVITY.STALLS_LDM_PENDING_CMASK_4"),
-    ("r60006a3:u", "", "CYCLE_ACTIVITY.STALLS_LDM_PENDING_CMASK_6"),
+    ("r02a3:u", "", "CYCLE_ACTIVITY.CYCLES_LDM_PENDING"),
     ("r05a3:u", "", "CYCLE_ACTIVITY.STALLS_L2_PENDING"),
     ("r08a3:u", "", "CYCLE_ACTIVITY.CYCLES_L1D_PENDING"),
     ("r01a8:u", "", "LSD.UOPS"),
@@ -251,87 +246,27 @@ def benchmark(args):
     counters = args.events
     data = { counter: {'count': [0] * args.iterations } for counter in args.events }
 
-    def perfctr(s):
-        counter = filter(lambda (ctr): ctr.mnemonic == s.lower(), haswell)
-        if not counter:
-            raise argparse.ArgumentTypeError("Unrecognized performance counter " + s)
-        return counter[0]
-    
     # Measure all counters under n different environments
     for x in range(args.iterations):
         argument = "" if not args.enumerate else str(x)
         env = {'X': '0' * (args.env_offset + x*args.env_increment)}
-		
-        # Store the data for each run separately
-        data_local = { counter: {'count': [0] * len(counters) } for counter in args.events }
-        cycles = perfctr('cycles:u')
-        command_cache = []
-        
+
         # Sample at most 4 events at a time because of register limitations
         for i in range(0, len(counters), 4):
             current = counters[i:i + 4]
 
             prfevnt = ','.join(map(lambda (c): c.mnemonic, current))
-            prfevnt = 'cycles:u,' + prfevnt
             command = ' '.join(["perf stat -r", str(args.repeat), '-x"," -e', prfevnt, args.program, argument])
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, shell=True)
-            
-            # Hack:
-            command_cache.append( command )
-            command_cache.append( command )
-            command_cache.append( command )
-            command_cache.append( command )
-            
-            # The first value is the extra timing
-            data_local[cycles]['count'][i] = int(process.stderr.readline().strip().split(',')[0])
-            
+
             for counter in current:
-                val = int(process.stderr.readline().strip().split(',')[0])
-                data_local[counter]['count'][i] = val
-                data[counter]['count'][x] = val
+                data[counter]['count'][x] = int(process.stderr.readline().strip().split(',')[0])
 
             for line in process.stdout:
                 sys.stderr.write(line)
 
             process.wait()
-        
-        # find stdv and median
-        values = []
-        for i in range(0, len(counters), 4):
-            val = int(data_local[cycles]['count'][i])
-            #print 'data:', val
-            values.append( val)
-            #print data_local[0:-1]['count'][i]
-        #print numpy.median(values)
-        #print numpy.std(values)
-        #print numpy.percentile(values, [99, 90, 85, 50, 10, 1])
-        
-        # Redo the 25% slowest runs. The faster runs are ok?
-        
-        redo_cycle_count = numpy.percentile(values, 75)
-        for i in range(0, len(counters), 4):
-            current = counters[i:i + 4]
-            
-            cycle_count = int(data_local[cycles]['count'][i])
-            if cycles < redo_cycle_count:
-                continue
-            
-            # Retry until it within the limmit
-            while(cycle_count >= redo_cycle_count):
-                command = command_cache[i]
-                process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, shell=True)
-                cycle_count = int(process.stderr.readline().strip().split(',')[0])
-                for counter in current:
-                    val = int(process.stderr.readline().strip().split(',')[0])
-                    #print 'old', counter, data[counter]['count'][x]
-                    data[counter]['count'][x] = val
-                    #print 'new', counter, val
-                
-                for line in process.stdout:
-                    sys.stderr.write(line)
 
-                process.wait()
-        
     return data
 
 if __name__ == '__main__':
