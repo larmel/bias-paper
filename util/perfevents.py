@@ -1,30 +1,57 @@
 import subprocess
 
 class Event:
-    def __init__(self, event, umask, name, cmask = 0x00, alias = None):
+    def __init__(self, event, umask, name, cmask = 0x00, alias = None, msr = 0xf):
         self.event = event
         self.umask = umask
         self.cmask = cmask
         self.alias = alias
         self.name = name
+        self.msr = msr
 
     def mnemonic(self):
         return self.perfcode() if self.alias == None else "%s:u" % self.alias
 
     def perfcode(self):
-        register = (self.cmask << 24) | (self.umask << 8) | self.event
-        return "r%x:u" % register
+        code = (self.cmask << 24) | (self.umask << 8) | self.event
+        return ("r%04x:u" if self.cmask == 0x0 else "r%08x:u") % code
 
 # Try to determine the CPU we are running on
 model_name = subprocess.check_output("grep 'model name' /proc/cpuinfo", shell=True)
 
 haswell = []
 core2 = []
+registers = 0
 
-events = \
-    core2 if "Intel(R) Core(TM)2" in model_name else \
-    haswell if "Intel(R) Core(TM) i7-4" in model_name else \
-    []
+# configuration based on detected architecture
+if "Intel(R) Core(TM)2" in model_name:
+    events = core2
+    registers = 2
+elif "Intel(R) Core(TM) i7-4" in model_name:
+    events = haswell
+    registers = 4
+
+# group events appropriate for a single perf invocation
+def sample_events():
+    batch = []
+    for e in events:
+        if e.msr < 0xf:
+            if len(batch) == 0:
+                batch += [e]
+                yield batch
+            else: 
+                yield batch
+                batch = [e]
+                yield batch
+                batch = []
+        else:
+            batch += [e]
+            if (len(batch) == registers):
+                yield batch
+                batch = []
+    if len(batch) > 0:
+        yield batch
+    return
 
 # See performance-counters.ods for full reference.
 haswell += [
@@ -253,15 +280,15 @@ core2 += [
     Event(0x09, 0x02, name = "MEMORY_DISAMBIGUATION.SUCCESS"),
     Event(0x0C, 0x01, name = "PAGE_WALKS.COUNT"),
     Event(0x0C, 0x02, name = "PAGE_WALKS.CYCLES"),
-    Event(0x10, 0x00, name = "FP_COMP_OPS_EXE"),
-    Event(0x11, 0x00, name = "FP_ASSIST"),
-    Event(0x12, 0x00, name = "MUL"),
-    Event(0x13, 0x00, name = "DIV"),
-    Event(0x14, 0x00, name = "CYCLES_DIV_BUSY"),
-    Event(0x18, 0x00, name = "IDLE_DURING_DIV"),
-    Event(0x19, 0x00, name = "DELAYED_BYPASS.FP"),
-    Event(0x19, 0x01, name = "DELAYED_BYPASS.SIMD"),
-    Event(0x19, 0x02, name = "DELAYED_BYPASS.LOAD"),
+    Event(0x10, 0x00, name = "FP_COMP_OPS_EXE", msr = 0x1),
+    Event(0x11, 0x00, name = "FP_ASSIST", msr = 0x2),
+    Event(0x12, 0x00, name = "MUL", msr = 0x2),
+    Event(0x13, 0x00, name = "DIV", msr = 0x2),
+    Event(0x14, 0x00, name = "CYCLES_DIV_BUSY", msr = 0x1),
+    Event(0x18, 0x00, name = "IDLE_DURING_DIV", msr = 0x1),
+    Event(0x19, 0x00, name = "DELAYED_BYPASS.FP", msr = 0x2),
+    Event(0x19, 0x01, name = "DELAYED_BYPASS.SIMD", msr = 0x2),
+    Event(0x19, 0x02, name = "DELAYED_BYPASS.LOAD", msr = 0x2),
     Event(0x21, 0x40, name = "L2_ADS.CORE"),
     Event(0x23, 0x40, name = "L2_DBUS_BUSY_RD.CORE"),
     Event(0x24, 0x40, name = "L2_LINES_IN.CORE"),
@@ -330,12 +357,12 @@ core2 += [
     Event(0x97, 0x00, name = "BR_TKN_BUBBLE_1"),
     Event(0x98, 0x00, name = "BR_TKN_BUBBLE_2"),
     Event(0xA0, 0x00, name = "RS_UOPS_DISPATCHED"),
-    Event(0xA1, 0x01, name = "RS_UOPS_DISPATCHED.PORT0"),
-    Event(0xA1, 0x02, name = "RS_UOPS_DISPATCHED.PORT1"),
-    Event(0xA1, 0x04, name = "RS_UOPS_DISPATCHED.PORT2"),
-    Event(0xA1, 0x08, name = "RS_UOPS_DISPATCHED.PORT3"),
-    Event(0xA1, 0x10, name = "RS_UOPS_DISPATCHED.PORT4"),
-    Event(0xA1, 0x20, name = "RS_UOPS_DISPATCHED.PORT5"),
+    Event(0xA1, 0x01, name = "RS_UOPS_DISPATCHED.PORT0", msr = 0x1),
+    Event(0xA1, 0x02, name = "RS_UOPS_DISPATCHED.PORT1", msr = 0x1),
+    Event(0xA1, 0x04, name = "RS_UOPS_DISPATCHED.PORT2", msr = 0x1),
+    Event(0xA1, 0x08, name = "RS_UOPS_DISPATCHED.PORT3", msr = 0x1),
+    Event(0xA1, 0x10, name = "RS_UOPS_DISPATCHED.PORT4", msr = 0x1),
+    Event(0xA1, 0x20, name = "RS_UOPS_DISPATCHED.PORT5", msr = 0x1),
     Event(0xAA, 0x01, name = "MACRO_INSTS.DECODED"),
     Event(0xAA, 0x08, name = "MACRO_INSTS.CISC_DECODED"),
     Event(0xAB, 0x01, name = "ESP.SYNCH"),
@@ -383,11 +410,11 @@ core2 += [
     Event(0xCA, 0x02, name = "SIMD_COMP_INST_RETIRED.SCALAR_SINGLE"),
     Event(0xCA, 0x04, name = "SIMD_COMP_INST_RETIRED.PACKED_DOUBLE"),
     Event(0xCA, 0x08, name = "SIMD_COMP_INST_RETIRED.SCALAR_DOUBLE"),
-    Event(0xCB, 0x01, name = "MEM_LOAD_RETIRED.L1D_MISS"),
-    Event(0xCB, 0x02, name = "MEM_LOAD_RETIRED.L1D_LINE_MISS"),
-    Event(0xCB, 0x04, name = "MEM_LOAD_RETIRED.L2_MISS"),
-    Event(0xCB, 0x08, name = "MEM_LOAD_RETIRED.L2_LINE_MISS"),
-    Event(0xCB, 0x10, name = "MEM_LOAD_RETIRED.DTLB_MISS"),
+    Event(0xCB, 0x01, name = "MEM_LOAD_RETIRED.L1D_MISS", msr = 0x1),
+    Event(0xCB, 0x02, name = "MEM_LOAD_RETIRED.L1D_LINE_MISS", msr = 0x1),
+    Event(0xCB, 0x04, name = "MEM_LOAD_RETIRED.L2_MISS", msr = 0x1),
+    Event(0xCB, 0x08, name = "MEM_LOAD_RETIRED.L2_LINE_MISS", msr = 0x1),
+    Event(0xCB, 0x10, name = "MEM_LOAD_RETIRED.DTLB_MISS", msr = 0x1),
     Event(0xCC, 0x01, name = "FP_MMX_TRANS_TO_MMX"),
     Event(0xCC, 0x02, name = "FP_MMX_TRANS_TO_FP"),
     Event(0xCD, 0x00, name = "SIMD_ASSIST"),

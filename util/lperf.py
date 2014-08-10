@@ -1,6 +1,6 @@
 #!/usr/bin/env python 
 import subprocess, argparse, sys
-from perfevents import events
+from perfevents import events, sample_events
 
 def parseargs():
     def perfctr(s):
@@ -39,10 +39,8 @@ def benchmark(args):
         argument = "" if not args.enumerate else str(x)
         env = {'X': '0' * (args.env_offset + x*args.env_increment)}
 
-        # Sample at most 4 events at a time because of register limitations
-        for i in range(0, len(counters), 4):
-            current = counters[i:i + 4]
-
+        # Sample subset because of register limitations
+        for current in sample_events():
             prfevnt = ','.join(map(lambda (c): c.mnemonic(), current))
             command = ' '.join(["perf stat -r", str(args.repeat), '-x"," -e', prfevnt, args.program, argument])
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, shell=True)
