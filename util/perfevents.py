@@ -16,6 +16,12 @@ class Event:
         code = (self.cmask << 24) | (self.umask << 8) | self.event
         return ("r%04x:u" if self.cmask == 0x0 else "r%08x:u") % code
 
+    def __hash__(self):
+        return hash((self.event, self.umask, self.cmask))
+
+    def __eq__(self, other):
+        return (self.event, self.umask, self.cmask) == (other.event, other.umask, other.cmask)
+
 # Try to determine the CPU we are running on
 model_name = subprocess.check_output("grep 'model name' /proc/cpuinfo", shell=True)
 
@@ -31,10 +37,9 @@ elif "Intel(R) Core(TM) i7-4" in model_name:
     events = haswell
     registers = 4
 
-# group events appropriate for a single perf invocation
-def sample_events():
+def sample(event_list):
     batch = []
-    for e in events:
+    for e in event_list:
         if e.msr < 0xf:
             if len(batch) == 0:
                 batch += [e]

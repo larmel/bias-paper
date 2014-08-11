@@ -1,10 +1,10 @@
 #!/usr/bin/env python 
 import subprocess, argparse, sys
-from perfevents import events, sample_events
+from perfevents import events, sample
 
 def parseargs():
     def perfctr(s):
-        counter = filter(lambda (ctr): ctr.perfcode() == s.lower() or ctr.mnemonic() == s.lower(), events)
+        counter = filter(lambda (ctr): (ctr.perfcode() == s.lower()) or (ctr.mnemonic() == s.lower()), events)
         if not counter:
             raise argparse.ArgumentTypeError("Unrecognized event " + s)
         return counter[0]
@@ -40,7 +40,7 @@ def benchmark(args):
         env = {'X': '0' * (args.env_offset + x*args.env_increment)}
 
         # Sample subset because of register limitations
-        for current in sample_events():
+        for current in sample(args.events):
             prfevnt = ','.join(map(lambda (c): c.mnemonic(), current))
             command = ' '.join(["perf stat -r", str(args.repeat), '-x"," -e', prfevnt, args.program, argument])
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env, shell=True)
