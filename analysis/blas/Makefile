@@ -1,10 +1,10 @@
 SHELL := /bin/bash
-LPERF := ../../util/lperf
+LPERF := ../../util/lperf.py
 
 PERFCOUNTERS := all
 REPEAT := 4
 
-.PHONY: benchmark atlas default heatmap
+.PHONY: benchmark atlas default heatmap results
 
 
 atlas:
@@ -62,24 +62,62 @@ benchmark: bin/gemv disable-aslr
 
 # axpy
 bin/axpy: axpy.c
-	cc $< -o $@ -I/usr/local/atlas/include -L/usr/local/atlas/lib -lsatlas
+	#cc $< -o $@ -I/usr/local/atlas/include -L/usr/local/atlas/lib -lsatlas
+	cc $< -o $@ -lblas
 
 bin/axpy.csv: bin/axpy
 	@echo "1 iteration" > $@
-	$(LPERF) -e cycles:u,r0107:u --enumerate -r 100 -n 256 $< 1 >> $@ 2> /dev/null
+	$(LPERF) -e cycles:u,r0107:u --enumerate -r 100 -n 256 $< 1 >> $@
 	@echo "" >> $@
 	@echo "101 iterations" >> $@
-	$(LPERF) -e cycles:u,r0107:u --enumerate -r 100 -n 256 $< 101 >> $@ 2> /dev/null
+	$(LPERF) -e cycles:u,r0107:u --enumerate -r 100 -n 256 $< 101 >> $@
 
 	# Then fix formula in Calc and plot result. Clear spikes and correlation.
 
 
 # Heatmap
 bin/gemv-grid: gemv-grid.c
-	gcc $< -o $@ -I/usr/local/atlas/include -L/usr/local/atlas/lib -lsatlas
+	#gcc $< -o $@ -I/usr/local/atlas/include -L/usr/local/atlas/lib -lsatlas
+	gcc $< -o $@ -lblas
 
 bin/heatmap-alias.csv: bin/gemv-grid
 	script/heatmap-create.py $< -x 256 -y 256 > $@
 
 heatmap: bin/heatmap-alias.csv
 	script/heatmap-plot.py --input $<
+
+
+# Standard blas alternatives (not custom compiled)
+bin/gemv-libblas: gemv-grid.c
+	gcc $< -o $@ -lblas
+
+# apt-get install libatlas3-base libatlas-base-dev
+bin/gemv-libatlas: gemv-grid.c
+	gcc $< /usr/lib/atlas-base/libcblas.a /usr/lib/atlas-base/libatlas.a -o $@
+
+# apt-get install libopenblas-base libopenblas-dev
+bin/gemv-libopenblas: gemv-grid.c
+	gcc $< /usr/lib/openblas-base/libblas.a -o $@ -lpthread
+
+
+# Plot
+bin/libblas.csv: bin/gemv-libblas
+	$(LPERF) -e cycles:u,r0107:u --enumerate -r 10 -n 16 $< 1 0 > bin/libblas.1.csv
+	$(LPERF) -e cycles:u,r0107:u --enumerate -r 10 -n 16 $< 101 0 > bin/libblas.101.csv
+	../../util/estimate.py --shortrun bin/libblas.1.csv --longrun bin/libblas.101.csv -r 100 > $@
+	rm bin/libblas.1.csv bin/libblas.101.csv
+
+bin/libatlas.csv: bin/gemv-libatlas
+	$(LPERF) -e cycles:u,r0107:u --enumerate -r 10 -n 16 $< 1 0 > bin/libatlas.1.csv
+	$(LPERF) -e cycles:u,r0107:u --enumerate -r 10 -n 16 $< 101 0 > bin/libatlas.101.csv
+	../../util/estimate.py --shortrun bin/libatlas.1.csv --longrun bin/libatlas.101.csv -r 100 > $@
+	rm bin/libatlas.1.csv bin/libatlas.101.csv
+
+bin/libopenblas.csv: bin/gemv-libopenblas
+	$(LPERF) -e cycles:u,r0107:u --enumerate -r 10 -n 16 $< 1 0 > bin/libopenblas.1.csv
+	$(LPERF) -e cycles:u,r0107:u --enumerate -r 10 -n 16 $< 101 0 > bin/libopenblas.101.csv
+	../../util/estimate.py --shortrun bin/libopenblas.1.csv --longrun bin/libopenblas.101.csv -r 100 > $@
+	rm bin/libopenblas.1.csv bin/libopenblas.101.csv
+
+results: bin/libblas.csv bin/libatlas.csv bin/libopenblas.csv
+

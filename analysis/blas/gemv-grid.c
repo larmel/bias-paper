@@ -4,16 +4,16 @@
 #include <sys/mman.h>
 
 // M rows x N cols
-#define M 8192
-#define N 8192
+#define M 1024
+#define N 1024
 
 #define ALIGNED_ALLOC(n) \
     ((char*) mmap(NULL, n, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0))
 
 int main(int argc, char **argv) {
-    int dx = argc > 1 ? atoi(argv[1]) : 0;
-    int dy = argc > 2 ? atoi(argv[2]) : 0;
-    int n  = argc > 3 ? atoi(argv[3]) : 1;
+    int n  = argc > 1 ? atoi(argv[1]) : 1;
+    int dx = argc > 2 ? 16 * atoi(argv[2]) : 0;
+    int dy = argc > 3 ? 16 * atoi(argv[3]) : 0;
     int i;
 
     // Matrix-vector multiplication, y = alpha*Ax + beta*y
