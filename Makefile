@@ -15,7 +15,8 @@ about:
 	gcc --version
 
 # Files that are used for plots, tables and listings in the article.
-resources := bin/micro-kernel-cycles.dat bin/micro-kernel-comparison.csv bin/micro-kernel-annotated.s \
+resources := bin/microkernel-cycles-core2.dat \
+	bin/micro-kernel-cycles.dat bin/micro-kernel-comparison.csv bin/micro-kernel-annotated.s \
 	bin/conv-default-o2.estimate.dat bin/conv-default-o2.estimate.csv \
 	bin/conv-default-o3.estimate.dat bin/conv-default-o3.estimate.csv \
 	bin/convolution-kernel.c \
@@ -34,6 +35,9 @@ bin/paper.pdf: paper.tex references.bib $(resources) | bin
 #
 # Depend on results from analysis directory, but do some massaging to get the
 # correct Tikz friendly format and filter out unnecessary data.
+
+bin/microkernel-cycles-core2.dat: analysis/environment/results-core2/loop.csv | bin
+	cat $< | util/select.py -e cycles:u | util/pgfpconv.py > $@
 
 bin/micro-kernel-cycles.dat: analysis/environment/results/loop.csv | bin
 	cat $< | util/select.py -e cycles:u | util/pgfpconv.py > $@
