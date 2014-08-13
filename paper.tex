@@ -82,9 +82,10 @@ A key challenge for performance analysts and systems researchers is handling \em
 Changes to external factors of the system, such as link ordering or the contents of environment variables, has been shown to have potentially significant impacts on performance in real applications~\cite{Mytkowicz:2009:WrongData}.
 The underlying explanation is likely that this changes memory addresses of code or data, which in turn interacts with various low level hardware buffers at runtime.
 Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes to for example system environment variables ultimately affect program execution.
+In Figure~\ref{fig:motivation} we have reproduced a result originally presented by \citeN{Mytkowicz:2009:WrongData}, showing how the number of cycles executed for a simple program depends on environment variables.
+This example provides the basis for our analysis.
 
 \pgfplotstableread{bin/microkernel-cycles-core2.dat}{\microkernelcoretwotable}
-
 \begin{figure}[t]
 \begin{minipage}[t]{0.40\textwidth}
   \vspace{3mm}
@@ -107,6 +108,7 @@ Because of the complexity of modern processors, it is often hard or even impossi
     %\fbox{
     \begin{tikzpicture}
       \begin{axis}[
+          title = Core2 Duo,
           width = 7.8cm,
           height = 4.5cm,
           font = \footnotesize,
@@ -125,9 +127,8 @@ Because of the complexity of modern processors, it is often hard or even impossi
   \end{flushleft}
 \end{minipage}
 \label{fig:motivation}
-\caption{Microkernel first presented in~\cite{Mytkowicz:2009:WrongData}, showing bias to environment size}
+\caption{Microkernel first presented by \citeN{Mytkowicz:2009:WrongData}, showing bias to environment size}
 \end{figure}
-
 
 A literature study of 88 papers by \citeN{Mytkowicz:2008:OE&MB} showed that the median reported speedup was within the margin of bias, possibly invalidating the claimed speedups. 
 To alleviate the impact of measurement bias in performance analysis, researchers have proposed to use causal analysis techniques and randomization of execution contexts~\cite{Mytkowicz:2008:OE&MB}.
@@ -174,9 +175,22 @@ Interesting events are identified by computing linear correlation to cycle count
 % Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{OptimizationManual}.
 Results are also averaged over multiple runs to reduce potential random error, using built-in perf rerun functionality.
 
-Because bias can be hardware dependent, and to keep the scope of this work manageable, we choose to focus on the Intel ``Haswell'' microarchitecture specifically.
-Our setup consists of a 4th generation Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7-4770K processor, running 64-bit Ubuntu 14.04 LTS on kernel version 3.13.0-24-generic.
-Code samples are compiled using the {\small GCC} toolchain, version 4.8.2-19ubuntu1.
+Because bias can be hardware dependent, and to keep the scope of this work manageable, we initially chose to focus our analysis on the 4th generation Intel ``Haswell'' microarchitecture specifically.
+We later reproduced similar results on the previous ``Sandy Bridge'' CPU, as well as an older Core2 Duo machine.
+Each setup is described in Table~\ref{tab:machines}, and referenced throughout the paper.
+
+\begin{table}
+  \tbl{Experimental setups used\label{tab:machines}}{
+  \begin{tabular}{|l|l|}
+    \hline
+Core2 Duo     & Intel\textsuperscript{\textregistered{}} Core\texttrademark{}2 Duo P8600 (laptop) \\
+              & 64-bit Ubuntu 14.04 LTS (Linux 3.13.0), GCC 4.8.2-19ubuntu1 \\ \hline
+Sandy Bridge  & Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7-3???? \\
+              & Ubuntu ?? \\ \hline
+Haswell       & Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7-4770K \\
+              & 64-bit Ubuntu 14.04 LTS (Linux 3.13.0), GCC 4.8.2-19ubuntu1 \\ \hline
+  \end{tabular}}
+\end{table}
 
 We also have to ensure we are not affected by measurement bias beyond what we are actually trying to observe, and in general follow best practices on gathering data~\cite{Mytkowicz:2009:WrongData}.
 Most importantly, this means keeping the memory address space under control.
@@ -243,9 +257,14 @@ While optimizations such as these are good on the average case, there are corner
 In particular, an event known as ``4K aliasing'' can occur when the memory addresses of a store followed by a load differ by a multiple of 4096 bytes.
 A store to address 0x601020 followed by a load to address 0x821020 is an aliasing pair, because the 12-bit address suffix of 0x020 is the same in both. 
 Despite being independent, in these cases the memory order subsystem generates \emph{false} dependencies, and causing the load to be reissued.
-The number of times this happens can be counted by the following performance counter:
+On recent architectures such as Haswell and Ivy Bridge, the number of times this happens can be counted by the following performance counter:
 \begin{description}
   \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS}] ``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.'' Intel Optimization Manual~\citeyear[B.3.4.4]{OptimizationManual}
+\end{description}
+Older architectures such as Core2 does not have the same event available.
+However, the effect is still described in the manual for these processors, and covered by the following event:
+\begin{description}
+  \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE}] ``(...) Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.'' ~\citeN[Table 19-17]{Volume3B}
 \end{description}
 
 As address aliasing depends on the memory addresses of loads and stores, environmental factors that affects memory has the potential to induce aliasing conditions.
