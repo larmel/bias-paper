@@ -89,7 +89,7 @@ This example provides the basis for our analysis.
 \begin{figure}[t]
 \begin{minipage}[t]{0.40\textwidth}
   \vspace{3mm}
-  \begin{lstlisting}[frame=tb] %[frame=single]
+  \begin{lstlisting}[frame=tb]
   static int i, j, k;
   int main() {
       int g = 0, inc = 1;
@@ -108,7 +108,7 @@ This example provides the basis for our analysis.
     %\fbox{
     \begin{tikzpicture}
       \begin{axis}[
-          title = Core2 Duo,
+          title = Core,
           width = 7.8cm,
           height = 4.5cm,
           font = \footnotesize,
@@ -127,7 +127,7 @@ This example provides the basis for our analysis.
   \end{flushleft}
 \end{minipage}
 \label{fig:motivation}
-\caption{Microkernel first presented by \citeN{Mytkowicz:2009:WrongData}, showing bias to environment size}
+\caption{Microkernel first presented by \citeN{Mytkowicz:2009:WrongData}, showing bias to environment size. Note the clear spike around 3200 bytes, where the number of cycles executed nearly doubles. Measuring performance in this configuration would give a biased result.}
 \end{figure}
 
 A literature study of 88 papers by \citeN{Mytkowicz:2008:OE&MB} showed that the median reported speedup was within the margin of bias, possibly invalidating the claimed speedups. 
@@ -183,7 +183,7 @@ Each setup is described in Table~\ref{tab:machines}, and referenced throughout t
   \tbl{Experimental setups used\label{tab:machines}}{
   \begin{tabular}{|l|l|}
     \hline
-Core2 Duo     & Intel\textsuperscript{\textregistered{}} Core\texttrademark{}2 Duo P8600 (laptop) \\
+Core          & Intel\textsuperscript{\textregistered{}} Core\texttrademark{}2 Duo P8600 (laptop) \\
               & 64-bit Ubuntu 14.04 LTS (Linux 3.13.0), GCC 4.8.2-19ubuntu1 \\ \hline
 Sandy Bridge  & Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7-3???? \\
               & Ubuntu ?? \\ \hline
@@ -250,21 +250,21 @@ One of the issues that can limit throughput is dependencies between a load and p
 To increase parallelism, modern architectures use a technique called \emph{memory disambiguation} to execute memory operations out of order~\cite{Intel:2006:InsideICM:SmartMemoryAccess}. 
 More often than not, loads can safely be issued before a previous store has completed and written its value to L1 cache.
 Loads are therefore issued \emph{speculatively}, based on a prediction on whether it will conflict with a previous store that is still not retired.
-The prediction is later verified, replaying any instructions that was wrongly assumed to have no dependencies.
+The prediction is later verified, replaying any instructions that were wrongly assumed to have no dependencies.
 Similarly, if the load and store locations are the same, the value can be \emph{forwarded} from the store before it retires.
 
 While optimizations such as these are good on the average case, there are corner cases. 
 In particular, an event known as ``4K aliasing'' can occur when the memory addresses of a store followed by a load differ by a multiple of 4096 bytes.
 A store to address 0x601020 followed by a load to address 0x821020 is an aliasing pair, because the 12-bit address suffix of 0x020 is the same in both. 
-Despite being independent, in these cases the memory order subsystem generates \emph{false} dependencies, and causing the load to be reissued.
-The number of times this happens can be counted by the following performance counter:
-\begin{describe}{{paddin}}
-  \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS.}] \emph{``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.''} Intel Optimization Manual~\citeyear[B.3.4.4]{OptimizationManual}
+Despite being independent, in these cases the memory order subsystem generates \emph{false} dependencies, causing the load to be reissued.
+The number of times this happens can be counted by the following event:
+\begin{describe}{{pad}}
+  \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS.}] \emph{``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.''} \cite[B.3.4.4]{OptimizationManual}
 \end{describe}
 This event is listed in the manual for microarchitectures going back to Nehalem i7, including Ivy Bridge and Haswell CPUs~\cite{Volume3B}.
 Older architectures such as Core 2 does not have this particular event listed, however 4K aliasing is covered by a more general event:
-\begin{describe}{{paddin}}
-  \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE.}] \emph{``Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.''}~\citeN[Table 19-17]{Volume3B}
+\begin{describe}{{pad}}
+  \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE.}] \emph{``Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.''} \cite[Table 19-17]{Volume3B}
 \end{describe}
 
 As address aliasing depends on the memory addresses of loads and stores, environmental factors that affects memory has the potential to induce aliasing conditions.
@@ -274,38 +274,26 @@ In the following sections, we show how performance penalties from address aliasi
 \section{Bias from Environment Size}
 \label{sec:environment}
 System environment variables contain things like the name of the logged in user, home directory, shell state, and various other settings.
-As a source of bias, it is not the environment variables themselves that are important, but rather the effect their total \emph{size} has on the position and alignment of stack.
-As indicated in Figure \ref{fig:virtualmemory}, environment variables and program arguments are allocated in the stack section of virtual memory, close to the upper address 0x7fff'ffffffff\footnote{Modern processors do not actually use the full 64-bit space, only the low order 47 bits are used for addressing memory} and before the first call frame.
-Changing environment variables will therefore offset the addresses of stack, and consequently all stack allocated variables.
+As a source of bias, it is not the environment variables themselves that are important, but rather the effect their total \emph{size} has on the position and alignment of the stack.
+As indicated in Figure \ref{fig:virtualmemory}, environment variables and program arguments are allocated in the stack section of virtual memory, close to the upper address 0x7fff'ffffffff\footnote{Modern processors do not actually use the full 64-bit space, only the low order 47 bits are used for addressing memory.} and before the first call frame.
+Changing environment variables will therefore offset the location of the stack, and consequently all stack allocated variables.
 After this offset, the stack is normally realigned to a 16 byte boundary, enforced by the compiler.
 Within a span of 4096 bytes there are thus 256 possible initial stack addresses, each representing a different execution context with respect to address aliasing. 
 Note that there is no clear relationship between environment size and stack location with ASLR enabled.
-However, there will still be as many execution contexts with respect to aliasing (considering stack only), making any occurrences of measurement bias indeed random.
+However, there will still be as many execution contexts with respect to aliasing (considering the stack only), making any occurrences of measurement bias indeed random.
 
 \subsection{Microkernel Analysis}
 \label{sec:microkernel}
-To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!'' by \citeN{Mytkowicz:2009:WrongData}, reproduced below. 
+To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!'' by \citeN{Mytkowicz:2009:WrongData}, a small C program listed in Figure~\ref{fig:motivation}. 
 This example is interesting for several reasons; the bias effects are significant and easily reproducible, while the code itself is simple and straightforward to analyze.
 Still, no satisfactory explanation as to what actually causes bias was given in the original paper.
-
-\begin{lstlisting}
-    static int i, j, k;
-    int main() {
-        int g = 0, inc = 1;
-        for (; g < 65536; g++) {
-            i += inc;
-            j += inc;
-            k += inc; 
-        }
-        return 0;
-    }
-\end{lstlisting}
 
 % Large plot of cycle count for two 4K stack sections.
 \pgfplotstableread{bin/micro-kernel-cycles.dat}{\stackoffsettable}
 \begin{figure*}[t]
   \begin{tikzpicture}
     \begin{axis}[
+        title = Haswell,
         width = \textwidth,
         height = 6cm,
         font = \footnotesize,
@@ -324,9 +312,10 @@ Still, no satisfactory explanation as to what actually causes bias was given in 
   \label{fig:envbias}
 \end{figure*}
 
+Measuring the performance over different environment sizes for our Haswell setup reveals a similar pattern to the one shown in Figure~\ref{fig:motivation} for Core~2.
 Performance counter measurements of cycle counts are shown for 512 different environment sizes in Figure~\ref{fig:envbias}.
 We measure every 16 byte increment of environment size, covering two 4K periods of initial stack addresses.
-A finer sampling is not necessary, because the stack is by default aligned to 16 byte.
+A finer sampling is not necessary, because the stack is by default aligned to 16 bytes.
 The program is compiled with {\small{GCC}} using no optimization, as any optimization would likely disregard most of the function as redundant code, reducing it to return zero immediately.
 
 There are clearly two worst cases, indicated by significant spikes at the 3184 and 7280 byte offsets.
@@ -374,8 +363,8 @@ On the other end we get a much lower number of reservation station (RS) stalls i
 The reservation station buffers micro-ops for scheduling to the execution units, and a stall event means that there are no free slots available~\cite[Table 19-2]{Volume3B}.
 Fewer stalls in the aliasing case could indicate less contention on the reservation station.
 This probably has to do with the overall \emph{decrease} in the number of micro-ops executed per port, as all but one of the in total 8 execution ports have fewer operations going in parallel.
-Note that the number of micro-ops \emph{retired} overall does not change.%, but for some reason the micro-ops stay in the execution pipeline for a shorter time.
-This match with the fact that the memory disambiguation system do not handle address aliasing, limiting the potential for out of order execution~\cite[Page 2-20]{OptimizationManual}.
+Note that the number of micro-ops \emph{retired} overall does not change. %, but for some reason the micro-ops stay in the execution pipeline for a shorter time.
+Bacause the memory disambiguation system does not handle address aliasing, the potential for out of order execution is limited~\cite[Page 2-20]{OptimizationManual}.
 We assume that the tiny kernel size immediately prevents instructions from executing out of order, leading to the lower counts.
 %Our assumption is that this is caused by the CPU being more conservative in the aliasing case, issuing fewer operations (speculatively) in parallel.
 %With fewer instructions per cycle, there is also less pressure on the reservation station.
@@ -411,25 +400,17 @@ Notice the common suffix 0x03c between \texttt{inc} and \texttt{i}, which is the
 
 Because the stack is aligned to 16 bytes, or 4 \emph{words}, there are a couple of different scenarios that could have been observed here.
 Static variables are fixed and covers 12 contiguous bytes (3 words), in our case the addresses end in 0x0, 0x4 and 0xc, leaving the 0x8 slot free.
-The two automatic variables \texttt{g} and \texttt{inc} occupies 8 contiguous bytes on stack (2 words), in our case the addresses will always fit in the 0x8 and 0xc slots.
+The two automatic variables \texttt{g} and \texttt{inc} occupies 8 contiguous bytes on the stack (2 words), in our case the addresses will always fit in the 0x8 and 0xc slots.
 In this scenario, \texttt{g} will never alias with any of the static variables -- as it always covers the 0x8 slot not occupied by either of \texttt{i}, \texttt{j} or \texttt{k}.
 A less fortunate scenario with respect to the number of alias events occurs when there can be collisions with both stack allocated variables, which can be achieved for example by reserving an extra 8 bytes to offset \texttt{i}, \texttt{j} into the 0x8, 0xc slots. 
 While this will give significantly more alias counts, we found that it had little effect on the total number of cycles executed.
 
 In conclusion, we identified that address aliasing is the root cause of measurement bias from environment size for this program.
-Worst case occurs for precisely one out of 256 possible initial stack addresses in every 4K segment, where resource stalls are generated because of false dependencies between stack and static data.
+Worst case occurs for precisely one out of 256 possible initial stack addresses in every 4K segment, where resource stalls are generated because of false dependencies between the stack and static data.
 The program is \emph{biased} towards environment sizes that avoids this specific stack alignment, which in principle could be triggered just by changing user name.
 This type of bias can occur in a number of memory configurations.
-Here, the aliasing was caused by interactions between the stack and static variables, but we can imagine similar conflicts between stack and heap, depending also on how dynamic memory allocators behave.
+Here, the aliasing was caused by interactions between the stack and static variables, but we can imagine similar conflicts between the stack and the heap, depending also on how dynamic memory allocators behave.
 Because the stack is used for local variables, complex code is likely to contain many potential conflicts with other areas of memory.
-
-\subsection{Avoiding Aliasing}
-Addresses of automatic variables can not be determined statically, because the position of stack at runtime is generally unknown. 
-In addition to being offset by environment variables, the stack address can also be perturbed by other factors such as ASLR or program arguments. 
-Although one can not easily know if a collision is going to happen for a given environment, it is possible to change the program to account for possible alias effects.
-A proof of concept of how alias-free code could be generated in this particular case is shown in Figure \ref{lst:loopfixed}.
-If the addresses do alias, a branch to an alternative but semantically equivalent code path is performed.
-Calling the function recursively will effectively allocate a new set of variables a bit further down the stack, and the alias condition is avoided.
 
 % See analysis for results showing this does not alias
 \begin{figure}
@@ -453,13 +434,31 @@ int main() {
   \label{lst:loopfixed}
 \end{figure}
 
+\subsection{Avoiding Aliasing}
+Addresses of automatic variables can not be determined statically, because the position of stack at runtime is generally unknown. 
+In addition to being offset by environment variables, the stack address can also be perturbed by other factors such as ASLR or program arguments. 
+Although one can not easily know if a collision is going to happen for a given environment, it is possible to change the program to account for possible alias effects.
+A proof of concept of how alias-free code could be generated in this particular case is shown in Figure \ref{lst:loopfixed}.
+If the addresses do alias, a branch to an alternative but semantically equivalent code path is performed.
+Calling the function recursively will effectively allocate a new set of variables a bit further down the stack, and the alias condition is avoided.
+
 While this particular solution is impractical, it shows that compilers and programmers \emph{could} take measures to account for aliasing.
+
+\subsection{Other Architectures}
+While we show only the analysis for Haswell here, the same approach gave similar results for all CPUs we tested.
+The biggest practical difference occur for Core 2, where a different set of performance events were used, in particular load\_blocks.overlap_store indicating alias.
+Notably, this event was also found to be significant in the original paper by \citeN{Mytkowicz:2009:WrongData}.
+We were able to verify that partial address overlap was indeed occuring synchronously with this event spiking, and we draw the conclusion that address aliasing must be the underlying explanation.
+Based on our results, and existing documentation on available performance events, it is reasonable to assume that the address alias issue is present in (at least) Intel microarchitectures Core, Nehalem, Sandy Bridge and Haswell.
+
+\subsection{Hyper-Threading}
+With Hyper-Threading we see smalls spikes like Core2, likely cache bank issues. % todo: fill in something here
 
 
 \section{Bias from Heap Allocation}
 \label{sec:heap}
 Address aliasing can be caused by conflicting pairs of load and store operations to any part of memory.
-In the previous sections we saw collisions between static data and stack, observing bias from external conditions that affected addresses of automatic variables.
+In the previous sections we saw collisions between static data and the stack, observing bias from external conditions that affected addresses of automatic variables.
 Most dynamic memory is allocated on the \emph{heap}, which is managed by an \emph{allocator}.
 A heap allocator is responsible for managing dynamic memory, and ultimately assigns the actual addresses of heap allocated variables at runtime.
 Heap allocation routines such as \texttt{malloc} and \texttt{free} are typically dynamically linked, for example as part of glibc.
@@ -477,12 +476,12 @@ The allocator included as part of glibc uses both mechanisms, choosing which bas
 Small sizes generally live in the heap, while long lived and large allocations tend to be memory mapped.
 
 The heap section starts at a relatively low address right above static code and data.
-Memory mapped chunks are placed towards the upper end of the virtual address space, closer to stack.
+Memory mapped chunks are placed towards the upper end of the virtual address space, closer to the stack.
 Whether a request is served by the heap or by memory mapping is therefore easy to determine just by looking at the pointer values returned:
 Addresses in the regular heap can look something like 0x16e30a0 or 0x1723020, while pointers returned by \texttt{mmap} are numerically much larger, for example 0x7f0318a8f010 or 0x7f03105d2010.
 This distinction is unimportant for application developers, as everything is conceptually the same ``heap''.
 However, \texttt{mmap} has an interesting property in that allocations will always be page aligned.
-The page size is 4096 bytes, meaning two pointers returned by \texttt{mmap} will \emph{always} alias.\footnote{glibc's version of malloc adds 16 bytes of metadata at the beginning, therefore every memory mapped address end with 0x010.}
+The page size is 4096 bytes, meaning two pointers returned by \texttt{mmap} will \emph{always} alias.\footnote{glibc's version of malloc adds 16 bytes of metadata at the beginning, therefore every memory mapped address ends with 0x010.}
 This behavior is often the worst case for functions that operate on two or more independent buffers.
 
 Table \ref{tab:mallocompare} illustrates how using a different allocator can affect potential aliasing between heap pointers.\footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}
@@ -529,7 +528,7 @@ Here, we only look at behavior for a single thread, and whether the addresses re
 \end{table}
 
 We see that glibc and tcmalloc utilize the normal heap area for smaller allocations, returning numerically low addresses. % Verified by looking at strace that tcmalloc actually uses brk
-Interestingly, jemalloc and Hoard appears to never use the heap, but allocate to memory mapped areas even for smaller requests.
+Interestingly, jemalloc and Hoard appear to never use the heap, but allocate to memory mapped areas even for smaller requests.
 Conversely, tcmalloc seem manage only the heap.
 We also find an example where one allocator yields aliasing buffers while another does not.
 Allocating $2 \times 5120$ bytes returns aliasing pointers for jemalloc and Hoard, but not with glibc or tcmalloc.
@@ -582,7 +581,7 @@ In addition, performance counter measurements are averaged over 10 samples using
   \centering
   \begin{tikzpicture}
     \begin{axis}[
-        title=Optimization -O2,
+        title=Haswell -O2,
         font=\footnotesize,
         xlabel=Relative offset in \lstinline!sizeof(float)! bytes,
         ylabel=Event count,
@@ -598,7 +597,7 @@ In addition, performance counter measurements are averaged over 10 samples using
   \end{tikzpicture}
   \begin{tikzpicture}
     \begin{axis}[
-        title=Optimization -O3,
+        title=Haswell -O3,
         font=\footnotesize,
         xlabel=Relative offset in \lstinline!sizeof(float)! bytes,
         ylabel=Event count,
@@ -612,8 +611,7 @@ In addition, performance counter measurements are averaged over 10 samples using
       \addlegendentry{Alias} ;
     \end{axis}
   \end{tikzpicture}
-  \label{fig:conv-default}
-  \caption{Cycle- and alias counts for different offsets between input and output arrays in convolution kernel from Figure~\ref{lst:conv}. Offset 0 means equal 12-bit address suffix, which is default behavior for \texttt{mmap} allocations. Showing results for optimization levels O2 and O3 compiled with GCC, input size $n=2^{20}$.}
+  \caption{\label{fig:conv-default}Cycle- and alias counts for different offsets between input and output arrays in convolution kernel from Figure~\ref{lst:conv}. Offset 0 means equal 12-bit address suffix, which is default behavior for \texttt{mmap} allocations. Showing results for optimization levels O2 and O3 compiled with GCC, input size $n=2^{20}$.}
 \end{figure}
 
 % Table with detailed performance data, use estimated for O2 because it does not need as many columns (!)
@@ -748,7 +746,8 @@ The authors of MAO present a framework for extending compilers to provide very l
 \section{Conclusions}
 \label{sec:conclusions}
 We have shown how address aliasing can affect program performance under different memory contexts, and how it can explain certain cases of measurement bias. 
-The effect is caused by how speculative and out-of-order memory operations are handled by the Intel ``Haswell'' CPU, which only considers the last 12 address bits to resolve conflicts between load and store operations.
+The effect is caused by how speculative and out-of-order memory operations are handled by the CPU, which only considers the last 12 address bits to resolve conflicts between load and store operations.
+This phenomenon is likely present on most consumer hardware based on x86 Intel platforms today, ranging from Core to Haswell microarchitectures.
 
 In general, any change to memory layout of data can potentially introduce bias effects from address aliasing.
 Analyzing an example with bias to environment size, we determined that collisions between automatic variables and static data resulted in aliasing for certain stack positions.
