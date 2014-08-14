@@ -257,15 +257,15 @@ While optimizations such as these are good on the average case, there are corner
 In particular, an event known as ``4K aliasing'' can occur when the memory addresses of a store followed by a load differ by a multiple of 4096 bytes.
 A store to address 0x601020 followed by a load to address 0x821020 is an aliasing pair, because the 12-bit address suffix of 0x020 is the same in both. 
 Despite being independent, in these cases the memory order subsystem generates \emph{false} dependencies, and causing the load to be reissued.
-On recent architectures such as Haswell and Ivy Bridge, the number of times this happens can be counted by the following performance counter:
-\begin{description}
-  \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS}] ``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.'' Intel Optimization Manual~\citeyear[B.3.4.4]{OptimizationManual}
-\end{description}
-Older architectures such as Core2 does not have the same event available.
-However, the effect is still described in the manual for these processors, and covered by the following event:
-\begin{description}
-  \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE}] ``(...) Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.'' ~\citeN[Table 19-17]{Volume3B}
-\end{description}
+The number of times this happens can be counted by the following performance counter:
+\begin{describe}{{paddin}}
+  \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS.}] \emph{``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.''} Intel Optimization Manual~\citeyear[B.3.4.4]{OptimizationManual}
+\end{describe}
+This event is listed in the manual for microarchitectures going back to Nehalem i7, including Ivy Bridge and Haswell CPUs~\cite{Volume3B}.
+Older architectures such as Core 2 does not have this particular event listed, however 4K aliasing is covered by a more general event:
+\begin{describe}{{paddin}}
+  \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE.}] \emph{``Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.''}~\citeN[Table 19-17]{Volume3B}
+\end{describe}
 
 As address aliasing depends on the memory addresses of loads and stores, environmental factors that affects memory has the potential to induce aliasing conditions.
 In the following sections, we show how performance penalties from address aliasing can be the root cause of measurement bias.
