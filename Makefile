@@ -16,7 +16,7 @@ about:
 
 # Files that are used for plots, tables and listings in the article.
 resources := bin/microkernel-cycles-core2.dat \
-	bin/micro-kernel-cycles.dat bin/micro-kernel-comparison.csv bin/micro-kernel-annotated.s \
+	bin/microkernel-cycles-haswell.dat bin/microkernel-comparison-haswell.csv bin/microkernel-annotated.s \
 	bin/conv-default-o2.estimate.dat bin/conv-default-o2.estimate.csv \
 	bin/conv-default-o3.estimate.dat bin/conv-default-o3.estimate.csv \
 	bin/convolution-kernel.c \
@@ -39,15 +39,15 @@ bin/paper.pdf: paper.tex references.bib $(resources) | bin
 bin/microkernel-cycles-core2.dat: analysis/environment/results-core2/loop.csv | bin
 	cat $< | util/select.py -e cycles:u | util/pgfpconv.py > $@
 
-bin/micro-kernel-cycles.dat: analysis/environment/results/loop.csv | bin
+bin/microkernel-cycles-haswell.dat: analysis/environment/results-haswell/loop.csv | bin
 	cat $< | util/select.py -e cycles:u | util/pgfpconv.py > $@
 
-bin/micro-kernel-comparison.csv: analysis/environment/results/comparison.csv | bin
+bin/microkernel-comparison-haswell.csv: analysis/environment/results-haswell/comparison.csv | bin
 	cat $< \
-		| util/select.py -e cycles:u,r0107:u,r02a3:u,r01a2:u,r04a2:u,r04a1:u,r05a3:u,r08a1:u,r80a1:u,r10a1:u,r40a1:u,r01a1:u,r02a1:u,r20a1:u \
+		| util/select.py -e cycles:u,r0107:u,r020002a3:u,r01a2:u,r04a2:u,r04a1:u,r05a3:u,r08a1:u,r80a1:u,r10a1:u,r40a1:u,r01a1:u,r02a1:u,r20a1:u \
 		> $@
 
-bin/micro-kernel-annotated.s: analysis/environment/loop.s | bin
+bin/microkernel-annotated.s: analysis/environment/loop.s | bin
 	cp $< $@
 
 bin/convolution-kernel.c: analysis/heap-alias/conv.c | bin

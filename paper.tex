@@ -289,7 +289,7 @@ This example is interesting for several reasons; the bias effects are significan
 Still, no satisfactory explanation as to what actually causes bias was given in the original paper.
 
 % Large plot of cycle count for two 4K stack sections.
-\pgfplotstableread{bin/micro-kernel-cycles.dat}{\stackoffsettable}
+\pgfplotstableread{bin/microkernel-cycles-haswell.dat}{\stackoffsettable}
 \begin{figure*}[t]
   \begin{tikzpicture}
     \begin{axis}[
@@ -349,7 +349,7 @@ Table \ref{tab:loopcorrelation} shows numerical counter values for these cases, 
       },
       every last row/.style={after row=\hline},
       every last column/.style={column type/.add={}{|}}
-    ]{bin/micro-kernel-comparison.csv}
+    ]{bin/microkernel-comparison-haswell.csv}
   }
   \begin{tabnote}
     \Note{Note:}{Some correlating performance events are omitted, for example bus-cycles which will naturally vary with total cycle count.}
@@ -359,7 +359,7 @@ Table \ref{tab:loopcorrelation} shows numerical counter values for these cases, 
 We see the most extreme change from median to worst case in the number of alias events. 
 If we plot the graph for address aliasing, we see that it is near zero everywhere and spikes at exactly the points we observe bias. 
 The results show a high number of resource stalls and pending memory loads when the spikes occur, which is consistent with address aliasing issues.
-On the other end we get a much lower number of reservation station (RS) stalls in the aliasing case, with a reduction from around 270,000 to 135,000.
+On the other end we get a much lower number of reservation station (RS) stalls in the aliasing case, with a reduction from around 272,000 to 136,000.
 The reservation station buffers micro-ops for scheduling to the execution units, and a stall event means that there are no free slots available~\cite[Table 19-2]{Volume3B}.
 Fewer stalls in the aliasing case could indicate less contention on the reservation station.
 This probably has to do with the overall \emph{decrease} in the number of micro-ops executed per port, as all but one of the in total 8 execution ports have fewer operations going in parallel.
