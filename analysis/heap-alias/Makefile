@@ -191,4 +191,7 @@ bin/%.4k.csv: bin/% | disable-aslr
 	$(lperf) -e cycles:u,r0107:u -n 1024 -r 10 --env-increment 0 --enumerate $< 1 > $@
 
 
-results: bin/default-o2.estimate.csv bin/default-o3.estimate.csv bin/default-o2.4k.csv bin/default-o3.4k.csv bin/restrict-o2.estimate.csv
+results: bin/default-o2.4k.csv bin/default-o3.4k.csv \
+	bin/default-o2.11.csv bin/default-o2.1.csv bin/default-o2.estimate.csv \
+	bin/default-o3.11.csv bin/default-o3.1.csv bin/default-o3.estimate.csv \
+	bin/restrict-o2.11.csv bin/restrict-o2.1.csv bin/restrict-o2.estimate.csv

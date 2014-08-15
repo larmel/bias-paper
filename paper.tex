@@ -573,8 +573,8 @@ t_{\text{estimate}} = \frac{t_{k} - t_{1}}{k - 1}
 Our results are with $k=11$, effectively using the average over 10 loop iterations to estimate the cost of a single invocation.
 In addition, performance counter measurements are averaged over 10 samples using the repeat mechanism of perf.
 
-\pgfplotstableread{bin/conv-default-o2.estimate.dat}{\convtabletwo}
-\pgfplotstableread{bin/conv-default-o3.estimate.dat}{\convtablethree}
+\pgfplotstableread{bin/conv-default-o2-haswell.estimate.dat}{\convtabletwohaswell}
+\pgfplotstableread{bin/conv-default-o3-haswell.estimate.dat}{\convtablethreehaswell}
 \begin{figure}[t]
   \centering
   \begin{tikzpicture}
@@ -587,8 +587,8 @@ In addition, performance counter measurements are averaged over 10 samples using
         width=\textwidth/1.9, % Make it fit to text width side by side
         skip coords between index={20}{32} % Limit level of detail to fit page width nicely
       ]
-      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convtabletwo ;
-      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \convtabletwo ;
+      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convtabletwohaswell ;
+      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \convtabletwohaswell ;
       \addlegendentry{Cycles} ;
       \addlegendentry{Alias} ;
     \end{axis}
@@ -603,8 +603,8 @@ In addition, performance counter measurements are averaged over 10 samples using
         width=\textwidth/1.9,
         skip coords between index={20}{32}
       ]
-      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convtablethree ;
-      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \convtablethree ;
+      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convtablethreehaswell ;
+      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \convtablethreehaswell ;
       \addlegendentry{Cycles} ;
       \addlegendentry{Alias} ;
     \end{axis}
@@ -643,7 +643,7 @@ In addition, performance counter measurements are averaged over 10 samples using
       },
       every last row/.style={after row=\hline},
       every last column/.style={column type/.add={}{|}}
-    ]{bin/conv-default-o2.estimate.csv}
+    ]{bin/conv-default-o2-haswell.estimate.csv}
   }
 \end{table}
 

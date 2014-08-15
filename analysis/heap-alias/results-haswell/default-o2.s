@@ -1,0 +1,49 @@
+	.file	"conv.c"
+	.text
+	.p2align 4,,15
+	.globl	conv
+	.type	conv, @function
+conv:
+.LFB0:
+	.cfi_startproc
+	cmpl	$4, %edi
+	jle	.L1
+	subl	$5, %edi
+	xorps	%xmm2, %xmm2
+	leaq	4(,%rdi,4), %r8
+	xorl	%ecx, %ecx
+	.p2align 4,,10
+	.p2align 3
+.L6:
+	movaps	%xmm2, %xmm1
+	leaq	(%rsi,%rcx), %rdi
+	movl	$0x00000000, 8(%rdx,%rcx)
+	xorl	%eax, %eax
+.L4:
+	movss	(%rdi,%rax), %xmm0
+	addq	$4, %rax
+	mulss	k-4(%rax), %xmm0
+	cmpq	$20, %rax
+	addss	%xmm0, %xmm1
+	movss	%xmm1, 8(%rdx,%rcx)
+	jne	.L4
+	addq	$4, %rcx
+	cmpq	%r8, %rcx
+	jne	.L6
+.L1:
+	rep ret
+	.cfi_endproc
+.LFE0:
+	.size	conv, .-conv
+	.section	.rodata
+	.align 16
+	.type	k, @object
+	.size	k, 20
+k:
+	.long	1036831949
+	.long	1048576000
+	.long	1050253722
+	.long	1048576000
+	.long	1036831949
+	.ident	"GCC: (Ubuntu 4.8.2-19ubuntu1) 4.8.2"
+	.section	.note.GNU-stack,"",@progbits
