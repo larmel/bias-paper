@@ -433,9 +433,9 @@ int main() {
 \end{figure}
 
 \subsection{Avoiding Aliasing}
-Addresses of automatic variables can not be determined statically, because the position of stack at runtime is generally unknown. 
-In addition to being offset by environment variables, the stack address can also be perturbed by other factors such as ASLR or program arguments. 
-Although one can not easily know if a collision is going to happen for a given environment, it is possible to change the program to account for possible alias effects.
+Addresses of automatic variables can not be determined statically, because the location of the stack at runtime is generally unknown.
+In addition to being offset by environment variables, the initial stack address can also be perturbed by for example program arguments or address randomization.
+Although one can not easily know if a collision is going to happen for a given environment a priori, it is possible to change the program to account for possible alias conditions.
 A proof of concept of how alias-free code could be generated in this particular case is shown in Figure \ref{lst:loopfixed}.
 If the addresses do alias, a branch to an alternative but semantically equivalent code path is performed.
 Calling the function recursively will effectively allocate a new set of variables a bit further down the stack, and the alias condition is avoided.
@@ -744,8 +744,8 @@ The authors of MAO present a framework for extending compilers to provide very l
 \section{Conclusions}
 \label{sec:conclusions}
 We have shown how address aliasing can affect program performance under different memory contexts, and how it can explain certain cases of measurement bias. 
-The effect is caused by how speculative and out-of-order memory operations are handled by the CPU, which only considers the last 12 address bits to resolve conflicts between load and store operations.
-This phenomenon is likely present on most consumer hardware based on x86 Intel platforms today, ranging from Core to Haswell microarchitectures.
+The effect is caused by how speculative and out-of-order memory operations are handled by the CPU, which only considers the last 12 address bits to resolve conflicts between a load and previous store operations.
+This phenomenon is likely present on most consumer hardware based on x86 Intel platforms today, ranging from ``Core'' to ``Haswell'' microarchitectures.
 
 In general, any change to memory layout of data can potentially introduce bias effects from address aliasing.
 Analyzing an example with bias to environment size, we determined that collisions between automatic variables and static data resulted in aliasing for certain stack positions.
@@ -762,7 +762,7 @@ Our results should inspire more clever optimizations and heuristics taking addre
 
 % Acknowledgements
 \begin{acks}
-This work is forked from a Master's thesis project under the supervision of Anne Cathrine Elster and Rune Erlend Jensen, looking at sources of measurement bias on the Intel Ivy Bridge architecture~\cite{MasterThesis}.
+This work is forked from a Master's thesis project under the supervision of Anne Cathrine Elster and Rune Erlend Jensen, looking at sources of measurement bias on the Intel ``Ivy Bridge'' architecture~\cite{MasterThesis}.
 \end{acks}
 
 % Bibliography
