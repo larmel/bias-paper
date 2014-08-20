@@ -1,123 +1,46 @@
-SHELL := /bin/bash
-LPERF := ../../util/lperf.py
-
-PERFCOUNTERS := all
-REPEAT := 4
-
-.PHONY: benchmark atlas default heatmap results
-
-
-atlas:
-	gcc -std=c99 gemv.c -o bin/gemv -I/usr/local/atlas/include -L/usr/local/atlas/lib -lsatlas
-
-default:
-	gcc -std=c99 gemv.c -o bin/gemv -lblas
-
-bin/gemv: gemv.c
-	gcc -std=c99 $< -o $@ -I/usr/local/atlas/include -L/usr/local/atlas/lib -lsatlas
-	#gcc -std=c99 $< -o $@ -lblas
-	#gcc -std=c99 $< -o $@ -L~/ATLAS-3.11.24/install/lib -Wl,-rpath,~/ATLAS-3.11.24/install/lib -latlas
+lperf := ../../util/lperf.py
+estimate := ../../util/estimate.py
+correlate := ../../util/correlate.py
 
 disable-aslr:
 	@echo "Disabling address randomization ..."
 	sudo bash -c "echo 0 > /proc/sys/kernel/randomize_va_space"
 
-
-A := 208 0 # Worstcase, A, x, y = (0x010, 0x010, 0x020)
-B := 208 128 # Average, A, x, y -> (0x10, 0x010, 0x0b0)
-C := 512 0 # Best, A, x, y -> (0x010, 0x140, 0x150)
-
-# Do three invocations of lperf to measure performance for different memory
-# addresses. Some tape and glue in bash to gather the results in a csv file
-# `benchmark.csv` at the end.
-# Case (a), (b), (c) with 1 iteration
-# Case (a), (b), (c) with 101 iterations
-# Separate counter names and mnemonics from first and second column.
-# The order is preserved, so these columns are identical in each result.
-benchmark: bin/gemv disable-aslr
-	$(LPERF) -e $(PERFCOUNTERS) -r $(REPEAT) -n 1 $< $(A) 1 > lperf.a.1.csv 2> output.a.1.out 
-	$(LPERF) -e $(PERFCOUNTERS) -r $(REPEAT) -n 1 $< $(B) 1 > lperf.b.1.csv 2> output.b.1.out 
-	$(LPERF) -e $(PERFCOUNTERS) -r $(REPEAT) -n 1 $< $(C) 1 > lperf.c.1.csv 2> output.c.1.out
-
-	$(LPERF) -e $(PERFCOUNTERS) -r $(REPEAT) -n 1 $< $(A) 101 > lperf.a.100.csv 2> output.a.100.out 
-	$(LPERF) -e $(PERFCOUNTERS) -r $(REPEAT) -n 1 $< $(B) 101 > lperf.b.100.csv 2> output.b.100.out 
-	$(LPERF) -e $(PERFCOUNTERS) -r $(REPEAT) -n 1 $< $(C) 101 > lperf.c.100.csv 2> output.c.100.out
-
-	@cut -d ',' -f 1 lperf.a.1.csv > counters.tmp
-	@cut -d ',' -f 2 lperf.a.1.csv > mnemonic.tmp
-
-	@cut -d ',' -f 3 lperf.a.1.csv > a.1.tmp
-	@cut -d ',' -f 3 lperf.b.1.csv > b.1.tmp
-	@cut -d ',' -f 3 lperf.c.1.csv > c.1.tmp
-
-	@cut -d ',' -f 3 lperf.a.100.csv > a.100.tmp
-	@cut -d ',' -f 3 lperf.b.100.csv > b.100.tmp
-	@cut -d ',' -f 3 lperf.c.100.csv > c.100.tmp
-
-	@paste -d ',' counters.tmp mnemonic.tmp /dev/null a.1.tmp b.1.tmp c.1.tmp /dev/null a.100.tmp b.100.tmp c.100.tmp > benchmark.csv
-	@rm *.tmp
-	mv *.csv *.out bin
-
-
-
-# axpy
-bin/axpy: axpy.c
-	#cc $< -o $@ -I/usr/local/atlas/include -L/usr/local/atlas/lib -lsatlas
-	cc $< -o $@ -lblas
-
-bin/axpy.csv: bin/axpy
-	@echo "1 iteration" > $@
-	$(LPERF) -e cycles:u,r0107:u --enumerate -r 100 -n 256 $< 1 >> $@
-	@echo "" >> $@
-	@echo "101 iterations" >> $@
-	$(LPERF) -e cycles:u,r0107:u --enumerate -r 100 -n 256 $< 101 >> $@
-
-	# Then fix formula in Calc and plot result. Clear spikes and correlation.
-
-
-# Heatmap
-bin/gemv-grid: gemv-grid.c
-	#gcc $< -o $@ -I/usr/local/atlas/include -L/usr/local/atlas/lib -lsatlas
-	gcc $< -o $@ -lblas
-
-bin/heatmap-alias.csv: bin/gemv-grid
-	script/heatmap-create.py $< -x 256 -y 256 > $@
-
-heatmap: bin/heatmap-alias.csv
-	script/heatmap-plot.py --input $<
-
-
 # Standard blas alternatives (not custom compiled)
-bin/gemv-libblas: gemv-grid.c
+
+# Link to default package, assumed to be libblas
+bin/gemv-libblas: gemv-mmap.c
 	gcc $< -o $@ -lblas
 
 # apt-get install libatlas3-base libatlas-base-dev
-bin/gemv-libatlas: gemv-grid.c
+bin/gemv-libatlas: gemv-mmap.c
 	gcc $< /usr/lib/atlas-base/libcblas.a /usr/lib/atlas-base/libatlas.a -o $@
 
 # apt-get install libopenblas-base libopenblas-dev
-bin/gemv-libopenblas: gemv-grid.c
+bin/gemv-libopenblas: gemv-mmap.c
 	gcc $< /usr/lib/openblas-base/libblas.a -o $@ -lpthread
 
 
-# Plot
-bin/libblas.csv: bin/gemv-libblas
-	$(LPERF) -e cycles:u,r0107:u --enumerate -r 10 -n 16 $< 1 0 > bin/libblas.1.csv
-	$(LPERF) -e cycles:u,r0107:u --enumerate -r 10 -n 16 $< 101 0 > bin/libblas.101.csv
-	../../util/estimate.py --shortrun bin/libblas.1.csv --longrun bin/libblas.101.csv -r 100 > $@
-	rm bin/libblas.1.csv bin/libblas.101.csv
+repeat = 100
 
-bin/libatlas.csv: bin/gemv-libatlas
-	$(LPERF) -e cycles:u,r0107:u --enumerate -r 10 -n 16 $< 1 0 > bin/libatlas.1.csv
-	$(LPERF) -e cycles:u,r0107:u --enumerate -r 10 -n 16 $< 101 0 > bin/libatlas.101.csv
-	../../util/estimate.py --shortrun bin/libatlas.1.csv --longrun bin/libatlas.101.csv -r 100 > $@
-	rm bin/libatlas.1.csv bin/libatlas.101.csv
+bin/%.1.csv: bin/gemv-% | disable-aslr
+	$(lperf) -e all --enumerate -r $(repeat) -n 16 $< 1 0 > $@
 
-bin/libopenblas.csv: bin/gemv-libopenblas
-	$(LPERF) -e cycles:u,r0107:u --enumerate -r 10 -n 16 $< 1 0 > bin/libopenblas.1.csv
-	$(LPERF) -e cycles:u,r0107:u --enumerate -r 10 -n 16 $< 101 0 > bin/libopenblas.101.csv
-	../../util/estimate.py --shortrun bin/libopenblas.1.csv --longrun bin/libopenblas.101.csv -r 100 > $@
-	rm bin/libopenblas.1.csv bin/libopenblas.101.csv
+bin/%.11.csv: bin/gemv-% | disable-aslr
+	$(lperf) -e all --enumerate -r $(repeat) -n 16 $< 11 0 > $@
 
-results: bin/libblas.csv bin/libatlas.csv bin/libopenblas.csv
+bin/libblas.estimate.csv: bin/libblas.11.csv bin/libblas.1.csv | disable-aslr
+	$(estimate) --delta 10 --longrun $< --shortrun $(word 2,$^) | $(correlate) cycles:u > $@
 
+bin/libatlas.estimate.csv: bin/libatlas.11.csv bin/libatlas.1.csv | disable-aslr
+	$(estimate) --delta 10 --longrun $< --shortrun $(word 2,$^) | $(correlate) cycles:u > $@
+
+bin/libopenblas.estimate.csv: bin/libopenblas.11.csv bin/libopenblas.1.csv | disable-aslr
+	$(estimate) --delta 10 --longrun $< --shortrun $(word 2,$^) | $(correlate) cycles:u > $@
+
+results: bin/libblas.1.csv bin/libblas.11.csv bin/libblas.estimate.csv \
+	bin/libatlas.1.csv bin/libatlas.11.csv bin/libatlas.estimate.csv \
+	bin/libopenblas.1.csv bin/libopenblas.11.csv bin/libopenblas.estimate.csv
+
+
+.PHONY: disable-aslr results

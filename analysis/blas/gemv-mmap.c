@@ -50,6 +50,6 @@ int main(int argc, char **argv) {
             y, 1
         );
 
-    printf("A:%p x:%p y:%p\n", A, x, y);
+    // printf("A:%p x:%p y:%p\n", A, x, y);
     return 0;
 }
