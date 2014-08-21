@@ -15,5 +15,5 @@ import subprocess
 # PERF_BUILDID_DIR=.debug
 # PATH=/usr/libexec/perf-core:/usr/lib/linux-tools/3.11.0-15-generic:/usr/local/bin:/usr/bin:/bin
 
-p = subprocess.Popen("perf stat -e cycles:u ./printenv", env={}, shell=True)
+p = subprocess.Popen("perf stat -e cycles:u bin/printenv", env={}, shell=True)
 p.wait()
