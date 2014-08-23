@@ -42,7 +42,7 @@ However, recent research has shown that performance measurements can be \emph{bi
 Seemingly irrelevant variables, such as the length of your user name, can impact program performance.
 In this paper, we identify an important underlying mechanism that causes this type of measurement bias on modern Intel microarchitectures.
 Our approach is to search for correlations over multiple environment configurations, using a large set of hardware performance counter measurements.
-We find that \emph{address aliasing} can explain bias from two external factors: environment variable size, and characteristics of dynamically linked heap allocators.
+We find that \emph{address aliasing} can explain bias from two external factors; environment variable size, and characteristics of dynamically linked heap allocators.
 
 This result not only makes accounting for and avoiding measurement bias much simpler, but also enables explicit optimizations for it.
 We demonstrate this by implementing runtime detection and correction of aliasing conditions.
@@ -127,7 +127,7 @@ This example provides the basis for our analysis.
   \end{flushleft}
 \end{minipage}
 \label{fig:motivation}
-\caption{Microkernel first presented by \citeN{Mytkowicz:2009:WrongData}, showing bias to environment size. Note the clear spike around 3200 bytes, where the number of cycles executed nearly doubles. Measuring performance in this configuration would give a biased result.}
+\caption{Microkernel first presented by \citeN{Mytkowicz:2009:WrongData}, showing bias to environment size. Note the clear spike at around 3200 bytes, where the number of cycles executed nearly doubles. Measuring performance in this configuration would give a biased result.}
 \end{figure}
 
 A literature study of 88 papers by \citeN{Mytkowicz:2008:OE&MB} showed that the median reported speedup was within the margin of bias, possibly invalidating the claimed speedups. 
@@ -197,7 +197,8 @@ Most importantly, this means keeping the memory address space under control.
 For security reasons, addresses of stack, heap and dynamic libraries are often randomized at load time, a technique known as \emph{Address Space Layout Randomization}~\cite{Pax:ASLR,Bhatkar:AddressObfuscation}. 
 By disabling ASLR, we are able to execute the same program multiple times with identical virtual address spaces.
 All experiments are done on a dedicated machine under minimal load, with \emph{frequency scaling} disabled to keep the CPU's clock speed fixed.
-Finally, we disable \emph{Hyper-threading}, which reduces the possibility for resource contention between threads. Also some PMU events require HT to be turned off, or are inaccurate with HT.
+Finally, we disable \emph{Hyper-threading} (HT), which reduces the possibility for resource contention between threads.
+Some PMU events also require HT to be turned off, or produce inaccurate results with HT enabled.
 
 % Virtual memory/randomization illustration
 \begin{narrowfig}{0.5\textwidth}[t]
@@ -262,7 +263,7 @@ The number of times this happens can be counted by the following event:
   \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS.}] \emph{``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.''} \cite[B.3.4.4]{OptimizationManual}
 \end{describe}
 This event is listed in the manual for microarchitectures going back to Nehalem i7, including Ivy Bridge and Haswell CPUs~\cite{Volume3B}.
-Older architectures such as Core 2 do not have this particular event listed, however 4K aliasing is covered by a more general event:
+Older architectures such as Core do not have this particular event listed, however 4K aliasing is covered by a more general event:
 \begin{describe}{{pad}}
   \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE.}] \emph{``Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.''} \cite[Table 19-17]{Volume3B}
 \end{describe}
@@ -284,9 +285,11 @@ However, there will still be as many execution contexts with respect to aliasing
 
 \subsection{Microkernel Analysis}
 \label{sec:microkernel}
-To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!'' by \citeN{Mytkowicz:2009:WrongData}, a small C program listed in Figure~\ref{fig:motivation}. 
+To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!'' by \citeN{Mytkowicz:2009:WrongData}, a small C program reproduced here in Figure~\ref{fig:motivation}.
 This example is interesting for several reasons; the bias effects are significant and easily reproducible, while the code itself is simple and straightforward to analyze.
 Still, no satisfactory explanation as to what actually causes bias was given in the original paper.
+The following outlines our data and analysis of this program conducted on the ``Haswell'' configuration.
+Similar experiments were performed on each of the other experimental setups as well, all arriving at the same conclusions.
 
 % Large plot of cycle count for two 4K stack sections.
 \pgfplotstableread{bin/microkernel-cycles-haswell.dat}{\stackoffsettable}
@@ -312,7 +315,6 @@ Still, no satisfactory explanation as to what actually causes bias was given in 
   \label{fig:envbias}
 \end{figure*}
 
-Measuring the performance over different environment sizes for our Haswell setup reveals a similar pattern to the one shown in Figure~\ref{fig:motivation} for Core~2.
 Performance counter measurements of cycle counts are shown for 512 different environment sizes in Figure~\ref{fig:envbias}.
 We measure every 16 byte increment of environment size, covering two 4K periods of initial stack addresses.
 A finer sampling is not necessary, because the stack is by default aligned to 16 bytes.
@@ -326,7 +328,7 @@ Table \ref{tab:loopcorrelation} shows numerical counter values for these cases, 
 
 % Detailed comparison between median and worst cases.
 \begin{table}
-  \tbl{Events with significant correlation to cycle count\label{tab:loopcorrelation}}{
+  \tbl{Events with significant correlation to cycle count.\label{tab:loopcorrelation}}{
     \pgfplotstabletypeset[
       int detect, % Output whole numbers for counter values
       col sep=comma,
@@ -365,7 +367,7 @@ Fewer stalls in the aliasing case could indicate less contention on the reservat
 This probably has to do with the overall \emph{decrease} in the number of micro-ops executed per port, as all but one of the in total 8 execution ports have fewer operations going in parallel.
 Note that the number of micro-ops \emph{retired} overall does not change.
 The memory disambiguation system automatically assumes dependency between a load and a previous store that are aliased, which can limit the potential for issuing many instructions simultaneously and out of order~\cite[Page 2-20]{OptimizationManual}.
-In our case, lower occupation of execution ports and less pressure on the reservation station can be explained by the CPU not being able to issue more operations while waiting for an aliased memory access to be resolved.
+In our case, lower occupation of execution ports, and less pressure on the reservation station, can be explained by the CPU not being able to issue more operations while waiting for an aliased memory access to be resolved.
 
 The cycles\_ldm\_pending and stalls\_l2\_pending are interesting, as they are related to the memory and cache system.
 However, this program use only 2 cache-lines, except for the initial startup.
@@ -444,13 +446,23 @@ While this particular solution is impractical, it shows that compilers and progr
 
 \subsection{Other Architectures}
 While we show only the analysis for Haswell here, the same approach gave similar results for all CPUs we tested.
-The biggest practical difference occur for Core 2, where a different set of performance events were used, in particular load\_blocks.overlap_store indicating alias.
+The biggest practical difference occur for Core 2, where a significantly different set of performance events were used.
+In particular; load\_blocks.overlap_store indicating alias.
 Notably, this event was also found to be significant in the original paper by \citeN{Mytkowicz:2009:WrongData}.
-We were able to verify that partial address overlap was indeed occuring synchronously with this event spiking, and we draw the conclusion that address aliasing must be the underlying explanation.
+We were able to verify that partial address overlap was indeed occuring at the same time this event is spiking, and we draw the conclusion that address aliasing must be the underlying explanation.
+However, this only explains part of what is going on in the Core setup. 
+As shown in Figure~\ref{fig:motivation}, there seem to be yet another bias effect visible at every fourth environment increment.
+These smaller spikes correlate with the performance event \emph{load\_blocks.std}, which is described as ``loads blocked by a preceding store with unknown data''~\cite[Table 19-17]{Volume3B}.
+Our assumption is that this is a different phenomenon, not related to 4K aliasing.
+We were only able to observe the effect on this particular architecture, and did not investigate the root cause further.
+
 Based on our results, and existing documentation on available performance events, it is reasonable to assume that the address alias issue is present in (at least) Intel microarchitectures Core, Nehalem, Sandy Bridge and Haswell.
 
 \subsection{Hyper-Threading}
-With Hyper-Threading we see smalls spikes like Core2, likely cache bank issues. % todo: fill in something here
+As described in Section~\ref{sec:methodology}, disabling support for Hyper-Threading on applicable architectures was done in order to avoid any potential interference while collecting data.
+However, this begs the question if doing so might affect the existence of aliasing itself.
+To verify this was not the case, we ran the experiment again on the Haswell setup with Hyper-Threading enabled.
+Results for cycles executed and alias events were virtually identical, indicating that configuration of HTT either way is not impactful to our conclusions.
 
 
 \section{Bias from Heap Allocation}
@@ -482,21 +494,8 @@ However, \texttt{mmap} has an interesting property in that allocations will alwa
 The page size is 4096 bytes, meaning two pointers returned by \texttt{mmap} will \emph{always} alias.\footnote{glibc's version of malloc adds 16 bytes of metadata at the beginning, therefore every memory mapped address ends with 0x010.}
 This behavior is often the worst case for functions that operate on two or more independent buffers.
 
-Table \ref{tab:mallocompare} illustrates how using a different allocator can affect potential aliasing between heap pointers.\footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}
-We observe the addresses of two equally sized \texttt{char} buffers allocated with \texttt{malloc} for different size parameters.
-Equal three digit address suffix indicate an aliasing pair.
-In addition to glibc, where the heap allocator is called \emph{ptmalloc}, we look at the following alternatives:
-\begin{enumerate}
-  \item Thread-Caching Malloc (tcmalloc) by Google~\cite{TCMalloc}.
-  \item jemalloc, originally developed for FreeBSD~\cite{JEMalloc}.
-  \item Hoard~\cite{Berger:2000:Hoard}.
-\end{enumerate}
-All of the above focus heavily on performance in multithreaded environments.
-Heap allocation is intrinsically inefficient in that all threads share the same address space, leading to a high potential lock contention on memory accesses.
-Here, we only look at behavior for a single thread, and whether the addresses returned alias or not.
 \begin{table}[t]
-  \label{tab:mallocompare}
-  \tbl{Addresses returned by different heap allocators when allocating pairs of equally sized buffers.}{
+  \tbl{Addresses returned by different heap allocators when allocating pairs of equally sized buffers.\label{tab:mallocompare}}{
     \pgfplotstabletypeset[
       col sep=comma,
       string type,
@@ -524,6 +523,19 @@ Here, we only look at behavior for a single thread, and whether the addresses re
     The difference is not important to our discussion.}
   \end{tabnote}
 \end{table}
+
+Table \ref{tab:mallocompare} illustrates how using a different allocator can affect potential aliasing between heap pointers.\footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}
+We observe the addresses of two equally sized \texttt{char} buffers allocated with \texttt{malloc} for different size parameters.
+Equal three digit address suffix indicate an aliasing pair.
+In addition to glibc, where the heap allocator is called \emph{ptmalloc}, we look at the following alternatives:
+\begin{enumerate}
+  \item Thread-Caching Malloc (tcmalloc) by Google~\cite{TCMalloc}.
+  \item jemalloc, originally developed for FreeBSD~\cite{JEMalloc}.
+  \item Hoard~\cite{Berger:2000:Hoard}.
+\end{enumerate}
+All of the above focus heavily on performance in multithreaded environments.
+Heap allocation is intrinsically inefficient in that all threads share the same address space, leading to a high potential lock contention on memory accesses.
+Here, we only look at behavior for a single thread, and whether the addresses returned alias or not.
 
 We see that glibc and tcmalloc utilize the normal heap area for smaller allocations, returning numerically low addresses. % Verified by looking at strace that tcmalloc actually uses brk
 Interestingly, jemalloc and Hoard appear to never use the heap, but allocate to memory mapped areas even for smaller requests.
