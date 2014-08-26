@@ -39,10 +39,10 @@ LARS KIRKHOLT MELHUS and RUNE ERLEND JENSEN
 \begin{abstract} % Should be 150 -- 200 words max
 Understanding program behavior and obtaining accurate measurements is important in performance analysis.
 However, recent research has shown that performance measurements can be \emph{biased} by external factors in unpredictable ways.
-Seemingly irrelevant variables, such as the length of your user name, can impact program performance.
+Seemingly irrelevant properties---such as the length of your user name---can impact program performance.
 In this paper, we identify an important underlying mechanism that causes this type of measurement bias on modern Intel microarchitectures.
-Our approach is to search for correlations over multiple environment configurations, using a large set of hardware performance counter measurements.
-We find that \emph{address aliasing} can explain bias from two external factors; environment variable size, and characteristics of dynamically linked heap allocators.
+Our approach is to use a large set of hardware performance counter measurements to reveal the inner workings of the CPU, and search for correlations over a series of execution contexts.
+We find that \emph{address aliasing} can explain bias from two external factors; size of environment variables, and characteristics of dynamically linked heap allocators.
 
 This result not only makes accounting for and avoiding measurement bias much simpler, but also enables explicit optimizations for it.
 We demonstrate this by implementing runtime detection and correction of aliasing conditions.
@@ -82,8 +82,6 @@ A key challenge for performance analysts and systems researchers is handling \em
 Changes to external factors of the system, such as link ordering or the contents of environment variables, has been shown to have potentially significant impacts on performance in real applications~\cite{Mytkowicz:2009:WrongData}.
 The underlying explanation is likely that this changes memory addresses of code or data, which in turn interacts with various low level hardware buffers at runtime.
 Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes to for example system environment variables ultimately affect program execution.
-In Figure~\ref{fig:motivation} we have reproduced a result originally presented by \citeN{Mytkowicz:2009:WrongData}, showing how the number of cycles executed for a simple program depends on environment variables.
-This example provides the basis for our analysis.
 
 \pgfplotstableread{bin/microkernel-cycles-core2.dat}{\microkernelcoretwotable}
 \begin{figure}[t]
@@ -127,17 +125,19 @@ This example provides the basis for our analysis.
   \end{flushleft}
 \end{minipage}
 \label{fig:motivation}
-\caption{Microkernel first presented by \citeN{Mytkowicz:2009:WrongData}, showing bias to environment size. Note the clear spike at around 3200 bytes, where the number of cycles executed nearly doubles. Measuring performance in this configuration would give a biased result.}
+\caption{Microkernel first presented by \citeN{Mytkowicz:2009:WrongData}, showing bias to environment size. Notice the clear spike at around 3200 bytes, where the number of cycles executed nearly doubles. Measuring performance in this configuration would give a biased result.}
 \end{figure}
 
 A literature study of 88 papers by \citeN{Mytkowicz:2008:OE&MB} showed that the median reported speedup was within the margin of bias, possibly invalidating the claimed speedups. 
-To alleviate the impact of measurement bias in performance analysis, researchers have proposed to use causal analysis techniques and randomization of execution contexts~\cite{Mytkowicz:2008:OE&MB}.
+To alleviate the impact of measurement bias in performance analysis, researchers have proposed techniques like causal analysis, and randomization of execution contexts~\cite{Mytkowicz:2008:OE&MB}.
 Others treat the interaction complexity as a potential optimization problem, using search over variant spaces to find optimal environments~\cite{Knights:2009:BlindOpt}.
-Our approach is to analyze isolated programs in detail using \emph{hardware performance measurements}, in an attempt to identify which underlying mechanisms are causing bias.
+Our approach is to analyze isolated programs in detail using hardware performance counters, in an attempt to identify which underlying mechanisms are causing bias.
 
-In this paper we show how some instances of measurement bias can be explained by \emph{address aliasing}, an artifact of a presumably Intel specific optimization on the out-of-order execution pipeline.
-The CPU uses a heuristic for determining whether loads are dependent on previous stores, comparing only the last 12 virtual address bits.
-False dependencies can happen for aliased memory accesses, and incur performance penalties.
+In Figure~\ref{fig:motivation}, we have reproduced a result originally presented by \citeN{Mytkowicz:2009:WrongData}, showing how the number of cycles executed for a simple program depends on environment variables.
+This example provides the basis for our analysis.
+We show how some instances of measurement bias, such as the above, can be explained by \emph{address aliasing}, an artifact of a presumably Intel specific optimization on the out-of-order execution pipeline.
+The CPU uses a heuristic for determining whether loads are dependent on previous stores, comparing only the 12 least significant virtual address bits.
+Aliased memory accesses can produce false dependencies, and incur performance penalties.
 We look at how address aliasing can trigger bias from two external factors; size of system environment variables and configuration of dynamic heap allocation libraries.
 
 Our results show that the cost of aliasing can be significant, exemplified by a simple program with up to $2x$ speedup based in heap address alignment alone.
@@ -158,8 +158,8 @@ Section \ref{sec:conclusions} includes a summary and conclusion.
 In order to understand biased behavior it is important to be able to do precise and detailed measurements, without introducing \emph{observer effects}~\cite{Mytkowicz:2008:OE&MB}.
 This can be achieved by using performance counters, instrumentation support in hardware that can be used to \emph{count} various events, such as cycles executed, branch misses, instructions fetched, and so on.
 Recent Intel architectures have several hundred available events, providing a detailed view of what happens inside the CPU.
-Performance counters are supported in the Linux kernel, accessed via a tool called \emph{perf}.
-This tool instructs the kernel to enable the hardware Performance Monitoring Unit (PMU) for a different program, before it is executed.
+Performance counters are supported in the Linux kernel, and can be accessed via a tool called \emph{perf}.
+This utility instructs the kernel to enable the processor's Performance Monitoring Unit (PMU), before executing a specified program.
 Using this technique avoids modifications to the executed program, unlike tools like PAPI~\cite{PAPI:PortableInterface}.
 We use the perf-stat command in all experiments, which accepts raw PMU event codes listed in the reference manual~\cite{Volume3B}.
 
@@ -169,30 +169,31 @@ The potential issues they find are either handled explicitly or are irrelevant t
 
 A small Python script is used to iterate over an exhaustive set of all known counters, which amounts to about 200 on our architecture.
 Only a small set of events are collected at a time, to ensure events are actually counted continuously.
-We do not use multiplexing between a limited set of counter registers, as it will introduce too many variations~\cite{Wiplove:ImproveEstimation}. % Paper is rename of "Toward Accurate Performance Evaluation using Hardware Counters".
+We do not use multiplexing between a limited set of counter registers, as it will introduce significant variations~\cite{Wiplove:ImproveEstimation}. % Paper is rename of "Toward Accurate Performance Evaluation using Hardware Counters".
 Controlled variations in environment size is performed by setting a dummy environment variable to $n$ number of zero characters, starting from a minimal environment.\footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
 Interesting events are identified by computing linear correlation to cycle count, measuring all counters over a series of execution contexts.
 % Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{OptimizationManual}.
 Results are also averaged over multiple runs to reduce potential random error, using built-in perf rerun functionality.
 
-Because bias can be hardware dependent, and to keep the scope of this work manageable, we initially chose to focus our analysis on the 4th generation Intel ``Haswell'' microarchitecture specifically.
-We later reproduced similar results on the previous ``Nehalem'', ``Sandy Bridge'' and ``Ivy Bridge'' CPUs, as well as an older Core2 Duo machine.
-Each setup is described in Table~\ref{tab:machines}, and referenced throughout the paper. The compiler used is GCC 4.8.2-19ubuntu1 and the same binary is tested on all systems.
+Because bias can be hardware dependent, and to keep the scope of this work manageable, we initially chose to focus our analysis on the 4th generation Intel ``Haswell'' microarchitecture.
+We later reproduced similar results for the ``Core'', ``Nehalem'', and ``Ivy Bridge'' microarchitectures as well.
+Each setup is described in Table~\ref{tab:machines}, and referenced throughout the paper. 
+% The compiler used is GCC 4.8.2-19ubuntu1, and the same binaries are tested on all systems.
 
 \begin{table}
   \tbl{Experimental setups used\label{tab:machines}}{
   \begin{tabular}{|l|l|}
     \hline
 Core          & Intel\textsuperscript{\textregistered{}} Core\texttrademark{}2 Duo P8600 (laptop) \\
-              & 64-bit Ubuntu 14.04 LTS (Linux 3.13.0) \\ \hline
+              & 64-bit Ubuntu 14.04 LTS (Linux 3.13.0), GCC 4.8.2-19ubuntu1 \\ \hline
 Nehalem       & Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7-950 \\
-              & 64-bit Ubuntu 12.04 LTS (Linux 3.2.0) \\ \hline
+              & 64-bit Ubuntu 12.04 LTS (Linux 3.2.0), GCC 4.8.2-19ubuntu1 \\ \hline
+% Sandy Bridge  & Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7-2670QM (laptop) \\
+%               & 64-bit Ubuntu 11.04 (Linux 3.0.0) \\ \hline
 Ivy Bridge    & Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i5-3470 \\
-              & 64-bit Ubuntu 12.04 LTS (Linux 3.8.0) \\ \hline
-Sandy Bridge  & Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7-2670QM (laptop) \\
-              & 64-bit Ubuntu 11.04 (Linux 3.0.0) \\ \hline
+              & 64-bit Ubuntu 12.04 LTS (Linux 3.8.0), GCC 4.8.2-19ubuntu1 \\ \hline
 Haswell       & Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7-4770K \\
-              & 64-bit Ubuntu 14.04 LTS (Linux 3.13.0) \\ \hline
+              & 64-bit Ubuntu 14.04 LTS (Linux 3.13.0), GCC 4.8.2-19ubuntu1 \\ \hline
   \end{tabular}}
 \end{table}
 
@@ -267,12 +268,12 @@ The number of times this happens can be counted by the following event:
   \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS.}] \emph{``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.''} \cite[B.3.4.4]{OptimizationManual}
 \end{describe}
 This event is listed in the manual for microarchitectures going back to Nehalem i7, including Ivy Bridge and Haswell CPUs~\cite{Volume3B}.
-Older architectures such as Core do not have this particular event listed, however 4K aliasing is covered by a more general event:
+Older architectures such as Core do not have this particular event listed, but 4K aliasing is covered by a more general event:
 \begin{describe}{{pad}}
   \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE.}] \emph{``Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.''} \cite[Table 19-17]{Volume3B}
 \end{describe}
 
-As address aliasing depends on the memory addresses of loads and stores, environmental factors that affects memory has the potential to induce aliasing conditions.
+As address aliasing depends on the memory addresses of loads and stores, any environmental factor that affects memory layout has the potential to induce aliasing conditions.
 In the following sections, we show how performance penalties from address aliasing can be the root cause of measurement bias.
 
 
@@ -293,7 +294,7 @@ To illustrate how address aliasing can cause bias, we revisit the example first 
 This example is interesting for several reasons; the bias effects are significant and easily reproducible, while the code itself is simple and straightforward to analyze.
 Still, no satisfactory explanation as to what actually causes bias was given in the original paper.
 The following outlines our data and analysis of this program conducted on the ``Haswell'' configuration.
-Similar experiments were performed on each of the other experimental setups as well, all arriving at the same conclusions.
+Similar experiments were conducted on the other experimental setups listed in Table~\ref{tab:machines} as well, all arriving at the same conclusion.
 
 % Large plot of cycle count for two 4K stack sections.
 \pgfplotstableread{bin/microkernel-cycles-haswell.dat}{\stackoffsettable}
@@ -451,16 +452,16 @@ While this particular solution is impractical, it shows that compilers and progr
 \subsection{Other Architectures}
 While we show only the analysis for Haswell here, the same approach gave similar results for all CPUs we tested.
 The biggest practical difference occur for Core 2, where a significantly different set of performance events were used.
-In particular; load\_blocks.overlap_store indicating alias.
-Notably, this event was also found to be significant in the original paper by \citeN{Mytkowicz:2009:WrongData}.
-We were able to verify that partial address overlap was indeed occuring at the same time this event is spiking, and we draw the conclusion that address aliasing must be the underlying explanation.
+In particular; \emph{load\_blocks.overlap_store} indicating alias.
+Notably, this event was also found to be significant in the original paper by \citeN{Mytkowicz:2009:WrongData}, where the authors also used a Core 2 processor.
+We were able to verify that partial address overlap was indeed occuring at the same time this event is spiking, and draw the conclusion that address aliasing must be the underlying explanation.
 However, this only explains part of what is going on in the Core setup. 
 As shown in Figure~\ref{fig:motivation}, there seem to be yet another bias effect visible at every fourth environment increment.
 These smaller spikes correlate with the performance event \emph{load\_blocks.std}, which is described as ``loads blocked by a preceding store with unknown data''~\cite[Table 19-17]{Volume3B}.
 Our assumption is that this is a different phenomenon, not related to 4K aliasing.
 We were only able to observe the effect on this particular architecture, and did not investigate the root cause further.
 
-Based on our results, and existing documentation on available performance events, it is reasonable to assume that the address alias issue is present in (at least) Intel microarchitectures Core, Nehalem, Sandy Bridge and Haswell.
+Based on our results, and existing documentation on available performance events, it is reasonable to assume that the address alias issue exists for a wide range of Intel microarchitectures, going as far back as the ``Core'' platform.
 
 \subsection{Hyper-Threading}
 As described in Section~\ref{sec:methodology}, disabling support for Hyper-Threading on applicable architectures was done in order to avoid any potential interference while collecting data.
