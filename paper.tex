@@ -176,25 +176,29 @@ Interesting events are identified by computing linear correlation to cycle count
 Results are also averaged over multiple runs to reduce potential random error, using built-in perf rerun functionality.
 
 Because bias can be hardware dependent, and to keep the scope of this work manageable, we initially chose to focus our analysis on the 4th generation Intel ``Haswell'' microarchitecture specifically.
-We later reproduced similar results on the previous ``Sandy Bridge'' CPU, as well as an older Core2 Duo machine.
-Each setup is described in Table~\ref{tab:machines}, and referenced throughout the paper.
+We later reproduced similar results on the previous ``Nehalem'', ``Sandy Bridge'' and ``Ivy Bridge'' CPUs, as well as an older Core2 Duo machine.
+Each setup is described in Table~\ref{tab:machines}, and referenced throughout the paper. The compiler used is GCC 4.8.2-19ubuntu1 and the same binary is tested on all systems.
 
 \begin{table}
   \tbl{Experimental setups used\label{tab:machines}}{
   \begin{tabular}{|l|l|}
     \hline
 Core          & Intel\textsuperscript{\textregistered{}} Core\texttrademark{}2 Duo P8600 (laptop) \\
-              & 64-bit Ubuntu 14.04 LTS (Linux 3.13.0), GCC 4.8.2-19ubuntu1 \\ \hline
-Sandy Bridge  & Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7-3???? \\
-              & Ubuntu ?? \\ \hline
+              & 64-bit Ubuntu 14.04 LTS (Linux 3.13.0) \\ \hline
+Nehalem       & Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7-950 \\
+              & 64-bit Ubuntu 12.04 LTS (Linux 3.2.0) \\ \hline
+Ivy Bridge    & Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i5-3470 \\
+              & 64-bit Ubuntu 12.04 LTS (Linux 3.8.0) \\ \hline
+Sandy Bridge  & Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7-2670QM (laptop) \\
+              & 64-bit Ubuntu 11.04 (Linux 3.0.0) \\ \hline
 Haswell       & Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7-4770K \\
-              & 64-bit Ubuntu 14.04 LTS (Linux 3.13.0), GCC 4.8.2-19ubuntu1 \\ \hline
+              & 64-bit Ubuntu 14.04 LTS (Linux 3.13.0) \\ \hline
   \end{tabular}}
 \end{table}
 
 We also have to ensure we are not affected by measurement bias beyond what we are actually trying to observe, and in general follow best practices on gathering data~\cite{Mytkowicz:2009:WrongData}.
 Most importantly, this means keeping the memory address space under control.
-For security reasons, addresses of stack, heap and dynamic libraries are often randomized at load time, a technique known as \emph{Address Space Layout Randomization}~\cite{Pax:ASLR,Bhatkar:AddressObfuscation}. 
+For security reasons, addresses of the stack, heap and dynamic libraries are often randomized at load time, a technique known as \emph{Address Space Layout Randomization}~\cite{Pax:ASLR,Bhatkar:AddressObfuscation}. 
 By disabling ASLR, we are able to execute the same program multiple times with identical virtual address spaces.
 All experiments are done on a dedicated machine under minimal load, with \emph{frequency scaling} disabled to keep the CPU's clock speed fixed.
 Finally, we disable \emph{Hyper-threading} (HT), which reduces the possibility for resource contention between threads.
