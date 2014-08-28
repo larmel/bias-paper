@@ -5,6 +5,7 @@
 \usepackage{pgfplotstable}
 \usepackage{filecontents}
 \usepackage{tikz}
+\usepackage{subfigure}
 \usepackage{listings}
 \usepackage{mathtools}
 \usepackage{underscore}
@@ -449,14 +450,91 @@ Calling the function recursively will effectively allocate a new set of variable
 
 While this particular solution is impractical, it shows that compilers and programmers \emph{could} take measures to account for aliasing.
 
+% EXPERIMENTAL!
+\pgfplotstableread{bin/microkernel-core.dat}{\tblmicrokernelcore}
+\pgfplotstableread{bin/microkernel-nehalem.dat}{\tblmicrokernelnehalem}
+\pgfplotstableread{bin/microkernel-ivybridge.dat}{\tblmicrokernelivybridge}
+\pgfplotstableread{bin/microkernel-haswell-ht.dat}{\tblmicrokernelhaswellht}
+\begin{figure}[t]
+  \begin{tabular}{lr}
+    \subfigure[Core]
+    {\begin{tikzpicture}
+      \begin{axis}[
+          width=\textwidth/2.0, % Make it fit to text width side by side
+          height = 4cm,
+          font = \footnotesize,
+          domain = 0:4096,
+          xtick = {0,1024,...,4096},
+          xmin = 0,
+          xmax = 4096,
+          cycle list name = exotic
+        ]
+        \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelcore ;
+      \end{axis}
+      \label{subfig:microkernel-core}
+    \end{tikzpicture}} &
+    \subfigure[Nehalem]
+    {\begin{tikzpicture}
+      \begin{axis}[
+          width=\textwidth/2.0, % Make it fit to text width side by side
+          height = 4cm,
+          font = \footnotesize,
+          domain = 0:4096,
+          xtick = {0,1024,...,4096},
+          xmin = 0,
+          xmax = 4096,
+          cycle list name = exotic
+        ]
+        \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelnehalem ;
+      \end{axis}
+      \label{subfig:microkernel-nehalem}
+    \end{tikzpicture}} \\
+    \subfigure[Ivy Bridge]
+    {\begin{tikzpicture}
+      \begin{axis}[
+          width=\textwidth/2.0, % Make it fit to text width side by side
+          height = 4cm,
+          font = \footnotesize,
+          domain = 0:4096,
+          xtick = {0,1024,...,4096},
+          xmin = 0,
+          xmax = 4096,
+          cycle list name = exotic
+        ]
+        \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelivybridge ;
+      \end{axis}
+      \label{subfig:microkernel-ivybridge}
+    \end{tikzpicture}} &
+    \subfigure[Haswell (HT)]
+    {\begin{tikzpicture}
+      \begin{axis}[
+          width=\textwidth/2.0, % Make it fit to text width side by side
+          height = 4cm,
+          font = \footnotesize,
+          domain = 0:4096,
+          xtick = {0,1024,...,4096},
+          xmin = 0,
+          xmax = 4096,
+          cycle list name = exotic
+        ]
+        \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelhaswellht ;
+      \end{axis}
+      \label{subfig:microkernel-haswell-ht}
+    \end{tikzpicture}}
+  \end{tabular}
+  \caption{\label{fig:microkernel-all-archs}Microkernel experiment on different architectures. Horizontal axis represents bytes added to environment, and vertical axis is number of cycles executed.}
+\end{figure}
+
 \subsection{Other Architectures}
 While we show only the analysis for Haswell here, the same approach gave similar results for all CPUs we tested.
-The biggest practical difference occur for Core 2, where a significantly different set of performance events were used.
-In particular; \emph{load\_blocks.overlap_store} indicating alias.
+Figure~\ref{fig:microkernel-all-archs} shows cycle count plots for Core, Nehalem and Ivy Bridge as well, revealing very similar patterns.
+
+There were some practical differences in obtaining these results, in particular slightly different sets of performance events supported on each architecture.
+For the Core setup we use \emph{load\_blocks.overlap\_store} instead of \emph{load\_blocks\_partial.address\_alias} to indicate alias.
 Notably, this event was also found to be significant in the original paper by \citeN{Mytkowicz:2009:WrongData}, where the authors also used a Core 2 processor.
 We were able to verify that partial address overlap was indeed occuring at the same time this event is spiking, and draw the conclusion that address aliasing must be the underlying explanation.
 However, this only explains part of what is going on in the Core setup. 
-As shown in Figure~\ref{fig:motivation}, there seem to be yet another bias effect visible at every fourth environment increment.
+As shown in Figure~\ref{subfig:microkernel-core}, there seem to be yet another bias effect visible at every fourth environment increment.
 These smaller spikes correlate with the performance event \emph{load\_blocks.std}, which is described as ``loads blocked by a preceding store with unknown data''~\cite[Table 19-17]{Volume3B}.
 Our assumption is that this is a different phenomenon, not related to 4K aliasing.
 We were only able to observe the effect on this particular architecture, and did not investigate the root cause further.
@@ -467,7 +545,10 @@ Based on our results, and existing documentation on available performance events
 As described in Section~\ref{sec:methodology}, disabling support for Hyper-Threading on applicable architectures was done in order to avoid any potential interference while collecting data.
 However, this begs the question if doing so might affect the existence of aliasing itself.
 To verify this was not the case, we ran the experiment again on the Haswell setup with Hyper-Threading enabled.
-Results for cycles executed and alias events were virtually identical, indicating that configuration of HTT either way is not impactful to our conclusions.
+The raw cycle count results are shown in Figure~\ref{subfig:microkernel-haswell-ht}.
+During this experiment we pinned the process to a particular core using \texttt{taskset}, and ran \texttt{cat /dev/zero > /dev/null} to create some background noise on the other (shared) core.
+While the results are more noisy, we see the same trend with respect to cycles executed and alias events spiking at a particular point.
+This indicates that configuration of Hyper-Threading either way is not impactful to our conclusions, address aliasing is still present.
 
 
 \section{Bias from Heap Allocation}

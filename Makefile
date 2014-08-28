@@ -1,5 +1,3 @@
-.PHONY: all paper clean about
-
 all: paper
 
 paper: bin/paper.pdf
@@ -17,6 +15,7 @@ about:
 # Files that are used for plots, tables and listings in the article.
 resources := bin/microkernel-cycles-core2.dat \
 	bin/microkernel-cycles-haswell.dat bin/microkernel-comparison-haswell.csv bin/microkernel-annotated.s \
+	bin/microkernel-core.dat bin/microkernel-haswell-ht.dat bin/microkernel-nehalem.dat bin/microkernel-ivybridge.dat \
 	bin/conv-default-o2-haswell.estimate.dat bin/conv-default-o2-haswell.estimate.csv \
 	bin/conv-default-o3-haswell.estimate.dat bin/conv-default-o3-haswell.estimate.csv \
 	bin/convolution-kernel.c \
@@ -32,8 +31,8 @@ bin/paper.pdf: paper.tex references.bib $(resources) | bin
 	mv paper.pdf $@
 	rm -f paper.log paper.dvi paper.aux paper.bbl paper.blg
 
-#
-# Depend on results from analysis directory, but do some massaging to get the
+
+# Gather results from analysis directory, but do some massaging to get the
 # correct Tikz friendly format and filter out unnecessary data.
 
 bin/microkernel-cycles-core2.dat: analysis/environment/results-core2/loop.csv | bin
@@ -46,6 +45,18 @@ bin/microkernel-comparison-haswell.csv: analysis/environment/results-haswell/com
 	cat $< \
 		| util/select.py -e cycles:u,r0107:u,r020002a3:u,r01a2:u,r04a2:u,r04a1:u,r05a3:u,r08a1:u,r80a1:u,r10a1:u,r40a1:u,r01a1:u,r02a1:u,r20a1:u \
 		> $@
+
+bin/microkernel-core.dat: analysis/environment/results-core2/loop.csv | bin
+	cat $< | util/select.py -e cycles:u,r0403:u,r0803:u | util/pgfpconv.py > $@
+
+bin/microkernel-haswell-ht.dat: analysis/environment/results-haswell-ht/loop.csv | bin
+	cat $< | util/select.py -e cycles:u,r0107:u | util/pgfpconv.py > $@
+
+bin/microkernel-nehalem.dat: analysis/environment/results-nehalem/loop_i7-950_100p_alone_HT_r10.csv | bin
+	cat $< | util/select.py -e cycles:u,r0107:u | util/pgfpconv.py > $@
+
+bin/microkernel-ivybridge.dat: analysis/environment/results-ivybridge/loop_i5-3470_100p_alone_HT_r10.csv | bin
+	cat $< | util/select.py -e cycles:u,r0107:u | util/pgfpconv.py > $@
 
 bin/microkernel-annotated.s: analysis/environment/loop.s | bin
 	cp $< $@
@@ -66,8 +77,11 @@ bin/conv-default-o3-haswell.estimate.dat: analysis/heap-alias/results-haswell/de
 
 bin/conv-default-o3-haswell.estimate.csv: analysis/heap-alias/results-haswell/default-o3.estimate.csv | bin
 	cat $< \
-		| util/select.py -e cycles:u,r0107:u,r02a3:u,r01a2:u,r04a2:u,r05a3:u,r0860:u,r20a1:u,r04a1:u,r0160:u \
+		| util/select.py -e cycles:u,r0107:u,r020002a3:u:u,r01a2:u,r04a2:u,r05a3:u,r0860:u,r20a1:u,r04a1:u,r0160:u \
 		> $@
 
 bin/malloc-comparison.csv: analysis/allocators/results/comparison.csv | bin
 	cat $< > $@
+
+
+.PHONY: all paper clean about
