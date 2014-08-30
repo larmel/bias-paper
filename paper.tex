@@ -5,7 +5,6 @@
 \usepackage{pgfplotstable}
 \usepackage{filecontents}
 \usepackage{tikz}
-\usepackage{subfigure}
 \usepackage{listings}
 \usepackage{mathtools}
 \usepackage{underscore}
@@ -84,7 +83,8 @@ Changes to external factors of the system, such as link ordering or the contents
 The underlying explanation is likely that this changes memory addresses of code or data, which in turn interacts with various low level hardware buffers at runtime.
 Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes to for example system environment variables ultimately affect program execution.
 
-\pgfplotstableread{bin/microkernel-cycles-core2.dat}{\microkernelcoretwotable}
+%\pgfplotstableread{bin/microkernel-cycles-core2.dat}{\microkernelcoretwotable}
+\pgfplotstableread{bin/microkernel-core.dat}{\tblmicrokernelcore}
 \begin{figure}[t]
 \begin{minipage}[t]{0.40\textwidth}
   \vspace{3mm}
@@ -101,10 +101,8 @@ Because of the complexity of modern processors, it is often hard or even impossi
   }
   \end{lstlisting}
 \end{minipage}
-%\hfill
 \begin{minipage}[t]{0.55\textwidth}
   \begin{flushleft}
-    %\fbox{
     \begin{tikzpicture}
       \begin{axis}[
           title = Core,
@@ -119,10 +117,9 @@ Because of the complexity of modern processors, it is often hard or even impossi
           xmax = 4096,
           cycle list name = exotic
         ]
-        \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \microkernelcoretwotable ;
+        \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelcore ;
       \end{axis}
     \end{tikzpicture}
-    %}
   \end{flushleft}
 \end{minipage}
 \label{fig:motivation}
@@ -145,7 +142,7 @@ Our results show that the cost of aliasing can be significant, exemplified by a 
 We also find that many heap allocation libraries tend to produce worst case behavior by default with respect to aliasing, by favoring page alignment for large allocations.
 With an understanding of how false dependencies in the CPU can impact performance, measurement bias caused by it can to some extent be predicted and even accounted for in software.
 We show how techniques like manual padding of allocations and dynamic detection of aliasing conditions can be used to improve performance. 
-Understanding and handling address aliasing can give significant speedups, and our findings shows potential for further architecture-specific optimizations.
+Being able to handle address aliasing can give significant speedups, and our findings show potential for further architecture-specific optimizations.
 
 The rest of this paper is structured as follows: Our methodology and experimental setup is explained in the next section.
 Then section \ref{sec:aliasing} introduces ``4K aliasing'', providing necessary background for interpreting the later results.
@@ -178,11 +175,10 @@ Results are also averaged over multiple runs to reduce potential random error, u
 
 Because bias can be hardware dependent, and to keep the scope of this work manageable, we initially chose to focus our analysis on the 4th generation Intel ``Haswell'' microarchitecture.
 We later reproduced similar results for the ``Core'', ``Nehalem'', and ``Ivy Bridge'' microarchitectures as well.
-Each setup is described in Table~\ref{tab:machines}, and referenced throughout the paper. 
-% The compiler used is GCC 4.8.2-19ubuntu1, and the same binaries are tested on all systems.
+Each setup is described in Table~\ref{tab:machines}, and referenced throughout the paper.
 
 \begin{table}
-  \tbl{Experimental setups used\label{tab:machines}}{
+  \tbl{Experimental setups used.\label{tab:machines}}{
   \begin{tabular}{|l|l|}
     \hline
 Core          & Intel\textsuperscript{\textregistered{}} Core\texttrademark{}2 Duo P8600 (laptop) \\
@@ -215,8 +211,7 @@ Some PMU events also require HT to be turned off, or produce inaccurate results 
       rectangle split, rectangle split parts=10, 
       rectangle split part fill={white, white, lightgray, white, lightgray, white, lightgray, white},
       draw, anchor=center, text width=2cm
-    ] (m)
-      {
+    ] (m) {
         \nodepart{one}
           environment
         \nodepart{two}
@@ -241,7 +236,6 @@ Some PMU events also require HT to be turned off, or produce inaccurate results 
       { \scriptsize{0x400000} } ;
   \end{tikzpicture}
   \caption{Memory execution context, assuming a 64-bit process running on a Linux system.
-  %Relative positions of some important sections of memory at runtime
   Initial addresses of stack, heap and memory mapped files are often randomized for security reasons.
   The stack is also offset by environment variables and program arguments.
   Addresses of code and statically allocated data are allocated at compile time by the linker, and can be determined by inspecting the executable.}
@@ -253,7 +247,6 @@ Some PMU events also require HT to be turned off, or produce inaccurate results 
 \label{sec:aliasing}
 Modern processors are \emph{superscalar}, and achieves parallelism by issuing multiple instructions simultaneously and out of order.
 One of the issues that can limit throughput is dependencies between a load and previous stores.
-% According to Intel, typical software consists of about 38~\% memory access instructions, with about two thirds of them being loads.
 To increase parallelism, modern architectures use a technique called \emph{memory disambiguation} to execute memory operations out of order~\cite{Intel:2006:InsideICM:SmartMemoryAccess}. 
 More often than not, loads can safely be issued before a previous store has completed and written its value to L1 cache.
 Loads are therefore issued \emph{speculatively}, based on a prediction on whether it will conflict with a previous store that is still not retired.
@@ -268,7 +261,7 @@ The number of times this happens can be counted by the following event:
 \begin{describe}{{pad}}
   \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS.}] \emph{``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.''} \cite[B.3.4.4]{OptimizationManual}
 \end{describe}
-This event is listed in the manual for microarchitectures going back to Nehalem i7, including Ivy Bridge and Haswell CPUs~\cite{Volume3B}.
+This event is listed in the manual for microarchitectures going back to ``Nehalem'', including ``Ivy Bridge'' and ``Haswell'' CPUs~\cite{Volume3B}.
 Older architectures such as Core do not have this particular event listed, but 4K aliasing is covered by a more general event:
 \begin{describe}{{pad}}
   \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE.}] \emph{``Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.''} \cite[Table 19-17]{Volume3B}
@@ -321,10 +314,10 @@ Similar experiments were conducted on the other experimental setups listed in Ta
   \label{fig:envbias}
 \end{figure*}
 
-Performance counter measurements of cycle counts are shown for 512 different environment sizes in Figure~\ref{fig:envbias}.
-We measure every 16 byte increment of environment size, covering two 4K periods of initial stack addresses.
+Performance counter measurements of cycle counts over 512 different environment sizes are shown in Figure~\ref{fig:envbias}.
+Every 16 byte increment of environment size is measured, covering two 4K periods of initial stack addresses.
 A finer sampling is not necessary, because the stack is by default aligned to 16 bytes.
-The program is compiled with {\small{GCC}} using no optimization, as any optimization would likely disregard most of the function as redundant code, reducing it to return zero immediately.
+The microkernel is compiled with {\small{GCC}} using no optimization; any optimization would likely disregard most of the function as redundant code, reducing it to return zero immediately.
 
 There are clearly two worst cases, indicated by significant spikes at the 3184 and 7280 byte offsets.
 We sampled an extensive set of performance counters in addition to cycle count for each execution context.
@@ -418,7 +411,7 @@ This type of bias can occur in a number of memory configurations.
 Here, the aliasing was caused by interactions between the stack and static variables, but we can imagine similar conflicts between the stack and the heap, depending also on how dynamic memory allocators behave.
 Because the stack is used for local variables, complex code is likely to contain many potential conflicts with other areas of memory.
 
-% See analysis for results showing this does not alias
+% See /analysis for results showing this does not alias
 \begin{figure}
   \begin{lstlisting}[frame=single, xleftmargin=.1\textwidth, xrightmargin=.1\textwidth]
 #define ALIAS(a, b) \
@@ -436,7 +429,7 @@ int main() {
     return 0;
 }
   \end{lstlisting}
-  \caption{Dynamically detect aliasing case, and avoid by pushing another stack frame.}
+  \caption{Modified microkernel that can dynamically detect aliasing case, and avoid it by pushing another stack frame.}
   \label{lst:loopfixed}
 \end{figure}
 
@@ -448,107 +441,67 @@ A proof of concept of how alias-free code could be generated in this particular 
 If the addresses do alias, a branch to an alternative but semantically equivalent code path is performed.
 Calling the function recursively will effectively allocate a new set of variables a bit further down the stack, and the alias condition is avoided.
 
-While this particular solution is impractical, it shows that compilers and programmers \emph{could} take measures to account for aliasing.
+Even though this particular solution is impractical, it shows that compilers and programmers \emph{could} take measures to account for aliasing.
 
-% EXPERIMENTAL!
-\pgfplotstableread{bin/microkernel-core.dat}{\tblmicrokernelcore}
 \pgfplotstableread{bin/microkernel-nehalem.dat}{\tblmicrokernelnehalem}
 \pgfplotstableread{bin/microkernel-ivybridge.dat}{\tblmicrokernelivybridge}
-\pgfplotstableread{bin/microkernel-haswell-ht.dat}{\tblmicrokernelhaswellht}
 \begin{figure}[t]
-  \begin{tabular}{lr}
-    \subfigure[Core]
-    {\begin{tikzpicture}
-      \begin{axis}[
-          width=\textwidth/2.0, % Make it fit to text width side by side
-          height = 4cm,
-          font = \footnotesize,
-          domain = 0:4096,
-          xtick = {0,1024,...,4096},
-          xmin = 0,
-          xmax = 4096,
-          cycle list name = exotic
-        ]
-        \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelcore ;
-      \end{axis}
-      \label{subfig:microkernel-core}
-    \end{tikzpicture}} &
-    \subfigure[Nehalem]
-    {\begin{tikzpicture}
-      \begin{axis}[
-          width=\textwidth/2.0, % Make it fit to text width side by side
-          height = 4cm,
-          font = \footnotesize,
-          domain = 0:4096,
-          xtick = {0,1024,...,4096},
-          xmin = 0,
-          xmax = 4096,
-          cycle list name = exotic
-        ]
-        \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelnehalem ;
-      \end{axis}
-      \label{subfig:microkernel-nehalem}
-    \end{tikzpicture}} \\
-    \subfigure[Ivy Bridge]
-    {\begin{tikzpicture}
-      \begin{axis}[
-          width=\textwidth/2.0, % Make it fit to text width side by side
-          height = 4cm,
-          font = \footnotesize,
-          domain = 0:4096,
-          xtick = {0,1024,...,4096},
-          xmin = 0,
-          xmax = 4096,
-          cycle list name = exotic
-        ]
-        \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelivybridge ;
-      \end{axis}
-      \label{subfig:microkernel-ivybridge}
-    \end{tikzpicture}} &
-    \subfigure[Haswell (HT)]
-    {\begin{tikzpicture}
-      \begin{axis}[
-          width=\textwidth/2.0, % Make it fit to text width side by side
-          height = 4cm,
-          font = \footnotesize,
-          domain = 0:4096,
-          xtick = {0,1024,...,4096},
-          xmin = 0,
-          xmax = 4096,
-          cycle list name = exotic
-        ]
-        \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelhaswellht ;
-      \end{axis}
-      \label{subfig:microkernel-haswell-ht}
-    \end{tikzpicture}}
-  \end{tabular}
-  \caption{\label{fig:microkernel-all-archs}Microkernel experiment on different architectures. Horizontal axis represents bytes added to environment, and vertical axis is number of cycles executed.}
+  \begin{tikzpicture}
+    \begin{axis}[
+        title = Nehalem (HT),
+        width = \textwidth/2.0,
+        height = 4.5cm,
+        xlabel = Bytes added to environment,
+        ylabel = Cycles,
+        font = \footnotesize,
+        domain = 0:4096,
+        xtick = {0,1024,...,4096},
+        xmin = 0,
+        xmax = 4096,
+        cycle list name = exotic
+      ]
+      \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelnehalem ;
+    \end{axis}
+  \end{tikzpicture}
+  \begin{tikzpicture}
+    \begin{axis}[
+        title = Ivy Bridge,
+        width = \textwidth/2.0,
+        height = 4.5cm,
+        xlabel = Bytes added to environment,
+        ylabel = Cycles,
+        font = \footnotesize,
+        domain = 0:4096,
+        xtick = {0,1024,...,4096},
+        xmin = 0,
+        xmax = 4096,
+        cycle list name = exotic
+      ]
+      \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelivybridge ;
+    \end{axis}
+  \end{tikzpicture}
+  \caption{\label{fig:microkernel-all-archs}Microkernel experiment on the ``Nehalem'' and ``Ivy Bridge'' microarchitectures.}
 \end{figure}
 
 \subsection{Other Architectures}
-While we show only the analysis for Haswell here, the same approach gave similar results for all CPUs we tested.
-Figure~\ref{fig:microkernel-all-archs} shows cycle count plots for Core, Nehalem and Ivy Bridge as well, revealing very similar patterns.
-
-There were some practical differences in obtaining these results, in particular slightly different sets of performance events supported on each architecture.
-For the Core setup we use \emph{load\_blocks.overlap\_store} instead of \emph{load\_blocks\_partial.address\_alias} to indicate alias.
-Notably, this event was also found to be significant in the original paper by \citeN{Mytkowicz:2009:WrongData}, where the authors also used a Core 2 processor.
+While we show only the analysis for ``Haswell'' here, the same approach gave similar results for all the CPUs we tested.
+Figure~\ref{fig:microkernel-all-archs} shows additional cycle count plots for ``Nehalem'' and ``Ivy Bridge'', revealing the same alias behavior.\footnote{For these results we also pinned the process to a single core during measurements using \texttt{taskset}, which helps remove some of the random noise.}
+The experiment was also done for the older ``Core'' setup, shown in Figure~\ref{fig:motivation}.
+On this architecture, the \emph{load\_blocks.overlap\_store} event is used to indicate address aliasing.
+Notably, this event was also found to be significant in the original paper by \citeN{Mytkowicz:2009:WrongData}, where the authors used a similar setup.
 We were able to verify that partial address overlap was indeed occuring at the same time this event is spiking, and draw the conclusion that address aliasing must be the underlying explanation.
-However, this only explains part of what is going on in the Core setup. 
-As shown in Figure~\ref{subfig:microkernel-core}, there seem to be yet another bias effect visible at every fourth environment increment.
+Still, this only explains part of what is going on in Figure~\ref{fig:motivation}, as there seem to be yet another bias effect at every fourth environment increment.
 These smaller spikes correlate with the performance event \emph{load\_blocks.std}, which is described as ``loads blocked by a preceding store with unknown data''~\cite[Table 19-17]{Volume3B}.
 Our assumption is that this is a different phenomenon, not related to 4K aliasing.
 We were only able to observe the effect on this particular architecture, and did not investigate the root cause further.
 
-Based on our results, and existing documentation on available performance events, it is reasonable to assume that the address alias issue exists for a wide range of Intel microarchitectures, going as far back as the ``Core'' platform.
+Results for the ``Nehalem'' and ``Ivy Bridge'' architectures are more clear-cut, with large spikes only at the aliasing environment configuration.
+It is clear that the address alias issue exist for a wide range of Intel microarchitectures.
 
-\subsection{Hyper-Threading}
-As described in Section~\ref{sec:methodology}, disabling support for Hyper-Threading on applicable architectures was done in order to avoid any potential interference while collecting data.
-However, this begs the question if doing so might affect the existence of aliasing itself.
-To verify this was not the case, we ran the experiment again on the Haswell setup with Hyper-Threading enabled.
-The raw cycle count results are shown in Figure~\ref{subfig:microkernel-haswell-ht}.
-During this experiment we pinned the process to a particular core using \texttt{taskset}, and ran \texttt{cat /dev/zero > /dev/null} to create some background noise on the other (shared) core.
-While the results are more noisy, we see the same trend with respect to cycles executed and alias events spiking at a particular point.
-This indicates that configuration of Hyper-Threading either way is not impactful to our conclusions, address aliasing is still present.
+\paragraph{Note on Hyper-Threading}
+As described in Section~\ref{sec:methodology}, Hyper-Threading was disabled by default in order to avoid any potential interference while collecting data.
+However, we found that configuration of Hyper-Threading either way did not change the alias behavior.
+As an example of this, we show the results for ``Nehalem'' with HT enabled in Figure~\ref{fig:microkernel-all-archs}.
 
 
 \section{Bias from Heap Allocation}
@@ -671,6 +624,24 @@ t_{\text{estimate}} = \frac{t_{k} - t_{1}}{k - 1}
 Our results are with $k=11$, effectively using the average over 10 loop iterations to estimate the cost of a single invocation.
 In addition, performance counter measurements are averaged over 10 samples using the repeat mechanism of perf.
 
+Figure~\ref{fig:conv-default} illustrates how the convolution kernel behaves for increasing offsets between the heap addresses (modulo 4096), clearly indicating a relationship between address aliasing events and cycles executed.
+The effects are most distinct on optimization level 2 and 3, where the ratio of cycles to alias events is most significant.
+Numbers on the x axis represent the amount of offset, measured in number of \texttt{sizeof(float)} bytes.
+An offset of zero is the default behavior for this program when using \texttt{malloc} and moderately large inputs.
+Both for optimization level 2 and 3, the default alignment is close to worst case performance.
+The differences in cycles executed is significant, with about $1.7x$ speedup for O2 and as much as $2x$ speedup for O3 for increasing relative offset.
+This phenomenon is only observed for address separations close to zero, thus we only show the first 20 data points.
+If extended to cover the full width of possible offsets within a 4K segment, we see that the performance is uniform everywhere else.
+
+More detailed performance counter data is presented in Table~\ref{tab:convstats}, where we show the subset that correlates best with the cycle count.
+The numbers are for the level 2 optimization case, which we choose to study in more detail.
+However, the performance data looks fairly similar between the two data sets, with a couple of events that appear to stand out:
+\begin{itemize}
+    \item A high number of resource stalls for the default alignment, which is reduced substantially together with increasing offsets. 
+    \item A high number of cycles with memory loads pending, indicating that the pipeline is stalled waiting for load operations to resolve.
+    \item Changes to the number of micro-ops executed for certain ports.
+\end{itemize}
+
 \pgfplotstableread{bin/conv-default-o2-haswell.estimate.dat}{\convtabletwohaswell}
 \pgfplotstableread{bin/conv-default-o3-haswell.estimate.dat}{\convtablethreehaswell}
 \begin{figure}[t]
@@ -745,26 +716,8 @@ In addition, performance counter measurements are averaged over 10 samples using
   }
 \end{table}
 
-Figure~\ref{fig:conv-default} illustrates how the convolution kernel behaves for increasing offsets between the heap addresses (modulo 4096), clearly indicating a relationship between address aliasing events and cycles executed.
-The effects are most distinct on optimization level 2 and 3, where the ratio of cycles to alias events is most significant.
-Numbers on the x axis represent the amount of offset, measured in number of \texttt{sizeof(float)} bytes.
-An offset of zero is the default behavior for this program when using \texttt{malloc} and moderately large inputs.
-Both for optimization level 2 and 3, the default alignment is close to worst case performance.
-The differences in cycles executed is significant, with about $1.7x$ speedup for O2 and as much as $2x$ speedup for O3 for increasing relative offset.
-This phenomenon is only observed for address separations close to zero, thus we only show the first 20 data points.
-If extended to cover the full width of possible offsets within a 4K segment, we see that the performance is uniform everywhere else.
-
-More detailed performance counter data is presented in Table~\ref{tab:convstats}, where we show the subset that correlates best with the cycle count.
-The numbers are for the level 2 optimization case, which we choose to study in more detail.
-However, the performance data looks fairly similar between the two data sets, with a couple of events that appear to stand out:
-\begin{itemize}
-    \item A high number of resource stalls for the default alignment, which is reduced substantially together with increasing offsets. 
-    \item A high number of cycles with memory loads pending, indicating that the pipeline is stalled waiting for load operations to resolve.
-    \item Changes to the number of micro-ops executed for certain ports.
-\end{itemize}
-
 Interestingly, it looks like small address offsets incur a massive increase in operations issued on port 0 for the O2 case.
-On Haswell, this port handles various ALU operations, and branching together with port 6~\cite[Figure 2.1]{OptimizationManual}.
+On ``Haswell'', this port handles various ALU operations, and branching together with port 6~\cite[Figure 2.1]{OptimizationManual}.
 As there is also variations in the number of branch instructions executed, it seems like these counters together show that certain branches are being re-issued.
 Unlike the microkernel in section \ref{sec:microkernel}, the micro-ops executed and RS stall counts drop together with aliasing events.
 Speculation is possible in this kernel, as there are many independent store addresses.
@@ -829,23 +782,23 @@ The same pointer difference must of course by subtracted before unmapping the me
 Measurement bias and observer effect in performance analysis has been studied in detail by Mytkowicz et al~\shortcite{Mytkowicz:2008:OE&MB,Mytkowicz:2008:Easy}.
 The authors introduce environment variables and link ordering as examples of external bias triggers, showing how standardized {\small SPECint} benchmarks suffer from measurement bias when trying to evaluate the effectiveness of O3 over O2. 
 Strategies for detecting bias through causal analysis and randomization of experimental setups is introduced.
-The microkernel example we analyzed is taken from a followup paper by the same authors, presenting similar results for an older Core 2 processor~\cite{Mytkowicz:2009:WrongData}.
-Assuming the root causes of measurement bias were the same, our results indicate that address aliasing issues is probably relevant on several previous generations of Intel architectures as well.
+The microkernel example we analyzed is taken from a followup paper by the same authors, where it is used as an example of how environment size can cause bias~\cite{Mytkowicz:2009:WrongData}.
+%Assuming the root causes of measurement bias were the same, our results indicate that address aliasing issues is probably relevant on several previous generations of Intel architectures as well.
 
 Many different approaches have been explored in order to take performance counter data and processor intrinsics into account for optimization.
 \citeN{Knights:2009:BlindOpt} introduce ``blind'' optimization, treating the underlying hardware as a black box and use search over \emph{variant spaces}.
 Their space of variants consist of different position and alignment for each function and global variable, in principle exploring the different configurations possible by altering link order.
 Others have used machine learning to classify performance counter data, recognizing patterns or \emph{pathologies} in measurements to recognize optimization opportunities~\cite{Yoo:ADD}.
-The authors of MAO present a framework for extending compilers to provide very low level microarchitectural assembly optimization, using rules, pattern matching, and random insertion of nop-instructions to discover optimal assembly outputs~\cite{Hundt:2011:MAO}. 
+The authors of MAO present a framework for extending compilers to provide very low level microarchitectural assembly optimization, using rules, pattern matching, and random insertion of nop-instructions to discover optimal assembly outputs~\cite{Hundt:2011:MAO}.
 
 
 \section{Conclusions}
 \label{sec:conclusions}
-We have shown how address aliasing can affect program performance under different memory contexts, and how it can explain certain cases of measurement bias. 
+We have shown how address aliasing affects program performance under different memory contexts, and how it can explain certain cases of measurement bias.
 The effect is caused by how speculative and out-of-order memory operations are handled by the CPU, which only considers the last 12 address bits to resolve conflicts between a load and previous store operations.
-This phenomenon is likely present on most consumer hardware based on x86 Intel platforms today, ranging from ``Core'' to ``Haswell'' microarchitectures.
+This phenomenon is likely present on most consumer hardware based on Intel platforms today, ranging from ``Core'' to ``Haswell'' microarchitectures.
 
-In general, any change to memory layout of data can potentially introduce bias effects from address aliasing.
+In general, any change to how data is laid out in memory layout can potentially introduce bias effects from address aliasing.
 Analyzing an example with bias to environment size, we determined that collisions between automatic variables and static data resulted in aliasing for certain stack positions.
 Aliasing conditions were triggered because variations in environment size offset the virtual addresses of stack allocated variables.
 Dynamically allocated data is controlled by heap allocators, which we introduce as another source of bias.
@@ -860,7 +813,7 @@ Our results should inspire more clever optimizations and heuristics taking addre
 
 % Acknowledgements
 \begin{acks}
-This work is forked from a Master's thesis project under the supervision of Anne Cathrine Elster and Rune Erlend Jensen, looking at sources of measurement bias on the Intel ``Ivy Bridge'' architecture~\cite{MasterThesis}.
+This work is forked from a Master's thesis project under the supervision of Anne Cathrine Elster and Rune Erlend Jensen, looking at sources of measurement bias on the Intel ``Ivy Bridge'' microarchitecture~\cite{MasterThesis}.
 \end{acks}
 
 % Bibliography
