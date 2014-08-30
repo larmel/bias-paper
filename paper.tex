@@ -194,7 +194,7 @@ Haswell       & Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7
   \end{tabular}}
 \end{table}
 
-We also have to ensure we are not affected by measurement bias beyond what we are actually trying to observe, and in general follow best practices on gathering data~\cite{Mytkowicz:2009:WrongData}.
+Best practices for controlling the execution context were applied, ensuring that we are not affected by any unwanted bias~\cite{Mytkowicz:2009:WrongData}.
 Most importantly, this means keeping the memory address space under control.
 For security reasons, addresses of the stack, heap and dynamic libraries are often randomized at load time, a technique known as \emph{Address Space Layout Randomization}~\cite{Pax:ASLR,Bhatkar:AddressObfuscation}. 
 By disabling ASLR, we are able to execute the same program multiple times with identical virtual address spaces.
@@ -371,7 +371,7 @@ In our case, lower occupation of execution ports, and less pressure on the reser
 The cycles\_ldm\_pending and stalls\_l2\_pending are interesting, as they are related to the memory and cache system.
 However, this program use only 2 cache-lines, except for the initial startup.
 Using the L1 hit and miss counts also revealed that the L1 load is 99.3\% and store hit rate is ~100\%.
-Thus, these events do not indicate a cache hit rate issue, and is probably linked to how the CPU handles address alias.
+These events do not indicate a cache hit rate issue, but are probably due to having to wait for aliased writes to be retired and committed to cache.
 
 Performance counter data clearly points to address aliasing as a plausible explanation, thus the next step is to see exactly which memory accesses are aliasing. 
 For that we need to know the addresses of each variable at runtime.
@@ -741,7 +741,7 @@ This is a speedup on top of already aggressive compiler optimization.
 
 
 \subsection{Ways to Deal with Heap Address Aliasing}
-Performance penalties caused by address aliasing can be significant in real applications, creating bias towards certain memory layouts.
+Performance penalties caused by address aliasing can be significant, creating bias towards certain memory layouts.
 However, with an understanding of the underlying mechanism that causes bias, the effects can be predicted and to some extent eliminated in software.
 The most relevant scenario to consider is probably code that can hit the aliasing \texttt{mmap} scenario, where performance impact can be consistently bad over all environments.
 We identify some mitigation or optimization techniques that can be used:
@@ -788,7 +788,7 @@ The microkernel example we analyzed is taken from a followup paper by the same a
 Many different approaches have been explored in order to take performance counter data and processor intrinsics into account for optimization.
 \citeN{Knights:2009:BlindOpt} introduce ``blind'' optimization, treating the underlying hardware as a black box and use search over \emph{variant spaces}.
 Their space of variants consist of different position and alignment for each function and global variable, in principle exploring the different configurations possible by altering link order.
-Others have used machine learning to classify performance counter data, recognizing patterns or \emph{pathologies} in measurements to recognize optimization opportunities~\cite{Yoo:ADD}.
+Others have used machine learning to classify performance counter data, recognizing patterns or \emph{pathologies} in measurements to identify optimization opportunities~\cite{Yoo:ADD}.
 The authors of MAO present a framework for extending compilers to provide very low level microarchitectural assembly optimization, using rules, pattern matching, and random insertion of nop-instructions to discover optimal assembly outputs~\cite{Hundt:2011:MAO}.
 
 
