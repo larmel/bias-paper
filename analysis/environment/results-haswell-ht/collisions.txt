@@ -1,0 +1,16 @@
+==== Static variables ===========
+readelf -s bin/loop | grep -E ' i| j| k'
+    37: 000000000060103c     4 OBJECT  LOCAL  DEFAULT   25 i
+    38: 0000000000601040     4 OBJECT  LOCAL  DEFAULT   25 j
+    39: 0000000000601044     4 OBJECT  LOCAL  DEFAULT   25 k
+
+==== Automatic variables ========
+# x16 to get bytes
+../../util/lperf.py -e r0107:u --env-offset 3184 bin/looq
+7fffffffe03c 7fffffffe038 
+Performance counter,Mnemonic,0
+LD_BLOCKS_PARTIAL.ADDRESS_ALIAS,r0107:u,327869
+../../util/lperf.py -e r0107:u --env-offset 7280 bin/looq
+7fffffffd03c 7fffffffd038 
+Performance counter,Mnemonic,0
+LD_BLOCKS_PARTIAL.ADDRESS_ALIAS,r0107:u,327859

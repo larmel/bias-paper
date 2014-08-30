@@ -1,8 +1,5 @@
 lperf := ../../util/lperf.py
 median := ../../util/median.py
-select := ../../util/select.py
-
-.PHONY: all disable-aslr results
 
 all: results
 
@@ -75,4 +72,7 @@ results: bin/loop.csv bin/instrumented.csv bin/fixed.csv bin/comparison.csv
 	$(lperf) -e r0107:u --env-offset $(a) bin/looq
 	$(lperf) -e r0107:u --env-offset $(b) bin/looq
 	@echo ""
-	# If you are satisfied, mv bin/*.csv results
+	# If you are satisfied, mv bin/*.csv results-{arch}
+
+
+.PHONY: all disable-aslr results
