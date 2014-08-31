@@ -19,7 +19,8 @@ resources := \
 	bin/conv-default-o2-haswell.estimate.dat bin/conv-default-o2-haswell.estimate.csv \
 	bin/conv-default-o3-haswell.estimate.dat bin/conv-default-o3-haswell.estimate.csv \
 	bin/convolution-kernel.c \
-	bin/malloc-comparison.csv
+	bin/malloc-comparison.csv \
+	bin/libblas.dat bin/libatlas.dat bin/libopenblas.dat
 
 # Build in root to avoid trouble with pgfplots and output directories.
 bin/paper.pdf: paper.tex references.bib $(resources) | bin
@@ -76,6 +77,15 @@ bin/conv-default-o3-haswell.estimate.csv: analysis/heap-alias/results-haswell/de
 
 bin/malloc-comparison.csv: analysis/allocators/results/comparison.csv | bin
 	cat $< > $@
+
+bin/libblas.dat: analysis/blas/results-haswell-ht/libblas.estimate.csv | bin
+	cat $< | util/select.py -e cycles:u,r0107:u | util/pgfpconv.py > $@
+
+bin/libatlas.dat: analysis/blas/results-haswell-ht/libatlas.estimate.csv | bin
+	cat $< | util/select.py -e cycles:u,r0107:u | util/pgfpconv.py > $@
+
+bin/libopenblas.dat: analysis/blas/results-haswell-ht/libopenblas.estimate.csv | bin
+	cat $< | util/select.py -e cycles:u,r0107:u | util/pgfpconv.py > $@
 
 
 .PHONY: all paper clean about

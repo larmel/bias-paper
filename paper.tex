@@ -650,7 +650,7 @@ However, the performance data looks fairly similar between the two data sets, wi
     \begin{axis}[
         title=Haswell -O2,
         font=\footnotesize,
-        xlabel=Relative offset in \lstinline!sizeof(float)! bytes,
+        xlabel=Relative offset in \texttt{sizeof(float)} bytes,
         ylabel=Event count,
         cycle list name=black white,
         width=\textwidth/1.9, % Make it fit to text width side by side
@@ -666,7 +666,7 @@ However, the performance data looks fairly similar between the two data sets, wi
     \begin{axis}[
         title=Haswell -O3,
         font=\footnotesize,
-        xlabel=Relative offset in \lstinline!sizeof(float)! bytes,
+        xlabel=Relative offset in \texttt{sizeof(float)} bytes,
         ylabel=Event count,
         cycle list name=black white,
         width=\textwidth/1.9,
@@ -756,7 +756,6 @@ The C99 keyword \emph{restrict} can be used to explicitly tell the compiler that
 With this updated function prototype, the compiler is able to move a store instruction out of the inner loop, reducing the number of stores executed by more than 80 \% on optimization level O2.
 Alias events is reduced by about 10 million for the default alignment, with a corresponding improvement in cycle count. % File backing this in results
 
-
 \paragraph{Use a special purpose allocator}
 The Intel optimization manual mentions this in \emph{User/Source Coding Rule 8}, suggesting that special purpose allocators could be used to avoid aliasing ~\cite{OptimizationManual}.
 However, to our knowledge there are no commonly used allocators that specifically tries to mitigate aliasing in heap allocated memory.
@@ -766,7 +765,6 @@ We show that heap allocators are prone to generate pairwise aliasing buffers, th
 A potential solution could be to apply some heuristic to randomize addresses more, and in particular not always return the same 12 bit suffix for large allocations.
 The allocator could also accept hints to which buffers are going to be accessed in parallel, for example as an optional argument to a custom version of \texttt{malloc}.
 
-
 \paragraph{Manually adjust address offsets}
 In some cases it might make sense to explicitly control the memory addresses used, for example forcing some fixed relative offset between input and output pointers.
 This can be achieved by exploiting the fact the \texttt{mmap} is in fact guaranteed to be placed at a page boundary, and use that directly instead of \texttt{malloc}.
@@ -775,6 +773,99 @@ The following approach can be used to make an anonymous memory mapping with offs
     mmap(NULL, (n + d), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) + d;
 \end{lstlisting}
 The same pointer difference must of course by subtracted before unmapping the memory.
+
+
+\section{Aliasing in Real Applications}
+To investigate how real world applications can be impacted by aliasing, we look at low level numerical applications.
+Basic Linear Algebra Subroutines (BLAS), is the de facto standard API for high performance linear algebra routines.
+The functionality is divided into three categories:
+\begin{describe}{{pad}}
+  \item[\emph{Level 1}.] Scalar and vector operations, such as dot product and vector addition.
+  \item[\emph{Level 2}.] Matrix-vector operations, such as gemv for general matrix-vector multiplication.
+  \item[\emph{Level 3}.] Matrix-matrix operations, including the widely applied gemm routine for general matrix-matrix multiplication.
+\end{describe}
+Procedures operating on vectors, from level 1 or 2, intuitively appears the most likely to have potential for aliasing.
+
+We look at three different libraries available from the Ubuntu package manager; \emph{libblas}, \emph{libatlas}, and \emph{libopenblas}.
+We ran our bias analysis on the level 2 procedure \texttt{cblas\_dgemv}, which computes the matrix-vector product $\boldsymbol{y} = \alpha\text{op}\left(A\right)\boldsymbol{x} + \beta\boldsymbol{y}$
+In this equation,  $\alpha$ and $\beta$ are constants, and $\text{op}\left(A\right)$ is an optional transpose or complex conjugate of the matrix.
+We set $\alpha = 1$, $\beta = 0$ and $\text{op} \left(A\right) = A$ to reduce the formula to $\boldsymbol{y}=A\boldsymbol{x}$.
+Denote the matrix size as $M \times N$, making $\boldsymbol{x}$ of length $N$ and $\boldsymbol{y}$ of length $M$.
+In code, the function is invoked with the following parameters:
+\begin{lstlisting}
+cblas_dgemv(CblasColMajor, CblasNoTrans, M, N, alpha, A, M, x, 1, beta, y, 1);
+\end{lstlisting}
+
+Each of the structures \texttt{A}, \texttt{x} and \texttt{y} represent different locations in memory, and their addresses is part of the execution context.
+The \texttt{mmap} method outlined in the previous section is used to control the location of each of these buffers on the heap.
+Out of trial and error, it turns out the memory address offset of vector $y$ compared to matrix $A$ is the most important with respect to the number of alias events.
+For the following experiment, we set $A = I$ (identity matrix) and $x = [1, 2, ... N]$, with parameters $M = N = 8192$.
+Address suffix of $A$ and $x$ is fixed to 0x000, while performance events are sampled for increasing address offset of $y$, starting at a baseline of 0x000.
+The experiment was run on the ``Haswell'' setup, with Hyper-Threading enabled.
+In an attempt to isolate the cost of the \texttt{cblas_dgemv} invocation, we use the estimation approach described in Section~\ref{sec:heap} to subtract the constant overhead from heap allocation and initialization.
+
+\pgfplotstableread{bin/libblas.dat}{\libblastable}
+\pgfplotstableread{bin/libatlas.dat}{\libatlastable}
+\pgfplotstableread{bin/libopenblas.dat}{\libopenblastable}
+\begin{figure}[t]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+        title=libblas,
+        font=\footnotesize,
+        xlabel=Address offset of vector $y$,
+        ylabel=Event count,
+        cycle list name=black white,
+        width=\textwidth/2.7, % Make it fit to text width side by side
+        legend style={anchor=north east}
+      ]
+      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \libblastable ;
+      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \libblastable ;
+    \end{axis}
+  \end{tikzpicture}
+  \begin{tikzpicture}
+    \begin{axis}[
+        title=libatlas,
+        font=\footnotesize,
+        xlabel=Address offset of vector $y$,
+        ylabel=Event count,
+        cycle list name=black white,
+        width=\textwidth/2.7
+      ]
+      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \libatlastable ;
+      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \libatlastable ;
+    \end{axis}
+  \end{tikzpicture}
+  \begin{tikzpicture}
+    \begin{axis}[
+        title=libopenblas,
+        font=\footnotesize,
+        xlabel=Address offset of vector $y$,
+        ylabel=Event count,
+        cycle list name=black white,
+        width=\textwidth/2.7
+      ]
+      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \libopenblastable ;
+      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \libopenblastable ;
+    \end{axis}
+  \end{tikzpicture}
+  \label{fig:blas}
+  \caption{Performance of \texttt{dgemv} for different {\small{BLAS}} packages, with varying address offset between matrix $A$ and vector $y$.}
+\end{figure}
+
+Cycles executed and alias events for each library is shown in Figure~\ref{fig:blas}.
+Each library behaves differently, but in all cases we identify a significant amount of alias. 
+The diagrams can be understood the same way as for the convolution example; partial address overlap occur when the address suffix delta of $A$ and $y$ is close to zero.
+Libblas generates the most distinct pattern, with a relatively clear spike for deltas between 1 and 6 \texttt{double} elements.
+% Need to run experiment again
+Correlation between cycles executed and address aliasing events were calculated to 95\% for libblas, 78\% for libatlas and 44\% for libopenblas.
+
+We do not go into a more detailed analysis of the raw performance data here, but note that we see many of the previously discussed events stand out; such as execution port occupancy, resource stalls, branch instructions executed, offcore requests, and ldm pending.
+Especially for the libblas case, results look quite similar to what we saw for the convolution kernel.
+
+Our results show that address aliasing can indeed occur in real, performance critical applications.
+The amount of \emph{bias} this creates with respect to number of cycles executed is not as clear in all cases, but at least for the libblas case we are pretty confident in claiming that aliasing is indeed causing the performance degradation.
+
 
 
 \section{Related Work}
@@ -809,6 +900,7 @@ We analyze an example with up to $2x$ variation in cycle count between different
 
 We show how techniques like padding of variables and alternative alias-free code paths can be used to avoid aliasing at runtime.
 For heap address aliasing especially, we find that manual intervention can be required in order to achieve optimal performance.
+Finally, we look at different linear algebra libraries and find examples of alias issues in matrix-vector multiplication routines.
 Our results should inspire more clever optimizations and heuristics taking address aliasing effects into account, as the potential performance improvements can be substantial.
 
 % Acknowledgements
