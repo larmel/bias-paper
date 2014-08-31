@@ -29,13 +29,13 @@ bin/%.1.csv: bin/gemv-% | disable-aslr
 bin/%.11.csv: bin/gemv-% | disable-aslr
 	$(lperf) -e all --enumerate -r $(repeat) -n 16 $< 11 0 > $@
 
-bin/libblas.estimate.csv: bin/libblas.11.csv bin/libblas.1.csv | disable-aslr
+bin/libblas.estimate.csv: bin/libblas.11.csv bin/libblas.1.csv
 	$(estimate) --delta 10 --longrun $< --shortrun $(word 2,$^) | $(correlate) cycles:u > $@
 
-bin/libatlas.estimate.csv: bin/libatlas.11.csv bin/libatlas.1.csv | disable-aslr
+bin/libatlas.estimate.csv: bin/libatlas.11.csv bin/libatlas.1.csv
 	$(estimate) --delta 10 --longrun $< --shortrun $(word 2,$^) | $(correlate) cycles:u > $@
 
-bin/libopenblas.estimate.csv: bin/libopenblas.11.csv bin/libopenblas.1.csv | disable-aslr
+bin/libopenblas.estimate.csv: bin/libopenblas.11.csv bin/libopenblas.1.csv
 	$(estimate) --delta 10 --longrun $< --shortrun $(word 2,$^) | $(correlate) cycles:u > $@
 
 results: bin/libblas.1.csv bin/libblas.11.csv bin/libblas.estimate.csv \
