@@ -148,8 +148,8 @@ Being able to handle address aliasing can give significant speedups, and our fin
 The rest of this paper is structured as follows: Our methodology and experimental setup is explained in the next section.
 Then section \ref{sec:aliasing} introduces ``4K aliasing'', providing necessary background for interpreting the later results.
 Section \ref{sec:environment} presents an analysis of how the size of environment variables causes bias, and in Section \ref{sec:heap} we go through a similar analysis for bias to heap address alignment.
-Related work is discussed in Section \ref{sec:related}.
-Section \ref{sec:conclusions} includes a summary and conclusion.
+Finally, in Section \ref{sec:blas} we look at alias in BLAS libraries.
+Related work is discussed in Section \ref{sec:related}, before we summarize and conclude in Section \ref{sec:conclusions}.
 
 
 \section{Experimental Methodology}
@@ -777,6 +777,7 @@ The same pointer difference must of course by subtracted before unmapping the me
 
 
 \section{Aliasing in Real Applications}
+\label{sec:blas}
 To investigate how real world applications can be impacted by aliasing, we look at low level numerical applications.
 Basic Linear Algebra Subroutines (BLAS) is the de facto standard API for high performance linear algebra routines, with several heavily optimized implementations available~\cite{Blackford:2002:UpdatedBLAS}.
 The functionality is divided into three categories:
