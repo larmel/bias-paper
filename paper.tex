@@ -246,7 +246,7 @@ Some PMU events also require HT to be turned off, or produce inaccurate results 
 
 \section{4K Address Aliasing}
 \label{sec:aliasing}
-Modern processors are \emph{superscalar}, and achieves parallelism by issuing multiple instructions simultaneously and out of order.
+Modern processors are \emph{superscalar}, and achieve parallelism by issuing multiple instructions simultaneously and out of order.
 One of the issues that can limit throughput is dependencies between a load and previous stores.
 To increase parallelism, modern architectures use a technique called \emph{memory disambiguation} to execute memory operations out of order~\cite{Intel:2006:InsideICM:SmartMemoryAccess}. 
 More often than not, loads can safely be issued before a previous store has completed and written its value to L1 cache.
@@ -399,7 +399,7 @@ Notice the common suffix 0x03c between \texttt{inc} and \texttt{i}, which is the
 %   ]{bin/micro-kernel-annotated.s}
 
 Because the stack is aligned to 16 bytes, or 4 \emph{words}, there are a couple of different scenarios that could have been observed here.
-Static variables are fixed and covers 12 contiguous bytes (3 words), in our case the addresses end in 0x0, 0x4 and 0xc, leaving the 0x8 slot free.
+Static variables are fixed and cover 12 contiguous bytes (3 words), in our case the addresses end in 0x0, 0x4 and 0xc, leaving the 0x8 slot free.
 The two automatic variables \texttt{g} and \texttt{inc} occupies 8 contiguous bytes on the stack (2 words), in our case the addresses will always fit in the 0x8 and 0xc slots.
 In this scenario, \texttt{g} will never alias with any of the static variables -- as it always covers the 0x8 slot not occupied by either of \texttt{i}, \texttt{j} or \texttt{k}.
 A less fortunate scenario with respect to the number of alias events occurs when there can be collisions with both stack allocated variables, which can be achieved for example by reserving an extra 8 bytes to offset \texttt{i}, \texttt{j} into the 0x8, 0xc slots. 
@@ -407,7 +407,7 @@ While this will give significantly more alias counts, we found that it had littl
 
 In conclusion, we identified that address aliasing is the root cause of measurement bias from environment size for this program.
 Worst case occurs for precisely one out of 256 possible initial stack addresses in every 4K segment, where resource stalls are generated because of false dependencies between the stack and static data.
-The program is \emph{biased} towards environment sizes that avoids this specific stack alignment, which in principle could be triggered just by changing user name.
+The program is \emph{biased} towards environment sizes that avoid this specific stack alignment, which in principle could be triggered just by changing user name.
 This type of bias can occur in a number of memory configurations.
 Here, the aliasing was caused by interactions between the stack and static variables, but we can imagine similar conflicts between the stack and the heap, depending also on how dynamic memory allocators behave.
 Because the stack is used for local variables, complex code is likely to contain many potential conflicts with other areas of memory.
@@ -759,7 +759,7 @@ Alias events is reduced by about 10 million for the default alignment, with a co
 
 \paragraph{Use a special purpose allocator}
 The Intel optimization manual mentions this in \emph{User/Source Coding Rule 8}, suggesting that special purpose allocators could be used to avoid aliasing ~\cite{OptimizationManual}.
-However, to our knowledge there are no commonly used allocators that specifically tries to mitigate aliasing in heap allocated memory.
+However, to our knowledge there are no commonly used allocators that specifically try to mitigate aliasing in heap allocated memory.
 %Similarly none offset their allocations based on the initial stack frame.
 We show that heap allocators are prone to generate pairwise aliasing buffers, the worst case for functions such as the convolution example.
 
