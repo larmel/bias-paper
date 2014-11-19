@@ -365,38 +365,35 @@ The microkernel is compiled with {\small{GCC}} using no optimization; any optimi
 There are clearly two worst cases, indicated by significant spikes at the 3184 and 7280 byte offsets.
 We sampled an extensive set of performance counters in addition to cycle count for each execution context.
 To analyze the bias effects at these points, we calculate the \emph{median} value of each counter over all contexts, and compare that to the two extreme cases.
-Going through the list of events manually, we selected the set that had the highest correlation with cycle count.
-Table \ref{tab:loopcorrelation} shows numerical counter values for these cases, compared to the median values.
+Going through the list of events manually, we selected the set that had the highest correlation with cycle count\footnote{Some correlating performance events are omitted; for example bus-cycles, which will naturally vary with total cycle count.}.
+Table \ref{tab:loopcorrelation} shows numerical counter values for the first spike, compared to the median values. Event counts on the second spike are virtually identical to the first, and omitted for brevity.
 
 % Detailed comparison between median and worst cases.
 \begin{table}
-  \caption{Events with significant correlation to cycle count.\label{tab:loopcorrelation}}{
-    \pgfplotstabletypeset[
-      int detect, % Output whole numbers for counter values
-      col sep=comma,
-      columns={Performance counter, Median, [index]3, [index]4},
-      column type=r,
-      columns/Performance counter/.style={
-        string type, 
-        column type=l,
-        column type/.add={|}{},
-        postproc cell content/.append code={
-          \pgfkeysalso{@cell content=\perfctr{##1}}
-        }
+  \caption{Events with significant correlation to cycle count.\label{tab:loopcorrelation}}
+  \pgfplotstabletypeset[
+    int detect, % Output whole numbers for counter values
+    col sep=comma,
+    columns={Performance counter, Median, [index]3}, %, [index]4
+    column type=r,
+    columns/Performance counter/.style={
+      string type, 
+      column type=l,
+      column type/.add={|}{},
+      postproc cell content/.append code={
+        \pgfkeysalso{@cell content=\perfctr{##1}}
+      }
+    },
+    every head row/.style={
+      output empty row,
+      before row={\hline
+        Performance counter & Median & Spike \\ % & Spike 2
       },
-      every head row/.style={
-        output empty row,
-        before row={\hline
-          Performance counter & Median & Spike 1 & Spike 2 \\
-        },
-        after row=\hline\hline
-      },
-      every last row/.style={after row=\hline},
-      every last column/.style={column type/.add={}{|}}
-    ]{bin/microkernel-comparison-haswell.csv}
-  }
-% TODO: make this a real note
-    {[Note:] Some correlating performance events are omitted, for example bus-cycles which will naturally vary with total cycle count.}
+      after row=\hline\hline
+    },
+    every last row/.style={after row=\hline},
+    every last column/.style={column type/.add={}{|}}
+  ]{bin/microkernel-comparison-haswell.csv}
 \end{table}
 
 We see the most extreme change from median to worst case in the number of alias events. 
