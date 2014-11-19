@@ -573,37 +573,32 @@ The page size is 4096 bytes, meaning two pointers returned by \texttt{mmap} will
 This behavior is often the worst case for functions that operate on two or more independent buffers.
 
 \begin{table}[t]
-  \caption{Addresses returned by different heap allocators when allocating pairs of equally sized buffers.\label{tab:mallocompare}}{
-    \pgfplotstabletypeset[
-      col sep=comma,
-      string type,
-      columns={Allocation, 64, 5120, 1048576},
-      column type=r,
-      columns/Allocation/.style={
-        string type, 
-        column type=l,
-        column type/.add={|}{}
-      },
-      every head row/.style={
-        output empty row,
-        before row={\hline
-           & 64 B & 5,120 B & 1,048,576 B \\
-          },
-        after row=\hline\hline,
-      },
-      every last row/.style={after row=\hline},
-      every last column/.style={column type/.add={}{|}},
-      every odd row/.style={after row=\hline},
-    ]{bin/malloc-comparison.csv}
-  }
-  %\begin{tabnote}
-  %  \Note
-{Note:}{Memory mapped addresses starting with the 0x2aa... prefix is an artifact of using \emph{make} to generate results. Executing the test program from \emph{bash} directly result in 0x7fff... prefixes.
-    The difference is not important to our discussion.}
-  %\end{tabnote}
+  \centering
+  \caption{Addresses returned by different heap allocators when allocating pairs of equally sized buffers.\label{tab:mallocompare}}
+  \pgfplotstabletypeset[
+    col sep=comma,
+    string type,
+    columns={Allocation, 5120, 1048576},
+    column type=r,
+    columns/Allocation/.style={
+      string type, 
+      column type=l,
+      column type/.add={|}{}
+    },
+    every head row/.style={
+      output empty row,
+      before row={\hline
+         & 5,120 B & 1,048,576 B \\
+        },
+      after row=\hline\hline,
+    },
+    every last row/.style={after row=\hline},
+    every last column/.style={column type/.add={}{|}},
+    every odd row/.style={after row=\hline},
+  ]{bin/malloc-comparison.csv}
 \end{table}
 
-Table \ref{tab:mallocompare} illustrates how using a different allocator can affect potential aliasing between heap pointers.\footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}
+Table \ref{tab:mallocompare} illustrates how using a different allocator can affect potential aliasing between heap pointers.\footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}\footnote{Memory mapped addresses starting with the 0x2aa... prefix is an artifact of using \emph{make} to generate results. Executing the test program from \emph{bash} directly result in 0x7fff... prefixes. This difference is not important to our discussion.}
 We observe the addresses of two equally sized \texttt{char} buffers allocated with \texttt{malloc} for different size parameters.
 Equal three digit address suffix indicate an aliasing pair.
 In addition to glibc, where the heap allocator is called \emph{ptmalloc}, we look at the following alternatives:

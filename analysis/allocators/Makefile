@@ -18,8 +18,7 @@ bin/ptmalloc.csv: bin/heapalloc | disable-aslr
 	for n in $(sizes) ; do \
 		$< $$n > bin/$$n.tmp ; \
 	done
-	echo "glibc" > bin/header.tmp
-	echo "(ptmalloc)" >> bin/header.tmp
+	echo "glibc (ptmalloc)" > bin/header.tmp
 	paste -d "," bin/header.tmp $(addprefix bin/,$(addsuffix .tmp,$(sizes))) > $@
 	rm bin/*.tmp
 
@@ -27,7 +26,7 @@ bin/tcmalloc.csv: bin/heapalloc | disable-aslr
 	for n in $(sizes) ; do \
 		LD_PRELOAD=/usr/lib/libtcmalloc_minimal.so.4 $< $$n > bin/$$n.tmp ; \
 	done
-	@echo "tcmalloc" > bin/header.tmp
+	echo "tcmalloc" > bin/header.tmp
 	paste -d "," bin/header.tmp $(addprefix bin/,$(addsuffix .tmp,$(sizes))) > $@
 	rm bin/*.tmp
 
