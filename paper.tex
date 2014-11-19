@@ -1,5 +1,6 @@
 % Typeset for Transactions on Architecture and Code Optimization
-\documentclass[prodmode,acmtaco]{acmsmall}
+% \documentclass[prodmode,acmtaco]{acmsmall}
+\documentclass{acm_proc_article-sp}
 \usepackage{graphicx}
 \usepackage{pgfplots}
 \usepackage{pgfplotstable}
@@ -21,6 +22,8 @@
   {\lowercase{#1}}
 }
 
+\begin{document}
+
 %\acmVolume{V}
 %\acmNumber{N}
 %\acmArticle{A}
@@ -28,12 +31,48 @@
 %\acmMonth{0}
 
 % Page headers
-\markboth{L. K. Melhus and R. E. Jensen}{Measurement Bias from Address Aliasing}
+%\markboth{L. K. Melhus and R. E. Jensen}{Measurement Bias from Address Aliasing}
 
 \title{Measurement Bias from Address Aliasing}
+
+\subtitle{[Extended Abstract]
+\titlenote{Just a test}}
+\numberofauthors{2}
+ 
+
+% names here
 \author{
-LARS KIRKHOLT MELHUS and RUNE ERLEND JENSEN
-  \affil{Norwegian University of Science and Technology}}
+% You can go ahead and credit any number of authors here,
+% e.g. one 'row of three' or two rows (consisting of one row of three
+% and a second row of one, two or three).
+%
+% The command \alignauthor (no curly braces needed) should
+% precede each author name, affiliation/snail-mail address and
+% e-mail address. Additionally, tag each line of
+% affiliation/address with \affaddr, and tag the
+% e-mail address with \email.
+%
+% 1st. author
+\alignauthor
+LARS KIRKHOLT MELHUS\\
+       \affaddr{Norwegian University of Science and Technology}\\
+       \affaddr{fix 1932 Wallamaloo Lane}\\
+       \affaddr{fix Wallamaloo, New Zealand}\\
+       \email{fix@corporation.com}
+% 2nd. author
+\alignauthor
+RUNE ERLEND JENSEN\\
+       \affaddr{Norwegian University of Science and Technology}\\
+       \affaddr{fix P.O. Box 1212}\\
+       \affaddr{fix Dublin, Ohio 43017-6221}\\
+       \email{runeerle@idi.ntnu.no}
+}
+
+\date{19 November 2014}
+%LARS KIRKHOLT MELHUS and RUNE ERLEND JENSEN
+%  \affil{Norwegian University of Science and Technology}
+
+\maketitle
 
 % Motivation -- Problem statement -- Approach -- Results -- Conclusions
 \begin{abstract} % Should be 150 -- 200 words max
@@ -62,19 +101,19 @@ Our results can enable new architecture specific optimization strategies to acco
 \keywords{4K address aliasing, BLAS, heap allocators, measurement bias, memory disambiguation}
 
 % Minimum is author, year and title
-\acmformat{Lars K. Melhus and Rune E. Jensen. 2014. Measurement Bias from Address Aliasing}
+%\acmformat{Lars K. Melhus and Rune E. Jensen. 2014. Measurement Bias from Address Aliasing}
 
 
-\begin{document}
+
 
 % Acknowledgement of support, author(s) address(es)
-\begin{bottomstuff}
-New Paper, Not an Extension of a Conference Paper.
-Authors' addresses: Lars Kirkholt Melhus, Rune Erlend Jensen, Computer and Information Science Department, Norwegian University of Science and Technology, 
-Sem S{\ae}lands vei 9, Gl{\o}shaugen, 7491 Trondheim, Norway; email: larskirk@alumni.ntnu.no, runeerle@idi.ntnu.no
-\end{bottomstuff}
+%\begin{bottomstuff}
+%New Paper, Not an Extension of a Conference Paper.
+%Authors' addresses: Lars Kirkholt Melhus, Rune Erlend Jensen, Computer and Information Science Department, Norwegian University of Science and Technology, 
+%Sem S{\ae}lands vei 9, Gl{\o}shaugen, 7491 Trondheim, Norway; email: larskirk@alumni.ntnu.no, runeerle@idi.ntnu.no
+%\end{bottomstuff}
 
-\maketitle
+
 
 
 \section{Introduction}
@@ -179,7 +218,7 @@ We later reproduced similar results for the ``Core'', ``Nehalem'', and ``Ivy Bri
 Each setup is described in Table~\ref{tab:machines}, and referenced throughout the paper.
 
 \begin{table}
-  \tbl{Experimental setups used.\label{tab:machines}}{
+  \caption{Experimental setups used.\label{tab:machines}}{
   \begin{tabular}{|l|l|}
     \hline
 Core          & Intel\textsuperscript{\textregistered{}} Core\texttrademark{}2 Duo P8600 (laptop) \\
@@ -204,7 +243,7 @@ Finally, we disable \emph{Hyper-threading} (HT), which reduces the possibility f
 Some PMU events also require HT to be turned off, or produce inaccurate results with HT enabled.
 
 % Virtual memory/randomization illustration
-\begin{narrowfig}{0.5\textwidth}[t]
+\begin{figure}
   \centering
   \begin{tikzpicture}[font=\footnotesize]
     % See page 453 in pgf manual
@@ -241,7 +280,7 @@ Some PMU events also require HT to be turned off, or produce inaccurate results 
   The stack is also offset by environment variables and program arguments.
   Addresses of code and statically allocated data are allocated at compile time by the linker, and can be determined by inspecting the executable.}
   \label{fig:virtualmemory}
-\end{narrowfig}
+\end{figure}
 
 
 \section{4K Address Aliasing}
@@ -259,14 +298,18 @@ In particular, an event known as ``4K aliasing'' can occur when the memory addre
 A store to address 0x601020 followed by a load to address 0x821020 is an aliasing pair, because the 12-bit address suffix of 0x020 is the same in both. 
 Despite being independent, in these cases the memory order subsystem generates \emph{false} dependencies, causing the load to be reissued.
 The number of times this happens can be counted by the following event:
-\begin{describe}{{pad}}
+%\begin{describe}{{pad}}
+\begin{list}{{}}
   \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS.}] \emph{``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.''} \cite[B.3.4.4]{OptimizationManual}
-\end{describe}
+%\end{describe}
+\end{list}
 This event is listed in the manual for microarchitectures going back to ``Nehalem'', including ``Ivy Bridge'' and ``Haswell'' CPUs~\cite{Volume3B}.
 Older architectures such as Core do not have this particular event listed, but 4K aliasing is covered by a more general event:
-\begin{describe}{{pad}}
+%\begin{describe}{{pad}}
+\begin{list}{{}}
   \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE.}] \emph{``Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.''} \cite[Table 19-17]{Volume3B}
-\end{describe}
+\end{list}
+%\end{describe}
 
 As address aliasing depends on the memory addresses of loads and stores, any environmental factor that affects memory layout has the potential to induce aliasing conditions.
 In the following sections, we show how performance penalties from address aliasing can be the root cause of measurement bias.
@@ -328,7 +371,7 @@ Table \ref{tab:loopcorrelation} shows numerical counter values for these cases, 
 
 % Detailed comparison between median and worst cases.
 \begin{table}
-  \tbl{Events with significant correlation to cycle count.\label{tab:loopcorrelation}}{
+  \caption{Events with significant correlation to cycle count.\label{tab:loopcorrelation}}{
     \pgfplotstabletypeset[
       int detect, % Output whole numbers for counter values
       col sep=comma,
@@ -353,9 +396,8 @@ Table \ref{tab:loopcorrelation} shows numerical counter values for these cases, 
       every last column/.style={column type/.add={}{|}}
     ]{bin/microkernel-comparison-haswell.csv}
   }
-  \begin{tabnote}
-    \Note{Note:}{Some correlating performance events are omitted, for example bus-cycles which will naturally vary with total cycle count.}
-  \end{tabnote}
+% TODO: make this a real note
+    {[Note:] Some correlating performance events are omitted, for example bus-cycles which will naturally vary with total cycle count.}
 \end{table}
 
 We see the most extreme change from median to worst case in the number of alias events. 
@@ -535,7 +577,7 @@ The page size is 4096 bytes, meaning two pointers returned by \texttt{mmap} will
 This behavior is often the worst case for functions that operate on two or more independent buffers.
 
 \begin{table}[t]
-  \tbl{Addresses returned by different heap allocators when allocating pairs of equally sized buffers.\label{tab:mallocompare}}{
+  \caption{Addresses returned by different heap allocators when allocating pairs of equally sized buffers.\label{tab:mallocompare}}{
     \pgfplotstabletypeset[
       col sep=comma,
       string type,
@@ -558,10 +600,11 @@ This behavior is often the worst case for functions that operate on two or more 
       every odd row/.style={after row=\hline},
     ]{bin/malloc-comparison.csv}
   }
-  \begin{tabnote}
-    \Note{Note:}{Memory mapped addresses starting with the 0x2aa... prefix is an artifact of using \emph{make} to generate results. Executing the test program from \emph{bash} directly result in 0x7fff... prefixes.
+  %\begin{tabnote}
+  %  \Note
+{Note:}{Memory mapped addresses starting with the 0x2aa... prefix is an artifact of using \emph{make} to generate results. Executing the test program from \emph{bash} directly result in 0x7fff... prefixes.
     The difference is not important to our discussion.}
-  \end{tabnote}
+  %\end{tabnote}
 \end{table}
 
 Table \ref{tab:mallocompare} illustrates how using a different allocator can affect potential aliasing between heap pointers.\footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}
@@ -683,9 +726,9 @@ However, the performance data looks fairly similar between the two data sets, wi
 \end{figure}
 
 % Table with detailed performance data, use estimated for O2 because it does not need as many columns (!)
-\begin{table}[t]
+\begin{table*}[t]
   \renewcommand{\tabcolsep}{3pt} % Less padding between cells
-  \tbl{Relevant performance counters and correlation ($r$) with cycle count for optimization O2. Estimated cost accounting for constant overhead.\label{tab:convstats}}{
+  \caption{Relevant performance counters and correlation ($r$) with cycle count for optimization O2. Estimated cost accounting for constant overhead.\label{tab:convstats}}{
     \pgfplotstabletypeset[
       int detect, % Output whole numbers for counter values
       col sep=comma,
@@ -715,7 +758,7 @@ However, the performance data looks fairly similar between the two data sets, wi
       every last column/.style={column type/.add={}{|}}
     ]{bin/conv-default-o2-haswell.estimate.csv}
   }
-\end{table}
+\end{table*}
 
 Interestingly, it looks like small address offsets incur a massive increase in operations issued on port 0 for the O2 case.
 On ``Haswell'', this port handles various ALU operations, and branching together with port 6~\cite[Figure 2.1]{OptimizationManual}.
@@ -781,11 +824,13 @@ The same pointer difference must of course by subtracted before unmapping the me
 To investigate how real world applications can be impacted by aliasing, we look at low level numerical applications.
 Basic Linear Algebra Subroutines (BLAS) is the de facto standard API for high performance linear algebra routines, with several heavily optimized implementations available~\cite{Blackford:2002:UpdatedBLAS}.
 The functionality is divided into three categories:
-\begin{describe}{{pad}}
+%\begin{describe}{{pad}}
+\begin{list}{{}}
   \item[\emph{Level 1}.] Scalar and vector operations, such as dot product and vector addition.
   \item[\emph{Level 2}.] Matrix-vector operations, such as gemv for general matrix-vector multiplication.
   \item[\emph{Level 3}.] Matrix-matrix operations, including the widely applied gemm routine for general matrix multiplication.
-\end{describe}
+\end{list}
+%\end{describe}
 Procedures operating on vectors, from level 1 or 2, intuitively appears the most likely to have potential for aliasing.
 
 We look at three different libraries available through the Ubuntu package manager; \emph{libblas}, \emph{libatlas}, and \emph{libopenblas}~\cite{Whaley:1998:ATLAS,Wang:2013:OpenBLAS}.
@@ -914,15 +959,17 @@ For heap address aliasing especially, we find that manual intervention can be re
 Our results should inspire more clever optimizations and heuristics taking address aliasing effects into account, as the potential performance improvements can be substantial.
 
 % Acknowledgements
-\begin{acks}
+%\begin{acks}
+\section{Acknowledgments}
 This work is forked from a Master's thesis project under the supervision of Anne Cathrine Elster and Rune Erlend Jensen, looking at sources of measurement bias on the Intel ``Ivy Bridge'' microarchitecture~\cite{MasterThesis}.
-\end{acks}
+%\end{acks}
 
 % Bibliography
-\bibliographystyle{ACM-Reference-Format-Journals}
+\bibliographystyle{abbrv}
 \bibliography{references}
 
+
 % History dates
-\received{}{}{}
+%\received{}{}{}
 
 \end{document}
