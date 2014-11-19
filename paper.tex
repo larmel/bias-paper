@@ -135,7 +135,7 @@ int main() {
     return 0;
 }
   \end{lstlisting}
-  \caption{\label{fig:microkernel}Microkernel first presented by \citeN{Mytkowicz:2009:WrongData}, showing bias to environment size.}
+  \caption{\label{fig:microkernel}Microkernel first presented by Mytkowicz et al.\cite{Mytkowicz:2009:WrongData}, showing bias to environment size.}
 \end{figure}
 
 %\pgfplotstableread{bin/microkernel-cycles-core2.dat}{\microkernelcoretwotable}
@@ -161,12 +161,12 @@ int main() {
   \caption{\label{fig:motivation}Performance counter data running the micro-kernel from Figure~\ref{fig:microkernel} under different environment sizes. Notice the clear spike at around 3200 bytes, where the number of cycles executed nearly doubles. Measuring performance in this configuration would give a biased result.}
 \end{figure}
 
-A literature study of 88 papers by \citeN{Mytkowicz:2008:OE&MB} showed that the median reported speedup was within the margin of bias, possibly invalidating the claimed speedups. 
+A literature study of 88 papers by Mytkowicz et al. showed that the median reported speedup was within the margin of bias, possibly invalidating the claimed speedups~\cite{Mytkowicz:2008:OE&MB}.
 To alleviate the impact of measurement bias in performance analysis, researchers have proposed techniques like causal analysis, and randomization of execution contexts~\cite{Mytkowicz:2008:OE&MB}.
 Others treat the interaction complexity as a potential optimization problem, using search over variant spaces to find optimal environments~\cite{Knights:2009:BlindOpt}.
 Our approach is to analyze isolated programs in detail using hardware performance counters, in an attempt to identify which underlying mechanisms are causing bias.
 
-In Figure~\ref{fig:motivation}, we have reproduced a result originally presented by \citeN{Mytkowicz:2009:WrongData}, showing how the number of cycles executed for a simple program depends on environment variables.
+In Figure~\ref{fig:motivation}, we have reproduced a result originally presented in a paper by Mytkowicz et al.\cite{Mytkowicz:2009:WrongData}, showing how the number of cycles executed for a simple program depends on environment variables.
 This example provides the basis for our analysis.
 We show how some instances of measurement bias, such as the above, can be explained by \emph{address aliasing}, an artifact of a presumably Intel specific optimization on the out-of-order execution pipeline.
 The CPU uses a heuristic for determining whether loads are dependent on previous stores, comparing only the 12 least significant virtual address bits.
@@ -180,10 +180,10 @@ We show how techniques like manual padding of allocations and dynamic detection 
 Being able to handle address aliasing can give significant speedups, and our findings show potential for further architecture-specific optimizations.
 
 The rest of this paper is structured as follows: Our methodology and experimental setup is explained in the next section.
-Then section \ref{sec:aliasing} introduces ``4K aliasing'', providing necessary background for interpreting the later results.
-Section \ref{sec:environment} presents an analysis of how the size of environment variables causes bias, and in Section \ref{sec:heap} we go through a similar analysis for bias to heap address alignment.
-Finally, in Section \ref{sec:blas} we look at alias in BLAS libraries.
-Related work is discussed in Section \ref{sec:related}, before we summarize and conclude in Section \ref{sec:conclusions}.
+Then section~\ref{sec:aliasing} introduces ``4K aliasing'', providing necessary background for interpreting the later results.
+Section~\ref{sec:environment} presents an analysis of how the size of environment variables causes bias, and in Section~\ref{sec:heap} we go through a similar analysis for bias to heap address alignment.
+Finally, in Section~\ref{sec:blas} we look at alias in BLAS libraries.
+Related work is discussed in Section~\ref{sec:related}, before we summarize and conclude in Section~\ref{sec:conclusions}.
 
 
 \section{Experimental Methodology}
@@ -196,7 +196,7 @@ This utility instructs the kernel to enable the processor's Performance Monitori
 Using this technique avoids modifications to the executed program, unlike tools like PAPI~\cite{PAPI:PortableInterface}.
 We use the perf-stat command in all experiments, which accepts raw PMU event codes listed in the reference manual~\cite{Volume3B}.
 
-Reliability of PMU measurements have been evaluated by \citeN{Weaver:2008:PCTrusted}.
+Reliability of PMU measurements have been evaluated by Weaver and Mckee~\cite{Weaver:2008:PCTrusted}.
 The potential issues they find are either handled explicitly or are irrelevant to our setup.
 %They find intra-machine variations of up to 1.07\%, 
 
@@ -327,7 +327,7 @@ However, there will still be as many execution contexts with respect to aliasing
 
 \subsection{Microkernel Analysis}
 \label{sec:microkernel}
-To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!'' by \citeN{Mytkowicz:2009:WrongData}, a small C program reproduced here in Figure~\ref{fig:microkernel}.
+To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!'' by Mytkowicz et al.~\cite{Mytkowicz:2009:WrongData}, a small C program reproduced here in Figure~\ref{fig:microkernel}.
 This example is interesting for several reasons; the bias effects are significant and easily reproducible, while the code itself is simple and straightforward to analyze.
 Still, no satisfactory explanation as to what actually causes bias was given in the original paper.
 The following outlines our data and analysis of this program conducted on the ``Haswell'' configuration.
@@ -530,7 +530,7 @@ While we show only the analysis for ``Haswell'' here, the same approach gave sim
 Figure~\ref{fig:microkernel-all-archs} shows additional cycle count plots for ``Nehalem'' and ``Ivy Bridge'', revealing the same alias behavior.\footnote{For these results we also pinned the process to a single core during measurements using \texttt{taskset}, which helps remove some of the random noise.}
 The experiment was also done for the older ``Core'' setup, shown in Figure~\ref{fig:motivation}.
 On this architecture, the \emph{load\_blocks.overlap\_store} event is used to indicate address aliasing.
-Notably, this event was also found to be significant in the original paper by \citeN{Mytkowicz:2009:WrongData}, where the authors used a similar setup.
+Notably, this event was also found to be significant in the original paper, where the authors used a similar setup~\cite{Mytkowicz:2009:WrongData}.
 We were able to verify that partial address overlap was indeed occuring at the same time this event is spiking, and draw the conclusion that address aliasing must be the underlying explanation.
 Still, this only explains part of what is going on in Figure~\ref{fig:motivation}, as there seem to be yet another bias effect at every fourth environment increment.
 These smaller spikes correlate with the performance event \emph{load\_blocks.std}, which is described as ``loads blocked by a preceding store with unknown data''~\cite[Table 19-17]{Volume3B}.
@@ -925,13 +925,13 @@ The amount of \emph{bias} this creates with respect to number of cycles executed
 
 \section{Related Work}
 \label{sec:related}
-Measurement bias and observer effect in performance analysis has been studied in detail by Mytkowicz et al~\shortcite{Mytkowicz:2008:OE&MB,Mytkowicz:2008:Easy}.
+Measurement bias and observer effect in performance analysis has been studied in detail by Mytkowicz et al.~\cite{Mytkowicz:2008:OE&MB,Mytkowicz:2008:Easy}.
 The authors introduce environment variables and link ordering as examples of external bias triggers, showing how standardized {\small SPECint} benchmarks suffer from measurement bias when trying to evaluate the effectiveness of O3 over O2. 
 Strategies for detecting bias through causal analysis and randomization of experimental setups is introduced.
 The microkernel we analyzed is taken from a followup paper by the same authors, where it is used as an example of how environment size can cause bias~\cite{Mytkowicz:2009:WrongData}.
 
 Many different approaches have been explored in order to take performance counter data and processor intrinsics into account for optimization.
-\citeN{Knights:2009:BlindOpt} introduce ``blind'' optimization, treating the underlying hardware as a black box and use search over \emph{variant spaces}.
+Knights et al. introduce ``blind'' optimization, treating the underlying hardware as a black box and use search over \emph{variant spaces}~\cite{Knights:2009:BlindOpt}.
 Their space of variants consist of different position and alignment for each function and global variable, in principle exploring the different configurations possible by altering link order.
 Others have used machine learning to classify performance counter data, recognizing patterns or \emph{pathologies} in measurements to identify optimization opportunities~\cite{Yoo:ADD}.
 The authors of MAO present a framework for extending compilers to provide very low level microarchitectural assembly optimization, using rules, pattern matching, and random insertion of nop-instructions to discover optimal assembly outputs~\cite{Hundt:2011:MAO}.
