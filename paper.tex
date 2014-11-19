@@ -144,7 +144,7 @@ int main() {
   \begin{tikzpicture}
     \begin{axis}[
         title = Core,
-        width = 7.8cm,
+        width = \textwidth/2.1,
         height = 4.5cm,
         font = \footnotesize,
         xlabel=Bytes added to environment,
@@ -485,7 +485,7 @@ Even though this particular solution is impractical, it shows that compilers and
   \begin{tikzpicture}
     \begin{axis}[
         title = Nehalem (HT),
-        width = \textwidth/2.0,
+        width = \textwidth/2.1,
         height = 4.5cm,
         xlabel = Bytes added to environment,
         ylabel = Cycles,
@@ -502,7 +502,7 @@ Even though this particular solution is impractical, it shows that compilers and
   \begin{tikzpicture}
     \begin{axis}[
         title = Ivy Bridge,
-        width = \textwidth/2.0,
+        width = \textwidth/2.1,
         height = 4.5cm,
         xlabel = Bytes added to environment,
         ylabel = Cycles,
@@ -656,6 +656,49 @@ t_{\text{estimate}} = \frac{t_{k} - t_{1}}{k - 1}
 Our results are with $k=11$, effectively using the average over 10 loop iterations to estimate the cost of a single invocation.
 In addition, performance counter measurements are averaged over 10 samples using the repeat mechanism of perf.
 
+\pgfplotstableread{bin/conv-default-o2-haswell.estimate.dat}{\convtabletwohaswell}
+\pgfplotstableread{bin/conv-default-o3-haswell.estimate.dat}{\convtablethreehaswell}
+\begin{figure*}[t]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+        title=Haswell -O2,
+        font=\footnotesize,
+        xlabel=Relative offset in \texttt{sizeof(float)} bytes,
+        ylabel=Event count,
+        cycle list name=black white,
+        width=\textwidth/2.05, % Make it fit to text width side by side
+        height=6.0cm,
+        skip coords between index={20}{32} % Limit level of detail to fit page width nicely
+      ]
+      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convtabletwohaswell ;
+      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \convtabletwohaswell ;
+      \addlegendentry{Cycles} ;
+      \addlegendentry{Alias} ;
+    \end{axis}
+  \end{tikzpicture}
+  \hspace{0.5cm}
+  \begin{tikzpicture}
+    \begin{axis}[
+        title=Haswell -O3,
+        font=\footnotesize,
+        xlabel=Relative offset in \texttt{sizeof(float)} bytes,
+        ylabel=Event count,
+        cycle list name=black white,
+        width=\textwidth/2.05,
+        height=6.0cm,
+        skip coords between index={20}{32}
+      ]
+      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convtablethreehaswell ;
+      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \convtablethreehaswell ;
+      \addlegendentry{Cycles} ;
+      \addlegendentry{Alias} ;
+    \end{axis}
+  \end{tikzpicture}
+  \hspace{0.5cm}
+  \caption{\label{fig:conv-default}Cycle- and alias counts for different offsets between input and output arrays in convolution kernel from Figure~\ref{lst:conv}. Offset 0 means equal 12-bit address suffix, which is default behavior for \texttt{mmap} allocations. Showing results for optimization levels O2 and O3 compiled with GCC, input size $n=2^{20}$.}
+\end{figure*}
+
 Figure~\ref{fig:conv-default} illustrates how the convolution kernel behaves for increasing offsets between the heap addresses (modulo 4096), clearly indicating a relationship between address aliasing events and cycles executed.
 The effects are most distinct on optimization level 2 and 3, where the ratio of cycles to alias events is most significant.
 Numbers on the x axis represent the amount of offset, measured in number of \texttt{sizeof(float)} bytes.
@@ -673,45 +716,6 @@ However, the performance data looks fairly similar between the two data sets, wi
     \item A high number of cycles with memory loads pending, indicating that the pipeline is stalled waiting for load operations to resolve.
     \item Changes to the number of micro-ops executed for certain ports.
 \end{itemize}
-
-\pgfplotstableread{bin/conv-default-o2-haswell.estimate.dat}{\convtabletwohaswell}
-\pgfplotstableread{bin/conv-default-o3-haswell.estimate.dat}{\convtablethreehaswell}
-\begin{figure}
-  \centering
-  \begin{tikzpicture}
-    \begin{axis}[
-        title=Haswell -O2,
-        font=\footnotesize,
-        xlabel=Relative offset in \texttt{sizeof(float)} bytes,
-        ylabel=Event count,
-        cycle list name=black white,
-        width=\textwidth/1.9, % Make it fit to text width side by side
-        skip coords between index={20}{32} % Limit level of detail to fit page width nicely
-      ]
-      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convtabletwohaswell ;
-      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \convtabletwohaswell ;
-      \addlegendentry{Cycles} ;
-      \addlegendentry{Alias} ;
-    \end{axis}
-  \end{tikzpicture}
-  \begin{tikzpicture}
-    \begin{axis}[
-        title=Haswell -O3,
-        font=\footnotesize,
-        xlabel=Relative offset in \texttt{sizeof(float)} bytes,
-        ylabel=Event count,
-        cycle list name=black white,
-        width=\textwidth/1.9,
-        skip coords between index={20}{32}
-      ]
-      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convtablethreehaswell ;
-      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \convtablethreehaswell ;
-      \addlegendentry{Cycles} ;
-      \addlegendentry{Alias} ;
-    \end{axis}
-  \end{tikzpicture}
-  \caption{\label{fig:conv-default}Cycle- and alias counts for different offsets between input and output arrays in convolution kernel from Figure~\ref{lst:conv}. Offset 0 means equal 12-bit address suffix, which is default behavior for \texttt{mmap} allocations. Showing results for optimization levels O2 and O3 compiled with GCC, input size $n=2^{20}$.}
-\end{figure}
 
 % Table with detailed performance data, use estimated for O2 because it does not need as many columns (!)
 \begin{table*}[t]
@@ -840,7 +844,7 @@ In an attempt to isolate the cost of a single \texttt{cblas_dgemv} invocation, w
 \pgfplotstableread{bin/libblas.dat}{\libblastable}
 \pgfplotstableread{bin/libatlas.dat}{\libatlastable}
 \pgfplotstableread{bin/libopenblas.dat}{\libopenblastable}
-\begin{figure}
+\begin{figure*}[t]
   \centering
   \begin{tikzpicture}
     \begin{axis}[
@@ -894,7 +898,7 @@ In an attempt to isolate the cost of a single \texttt{cblas_dgemv} invocation, w
     \end{axis}
   \end{tikzpicture}
   \caption{\label{fig:blas}Performance of \texttt{cblas\_dgemv} for different BLAS packages, measuring cycles executed and address alias events for varying relative address offset between matrix $A$ and vector $\boldsymbol{y}$. Each sample point represents an increment of 16 bytes, or 0x10.}
-\end{figure}
+\end{figure*}
 
 Cycles executed and alias events for each library is shown in Figure~\ref{fig:blas}.
 Each library behaves differently, but in all cases we identify a significant amount of alias. 
