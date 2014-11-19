@@ -296,19 +296,16 @@ While optimizations such as these are good on the average case, there are corner
 In particular, an event known as ``4K aliasing'' can occur when the memory addresses of a store followed by a load differ by a multiple of 4096 bytes.
 A store to address 0x601020 followed by a load to address 0x821020 is an aliasing pair, because the 12-bit address suffix of 0x020 is the same in both. 
 Despite being independent, in these cases the memory order subsystem generates \emph{false} dependencies, causing the load to be reissued.
-The number of times this happens can be counted by the following event:
-%\begin{describe}{{pad}}
-\begin{list}{{}}
+The number of times this happens can be counted by the following event:\vspace{-2mm}
+\begin{description}
   \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS.}] \emph{``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.''} \cite[B.3.4.4]{OptimizationManual}
-%\end{describe}
-\end{list}
+\end{description}
+\vspace{-2mm}
 This event is listed in the manual for microarchitectures going back to ``Nehalem'', including ``Ivy Bridge'' and ``Haswell'' CPUs~\cite{Volume3B}.
-Older architectures such as Core do not have this particular event listed, but 4K aliasing is covered by a more general event:
-%\begin{describe}{{pad}}
-\begin{list}{{}}
+Older architectures such as Core do not have this particular event listed, but 4K aliasing is covered by a more general event:\vspace{-2mm}
+\begin{description}
   \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE.}] \emph{``Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.''} \cite[Table 19-17]{Volume3B}
-\end{list}
-%\end{describe}
+\end{description}\vspace{-2mm}
 
 As address aliasing depends on the memory addresses of loads and stores, any environmental factor that affects memory layout has the potential to induce aliasing conditions.
 In the following sections, we show how performance penalties from address aliasing can be the root cause of measurement bias.
@@ -815,13 +812,11 @@ The same pointer difference must of course by subtracted before unmapping the me
 To investigate how real world applications can be impacted by aliasing, we look at low level numerical applications.
 Basic Linear Algebra Subroutines (BLAS) is the de facto standard API for high performance linear algebra routines, with several heavily optimized implementations available~\cite{Blackford:2002:UpdatedBLAS}.
 The functionality is divided into three categories:
-%\begin{describe}{{pad}}
-\begin{list}{{}}
-  \item[\emph{Level 1}.] Scalar and vector operations, such as dot product and vector addition.
-  \item[\emph{Level 2}.] Matrix-vector operations, such as gemv for general matrix-vector multiplication.
-  \item[\emph{Level 3}.] Matrix-matrix operations, including the widely applied gemm routine for general matrix multiplication.
-\end{list}
-%\end{describe}
+\begin{description}
+  \item[Level 1] Scalar and vector operations, such as dot product and vector addition.
+  \item[Level 2] Matrix-vector operations, such as gemv for general matrix-vector multiplication.
+  \item[Level 3] Matrix-matrix operations, including the widely applied gemm routine for general matrix multiplication.
+\end{description}
 Procedures operating on vectors, from level 1 or 2, intuitively appears the most likely to have potential for aliasing.
 
 We look at three different libraries available through the Ubuntu package manager; \emph{libblas}, \emph{libatlas}, and \emph{libopenblas}~\cite{Whaley:1998:ATLAS,Wang:2013:OpenBLAS}.
