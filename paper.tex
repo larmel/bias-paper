@@ -222,15 +222,19 @@ Each setup is described in Table~\ref{tab:machines}, and referenced throughout t
   \begin{tabular}{|l|l|}
     \hline
 Core          & Intel\textsuperscript{\textregistered{}} Core\texttrademark{}2 Duo P8600 (laptop) \\
-              & 64-bit Ubuntu 14.04 LTS (Linux 3.13.0), GCC 4.8.2-19ubuntu1 \\ \hline
+              & 64-bit Ubuntu 14.04 LTS (Linux 3.13.0),\\
+              & GCC 4.8.2-19ubuntu1 \\ \hline
 Nehalem       & Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7-950 \\
-              & 64-bit Ubuntu 12.04 LTS (Linux 3.2.0), GCC 4.8.2-19ubuntu1 \\ \hline
+              & 64-bit Ubuntu 12.04 LTS (Linux 3.2.0),\\
+              & GCC 4.8.2-19ubuntu1 \\ \hline
 % Sandy Bridge  & Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7-2670QM (laptop) \\
 %               & 64-bit Ubuntu 11.04 (Linux 3.0.0) \\ \hline
 Ivy Bridge    & Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i5-3470 \\
-              & 64-bit Ubuntu 12.04 LTS (Linux 3.8.0), GCC 4.8.2-19ubuntu1 \\ \hline
+              & 64-bit Ubuntu 12.04 LTS (Linux 3.8.0),\\
+              & GCC 4.8.2-19ubuntu1 \\ \hline
 Haswell       & Intel\textsuperscript{\textregistered{}} Core\texttrademark{} i7-4770K \\
-              & 64-bit Ubuntu 14.04 LTS (Linux 3.13.0), GCC 4.8.2-19ubuntu1 \\ \hline
+              & 64-bit Ubuntu 14.04 LTS (Linux 3.13.0),\\
+              & GCC 4.8.2-19ubuntu1 \\ \hline
   \end{tabular}}
 \end{table}
 
@@ -456,7 +460,7 @@ Because the stack is used for local variables, complex code is likely to contain
 
 % See /analysis for results showing this does not alias
 \begin{figure}
-  \begin{lstlisting}[frame=single, xleftmargin=.1\textwidth, xrightmargin=.1\textwidth]
+  \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth]
 #define ALIAS(a, b) \
     ((((long)&a) & 0xfff) == (((long)&b) & 0xfff))
 static int i, j, k;
@@ -642,8 +646,8 @@ The performance of this program greatly depends on the address alignment of each
   \lstinputlisting[
     language=C,
     frame=single,
-    xleftmargin=.1\textwidth,
-    xrightmargin=.1\textwidth
+    xleftmargin=.01\textwidth,
+    xrightmargin=.01\textwidth
   ]{bin/convolution-kernel.c}
   \caption{Basic implementation of convolution with a fixed kernel, ignoring endpoints for simplicity. This program is highly sensitive to aliasing between input and output arrays.}
   \label{lst:conv}
@@ -688,7 +692,7 @@ However, the performance data looks fairly similar between the two data sets, wi
 
 \pgfplotstableread{bin/conv-default-o2-haswell.estimate.dat}{\convtabletwohaswell}
 \pgfplotstableread{bin/conv-default-o3-haswell.estimate.dat}{\convtablethreehaswell}
-\begin{figure}[t]
+\begin{figure}
   \centering
   \begin{tikzpicture}
     \begin{axis}[
@@ -839,7 +843,7 @@ In this equation,  $\alpha$ and $\beta$ are constants, and $\text{op}\left(A\rig
 We set $\alpha = 1$, $\beta = 0$ and $\text{op} \left(A\right) = A$ to reduce the formula to $\boldsymbol{y}=A\boldsymbol{x}$.
 Denote the matrix size as $M \times N$, making $\boldsymbol{x}$ of length $N$ and $\boldsymbol{y}$ of length $M$.
 In code, the function is invoked with the following parameters:
-\begin{lstlisting}
+\begin{lstlisting}[breaklines=true]
 cblas_dgemv(CblasColMajor, CblasNoTrans, M, N, alpha, A, M, x, 1, beta, y, 1);
 \end{lstlisting}
 
@@ -854,7 +858,7 @@ In an attempt to isolate the cost of a single \texttt{cblas_dgemv} invocation, w
 \pgfplotstableread{bin/libblas.dat}{\libblastable}
 \pgfplotstableread{bin/libatlas.dat}{\libatlastable}
 \pgfplotstableread{bin/libopenblas.dat}{\libopenblastable}
-\begin{figure}[t]
+\begin{figure}
   \centering
   \begin{tikzpicture}
     \begin{axis}[
