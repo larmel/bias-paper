@@ -115,7 +115,6 @@ Our results can enable new architecture specific optimization strategies to acco
 
 
 
-
 \section{Introduction}
 Accurately measuring the performance of computer programs is important in order to evaluate new algorithms, or compare different implementations.
 A key challenge for performance analysts and systems researchers is handling \emph{measurement bias}.
@@ -123,47 +122,43 @@ Changes to external factors of the system, such as link ordering or the contents
 The underlying explanation is likely that this changes memory addresses of code or data, which in turn interacts with various low level hardware buffers at runtime.
 Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes to for example system environment variables ultimately affect program execution.
 
+\begin{figure}[t]
+  \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth]
+static int i, j, k;
+int main() {
+    int g = 0, inc = 1;
+    for (; g < 65536; g++) {
+        i += inc;
+        j += inc;
+        k += inc;
+    }
+    return 0;
+}
+  \end{lstlisting}
+  \caption{\label{fig:microkernel}Microkernel first presented by \citeN{Mytkowicz:2009:WrongData}, showing bias to environment size.}
+\end{figure}
+
 %\pgfplotstableread{bin/microkernel-cycles-core2.dat}{\microkernelcoretwotable}
 \pgfplotstableread{bin/microkernel-core.dat}{\tblmicrokernelcore}
 \begin{figure}[t]
-\begin{minipage}[t]{0.40\textwidth}
-  \vspace{3mm}
-  \begin{lstlisting}[frame=tb]
-  static int i, j, k;
-  int main() {
-      int g = 0, inc = 1;
-      for (; g < 65536; g++) {
-          i += inc;
-          j += inc;
-          k += inc;
-      }
-      return 0;
-  }
-  \end{lstlisting}
-\end{minipage}
-\begin{minipage}[t]{0.55\textwidth}
-  \begin{flushleft}
-    \begin{tikzpicture}
-      \begin{axis}[
-          title = Core,
-          width = 7.8cm,
-          height = 4.5cm,
-          font = \footnotesize,
-          xlabel=Bytes added to environment,
-          ylabel=Cycles,
-          domain = 0:4096,
-          xtick = {0,1024,...,4096},
-          xmin = 0,
-          xmax = 4096,
-          cycle list name = exotic
-        ]
-        \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelcore ;
-      \end{axis}
-    \end{tikzpicture}
-  \end{flushleft}
-\end{minipage}
-\label{fig:motivation}
-\caption{Microkernel first presented by \citeN{Mytkowicz:2009:WrongData}, showing bias to environment size. Notice the clear spike at around 3200 bytes, where the number of cycles executed nearly doubles. Measuring performance in this configuration would give a biased result.}
+  \begin{tikzpicture}
+    \begin{axis}[
+        title = Core,
+        width = 7.8cm,
+        height = 4.5cm,
+        font = \footnotesize,
+        xlabel=Bytes added to environment,
+        ylabel=Cycles,
+        domain = 0:4096,
+        xtick = {0,1024,...,4096},
+        xmin = 0,
+        xmax = 4096,
+        cycle list name = exotic
+      ]
+      \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelcore ;
+    \end{axis}
+  \end{tikzpicture}
+  \caption{\label{fig:motivation}Performance counter data running the micro-kernel from Figure~\ref{fig:microkernel} under different environment sizes. Notice the clear spike at around 3200 bytes, where the number of cycles executed nearly doubles. Measuring performance in this configuration would give a biased result.}
 \end{figure}
 
 A literature study of 88 papers by \citeN{Mytkowicz:2008:OE&MB} showed that the median reported speedup was within the margin of bias, possibly invalidating the claimed speedups. 
@@ -332,7 +327,7 @@ However, there will still be as many execution contexts with respect to aliasing
 
 \subsection{Microkernel Analysis}
 \label{sec:microkernel}
-To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!'' by \citeN{Mytkowicz:2009:WrongData}, a small C program reproduced here in Figure~\ref{fig:motivation}.
+To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!'' by \citeN{Mytkowicz:2009:WrongData}, a small C program reproduced here in Figure~\ref{fig:microkernel}.
 This example is interesting for several reasons; the bias effects are significant and easily reproducible, while the code itself is simple and straightforward to analyze.
 Still, no satisfactory explanation as to what actually causes bias was given in the original paper.
 The following outlines our data and analysis of this program conducted on the ``Haswell'' configuration.
