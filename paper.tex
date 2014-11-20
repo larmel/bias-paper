@@ -122,22 +122,6 @@ Changes to external factors of the system, such as link ordering or the contents
 The underlying explanation is likely that this changes memory addresses of code or data, which in turn interacts with various low level hardware buffers at runtime.
 Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes to for example system environment variables ultimately affect program execution.
 
-\begin{figure}[t]
-  \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth]
-static int i, j, k;
-int main() {
-    int g = 0, inc = 1;
-    for (; g < 65536; g++) {
-        i += inc;
-        j += inc;
-        k += inc;
-    }
-    return 0;
-}
-  \end{lstlisting}
-  \caption{\label{fig:microkernel}Microkernel first presented by Mytkowicz et al.\cite{Mytkowicz:2009:WrongData}, showing bias to environment size.}
-\end{figure}
-
 %\pgfplotstableread{bin/microkernel-cycles-core2.dat}{\microkernelcoretwotable}
 \pgfplotstableread{bin/microkernel-core.dat}{\tblmicrokernelcore}
 \begin{figure}[t]
@@ -160,6 +144,24 @@ int main() {
   \end{tikzpicture}
   \caption{\label{fig:motivation}Performance counter data running the micro-kernel from Figure~\ref{fig:microkernel} under different environment sizes. Notice the clear spike at around 3200 bytes, where the number of cycles executed nearly doubles. Measuring performance in this configuration would give a biased result.}
 \end{figure}
+
+\begin{figure}[t]
+  \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth]
+static int i, j, k;
+int main() {
+    int g = 0, inc = 1;
+    for (; g < 65536; g++) {
+        i += inc;
+        j += inc;
+        k += inc;
+    }
+    return 0;
+}
+  \end{lstlisting}
+  \caption{\label{fig:microkernel}Microkernel first presented by Mytkowicz et al.\cite{Mytkowicz:2009:WrongData}, showing bias to environment size.}
+\end{figure}
+
+
 
 A literature study of 88 papers by Mytkowicz et al. showed that the median reported speedup was within the margin of bias, possibly invalidating the claimed speedups~\cite{Mytkowicz:2008:OE&MB}.
 To alleviate the impact of measurement bias in performance analysis, researchers have proposed techniques like causal analysis, and randomization of execution contexts~\cite{Mytkowicz:2008:OE&MB}.
