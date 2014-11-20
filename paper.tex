@@ -13,6 +13,7 @@
 \usepackage{url}
 \usepackage{lmodern} % Much clearer text
 \usepackage[utf8]{inputenc}
+\usepackage{hyperref} % For PDF metadata
 
 \usetikzlibrary{patterns,shapes,positioning,calc}
 
@@ -25,6 +26,15 @@
 }
 
 \begin{document}
+
+\hypersetup
+{
+%    pdfauthor={L. K. Melhus and R. E. Jensen},
+    pdfauthor={Anonymous and Anonymous},
+    pdfsubject={Identification of an underlying mechanism that causes measurement bias},
+    pdftitle={Measurement Bias from Address Aliasing},
+    pdfkeywords={4K address aliasing, BLAS, heap allocators, measurement bias, memory disambiguation, performance counters}
+}
 
 \conferenceinfo{SIGMETRICS}{2015 Portland, Oregon USA}
 \CopyrightYear{2015}
