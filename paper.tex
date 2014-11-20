@@ -872,7 +872,7 @@ We set $\alpha = 1$, $\beta = 0$ and $\text{op} \left(A\right) = A$ to reduce th
 Denote the matrix size as $M \times N$, making $\boldsymbol{x}$ of length $N$ and $\boldsymbol{y}$ of length $M$.
 In code, the function is invoked with the following parameters:
 \begin{lstlisting}[breaklines=true]
-cblas_dgemv(CblasColMajor, CblasNoTrans, M, N, alpha, A, M, x, 1, beta, y, 1);
+    cblas_dgemv(CblasColMajor, CblasNoTrans, M, N, alpha, A, M, x, 1, beta, y, 1);
 \end{lstlisting}
 
 Each of the structures \texttt{A}, \texttt{x} and \texttt{y} represent different locations in memory, and their addresses is part of the execution context.
