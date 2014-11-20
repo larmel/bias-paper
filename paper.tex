@@ -487,6 +487,13 @@ Even though this particular solution is impractical, it shows that compilers and
   \begin{tikzpicture}
     \begin{axis}[
         title = Nehalem (HT),
+        y tick label style={
+        /pgf/number format/.cd,
+            fixed,
+            fixed zerofill,
+            precision=1,
+        /tikz/.cd
+        },
         width = \textwidth/2.1,
         height = 4.5cm,
         xlabel = Bytes added to environment,
@@ -504,6 +511,13 @@ Even though this particular solution is impractical, it shows that compilers and
   \begin{tikzpicture}
     \begin{axis}[
         title = Ivy Bridge,
+        y tick label style={
+        /pgf/number format/.cd,
+            fixed,
+            fixed zerofill,
+            precision=1,
+        /tikz/.cd
+        },
         width = \textwidth/2.1,
         height = 4.5cm,
         xlabel = Bytes added to environment,
