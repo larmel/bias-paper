@@ -449,7 +449,7 @@ Because the stack is used for local variables, complex code is likely to contain
 
 % See /analysis for results showing this does not alias
 \begin{figure}
-  \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth]
+  \begin{lstlisting}[frame=single, xleftmargin=.005\textwidth, xrightmargin=.005\textwidth]
 #define ALIAS(a, b) \
     ((((long)&a) & 0xfff) == (((long)&b) & 0xfff))
 static int i, j, k;
@@ -630,8 +630,8 @@ The performance of this program greatly depends on the address alignment of each
   \lstinputlisting[
     language=C,
     frame=single,
-    xleftmargin=.01\textwidth,
-    xrightmargin=.01\textwidth
+    xleftmargin=.00\textwidth,
+    xrightmargin=.00\textwidth
   ]{bin/convolution-kernel.c}
   \caption{Basic implementation of convolution with a fixed kernel, ignoring endpoints for simplicity. This program is highly sensitive to aliasing between input and output arrays.}
   \label{lst:conv}
