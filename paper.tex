@@ -55,6 +55,7 @@
 % e-mail address with \email.
 %
 % 1st. author
+\iffalse
 \alignauthor
 Lars Kirkholt Melhus\\
        \affaddr{Norwegian University of Science and Technology}\\
@@ -68,7 +69,22 @@ Rune Erlend Jensen\\
        \affaddr{Sem Sælands vei 9}\\
        \affaddr{7491 Trondheim, Norway}\\
        \email{runeerle@idi.ntnu.no}
+\fi
+\alignauthor
+Anonymous\\
+       \affaddr{Anonymous University}\\
+       \affaddr{Anonymous}\\
+       \affaddr{Anonymous, Anonymous}\\
+       \email{anonymous@anonymous.com}
+% 2nd. author
+\alignauthor
+Anonymous\\
+       \affaddr{Anonymous University }\\
+       \affaddr{Anonymous}\\
+       \affaddr{Anonymous, Anonymous}\\
+       \email{anonymous@anonymous.com}
 }
+
 
 \date{19 November 2014}
 
@@ -967,7 +983,11 @@ Our results should inspire more clever optimizations and heuristics taking addre
 % Acknowledgements
 %\begin{acks}
 \section{Acknowledgments}
+\iffalse
 This work is forked from a Master's thesis project under the supervision of Anne Cathrine Elster and Rune Erlend Jensen, looking at sources of measurement bias on the Intel ``Ivy Bridge'' microarchitecture~\cite{MasterThesis}.
+\fi
+This work is ... under the ..., .
+ under the supervision of ..., looking at sources of measurement bias ... ~\cite{MasterThesis}.
 %\end{acks}
 
 % Bibliography
