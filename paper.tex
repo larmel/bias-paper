@@ -197,7 +197,7 @@ To alleviate the impact of measurement bias in performance analysis, researchers
 Others treat the interaction complexity as a potential optimization problem, using search over variant spaces to find optimal environments~\cite{Knights:2009:BlindOpt}.
 Our approach is to analyze isolated programs in detail using hardware performance counters, in an attempt to identify which underlying mechanisms are causing bias.
 
-In Figure~\ref{fig:motivation}, we have reproduced a result originally presented in a paper by Mytkowicz et al.\cite{Mytkowicz:2009:WrongData}, showing how the number of cycles executed for a simple program depends on environment variables.
+In Figure~\ref{fig:motivation}, we have reproduced a result originally presented in a paper by Mytkowicz et al.\cite{Mytkowicz:2009:WrongData}, showing how the number of cycles executed for a simple program (Figure~\ref{fig:microkernel}) depends on environment variables.
 This example provides the basis for our analysis.
 We show how some instances of measurement bias, such as the above, can be explained by \emph{address aliasing}, an artifact of a presumably Intel specific optimization on the out-of-order execution pipeline.
 The CPU uses a heuristic for determining whether loads are dependent on previous stores, comparing only the 12 least significant virtual address bits.
@@ -498,6 +498,7 @@ int main() {
   \label{lst:loopfixed}
 \end{figure}
 
+\newpage
 \subsection{Avoiding Aliasing}
 Addresses of automatic variables can not be determined statically, because the location of the stack at runtime is generally unknown.
 In addition to being offset by environment variables, the initial stack address can also be perturbed by for example program arguments or address randomization.
@@ -853,7 +854,7 @@ The following approach can be used to make an anonymous memory mapping with offs
 \end{lstlisting}
 The same pointer difference must of course by subtracted before unmapping the memory.
 
-
+\newpage
 \section{Aliasing in Real Applications}
 \label{sec:blas}
 To investigate how real world applications can be impacted by aliasing, we look at low level numerical applications.
@@ -887,7 +888,7 @@ In an attempt to isolate the cost of a single \texttt{cblas_dgemv} invocation, w
 \pgfplotstableread{bin/libblas.dat}{\libblastable}
 \pgfplotstableread{bin/libatlas.dat}{\libatlastable}
 \pgfplotstableread{bin/libopenblas.dat}{\libopenblastable}
-\begin{figure*}[t]
+\begin{figure*}
   \centering
   \begin{tikzpicture}
     \begin{axis}[
@@ -970,7 +971,7 @@ Their space of variants consist of different position and alignment for each fun
 Others have used machine learning to classify performance counter data, recognizing patterns or \emph{pathologies} in measurements to identify optimization opportunities~\cite{Yoo:ADD}.
 The authors of MAO present a framework for extending compilers to provide very low level microarchitectural assembly optimization, using rules, pattern matching, and random insertion of nop-instructions to discover optimal assembly outputs~\cite{Hundt:2011:MAO}.
 
-
+\newpage
 \section{Conclusions}
 \label{sec:conclusions}
 We have shown how address aliasing affects program performance under different memory contexts, and how it can explain certain cases of measurement bias.
