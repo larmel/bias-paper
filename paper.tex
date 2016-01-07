@@ -892,9 +892,9 @@ To investigate how real world applications can be impacted by aliasing, we look 
 Basic Linear Algebra Subroutines (BLAS) is the de facto standard API for high performance linear algebra routines, with several heavily optimized implementations available~\cite{Blackford:2002:UpdatedBLAS}.
 The functionality is divided into three categories:
 \begin{description}
-  \item[Level 1] Scalar and vector operations, such as dot product and vector addition.
-  \item[Level 2] Matrix-vector operations, such as gemv for general matrix-vector multiplication.
-  \item[Level 3] Matrix-matrix operations, including the widely applied gemm routine for general matrix multiplication.
+  \item[Level 1] \hspace{0.1cm} Scalar and vector operations, such as dot product and vector addition.
+  \item[Level 2] \hspace{0.1cm} Matrix-vector operations, such as gemv for general matrix-vector multiplication.
+  \item[Level 3] \hspace{0.1cm} Matrix-matrix operations, including the widely applied gemm routine for general matrix multiplication.
 \end{description}
 Procedures operating on vectors, from level 1 or 2, intuitively appears the most likely to have potential for aliasing.
 
