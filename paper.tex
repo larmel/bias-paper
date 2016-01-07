@@ -1,7 +1,8 @@
 % paper.tex
 % ACM sigmetric format
 % Author: L. K. Melhus and R. E. Jensen
-\documentclass{acm_proc_article-sp}
+%\documentclass{acm_proc_article-sp}
+\documentclass[10pt, conference, compsocconf]{IEEEtran}
 \usepackage{graphicx}
 \usepackage{pgfplots}
 \usepackage{pgfplotstable}
@@ -14,13 +15,13 @@
 \usepackage{lmodern} % Much clearer text
 \usepackage[utf8]{inputenc}
 \usepackage{hyperref} % For PDF metadata
-\usepackage{enumitem} % Controlling list styling
+%\usepackage{enumitem} % Controlling list styling
 
 \usetikzlibrary{patterns,shapes,positioning,calc}
 
 \lstset{language=C, basicstyle=\ttfamily, columns=flexible, belowskip=0pt}
 
-\setlist{topsep=0pt}
+%\setlist{topsep=0pt}
 
 \pgfplotsset{compat=1.8}
 
@@ -39,8 +40,8 @@
     pdfkeywords={4K address aliasing, BLAS, heap allocators, measurement bias, memory disambiguation, performance counters}
 }
 
-\conferenceinfo{SIGMETRICS}{2015 Portland, Oregon USA}
-\CopyrightYear{2015}
+%\conferenceinfo{SIGMETRICS}{2015 Portland, Oregon USA}
+%\CopyrightYear{2015}
 %\acmVolume{V}
 %\acmNumber{N}
 %\acmArticle{A}
@@ -52,9 +53,9 @@
 
 \title{Measurement Bias from Address Aliasing}
 
-\numberofauthors{2}
+%\numberofauthors{2}
  
-
+\iffalse
 % names here
 \author{
 % You can go ahead and credit any number of authors here,
@@ -68,7 +69,7 @@
 % e-mail address with \email.
 %
 % 1st. author
-\iffalse
+
 \alignauthor
 Lars Kirkholt Melhus\\
        \affaddr{Norwegian University of Science and Technology}\\
@@ -82,7 +83,7 @@ Rune Erlend Jensen\\
        \affaddr{Sem Sælands vei 9}\\
        \affaddr{7491 Trondheim, Norway}\\
        \email{runeerle@idi.ntnu.no}
-\fi
+
 \alignauthor
 Anonymous\\
        \affaddr{Anonymous University}\\
@@ -96,6 +97,20 @@ Anonymous\\
        \affaddr{Anonymous}\\
        \affaddr{Anonymous, Anonymous}\\
        \email{anonymous@anonymous.com}
+}
+\fi
+
+\author{\IEEEauthorblockN{Authors Name/s per 1st Affiliation (Author)}
+\IEEEauthorblockA{line 1 (of Affiliation): dept. name of organization\\
+line 2: name of organization, acronyms acceptable\\
+line 3: City, Country\\
+line 4: Email: name@xyz.com}
+\and
+\IEEEauthorblockN{Authors Name/s per 2nd Affiliation (Author)}
+\IEEEauthorblockA{line 1 (of Affiliation): dept. name of organization\\
+line 2: name of organization, acronyms acceptable\\
+line 3: City, Country\\
+line 4: Email: name@xyz.com}
 }
 
 
@@ -121,13 +136,13 @@ Our results can enable new architecture specific optimization strategies to acco
 \end{abstract}
 
 % Choose from classification tree http://www.acm.org/about/class/ccs98-html
-\category{C.4}{Performance of Systems}{Measurement techniques; Performance attributes}
-\category{D.3.4}{Processors}{Optimization; Run-time environments}
+%\category{C.4}{Performance of Systems}{Measurement techniques; Performance attributes}
+%\category{D.3.4}{Processors}{Optimization; Run-time environments}
 
 % Terms come from a fixed list of predefined terms
-\terms{Measurement, Performance}
+%\terms{Measurement, Performance}
 % Free to choose keywords, but must be in alphabetical order
-\keywords{4K address aliasing, BLAS, heap allocators, measurement bias, memory disambiguation, performance counters}
+\IEEEkeywords{4K address aliasing, BLAS, heap allocators, measurement bias, memory disambiguation, performance counters}
 
 % Minimum is author, year and title
 %\acmformat{Lars K. Melhus and Rune E. Jensen. 2014. Measurement Bias from Address Aliasing}
@@ -498,7 +513,7 @@ int main() {
   \label{lst:loopfixed}
 \end{figure}
 
-\newpage
+%\newpage
 \subsection{Avoiding Aliasing}
 Addresses of automatic variables can not be determined statically, because the location of the stack at runtime is generally unknown.
 In addition to being offset by environment variables, the initial stack address can also be perturbed by for example program arguments or address randomization.
@@ -854,7 +869,7 @@ The following approach can be used to make an anonymous memory mapping with offs
 \end{lstlisting}
 The same pointer difference must of course by subtracted before unmapping the memory.
 
-\newpage
+%\newpage
 \section{Aliasing in Real Applications}
 \label{sec:blas}
 To investigate how real world applications can be impacted by aliasing, we look at low level numerical applications.
@@ -971,7 +986,7 @@ Their space of variants consist of different position and alignment for each fun
 Others have used machine learning to classify performance counter data, recognizing patterns or \emph{pathologies} in measurements to identify optimization opportunities~\cite{Yoo:ADD}.
 The authors of MAO present a framework for extending compilers to provide very low level microarchitectural assembly optimization, using rules, pattern matching, and random insertion of nop-instructions to discover optimal assembly outputs~\cite{Hundt:2011:MAO}.
 
-\newpage
+%\newpage
 \section{Conclusions}
 \label{sec:conclusions}
 We have shown how address aliasing affects program performance under different memory contexts, and how it can explain certain cases of measurement bias.
