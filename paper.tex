@@ -344,12 +344,12 @@ A store to address 0x601020 followed by a load to address 0x821020 is an aliasin
 Despite being independent, in these cases the memory order subsystem generates \emph{false} dependencies, causing the load to be reissued.
 The number of times this happens can be counted by the following event:
 \begin{description}
-  \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS.}] \emph{``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.''} \cite[B.3.4.4]{OptimizationManual}
+  \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS.}] \hfill \\ \emph{``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.''} \cite[B.3.4.4]{OptimizationManual}
 \end{description}
 This event is listed in the manual for microarchitectures going back to ``Nehalem'', including ``Ivy Bridge'' and ``Haswell'' CPUs~\cite{Volume3B}.
 Older architectures such as Core do not have this particular event listed, but 4K aliasing is covered by a more general event:
 \begin{description}
-  \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE.}] \emph{``Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.''} \cite[Table 19-17]{Volume3B}
+  \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE.}] \hfill \\ \emph{``Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.''} \cite[Table 19-17]{Volume3B}
 \end{description}
 As address aliasing depends on the memory addresses of loads and stores, any environmental factor that affects memory layout has the potential to induce aliasing conditions.
 In the following sections, we show how performance penalties from address aliasing can be the root cause of measurement bias.
