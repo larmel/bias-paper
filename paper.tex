@@ -16,6 +16,8 @@
 \usepackage[utf8]{inputenc}
 \usepackage{hyperref} % For PDF metadata
 %\usepackage{enumitem} % Controlling list styling
+\usepackage[font=small,skip=0pt]{caption}
+%http://tex.stackexchange.com/questions/94016/how-to-reduce-space-between-image-and-its-caption
 
 \usetikzlibrary{patterns,shapes,positioning,calc}
 
@@ -867,7 +869,7 @@ In some cases it might make sense to explicitly control the memory addresses use
 This can be achieved by exploiting the fact the \texttt{mmap} is in fact guaranteed to be placed at a page boundary, and use that directly instead of \texttt{malloc}.
 The following approach can be used to make an anonymous memory mapping with offset \texttt{d} bytes away from page alignment.
 \begin{lstlisting}[breaklines=true]
-    mmap(NULL, (n + d), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) + d;
+    mmap(NULL, (n+d), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) +d;
 \end{lstlisting}
 The same pointer difference must of course by subtracted before unmapping the memory.
 
