@@ -492,20 +492,20 @@ Notice the common suffix 0x03c between \texttt{inc} and \texttt{i}, which is the
 %   numbers=left,
 %   firstnumber=22
 %   ]{bin/micro-kernel-annotated.s}
+ 
+% Because the stack is aligned to 16 bytes, or 4 \emph{words}, there are a couple of different scenarios that could have been observed here.
+% Static variables are fixed and cover 12 contiguous bytes (3 words), in our case the addresses end in 0x0, 0x4 and 0xc, leaving the 0x8 slot free.
+% The two automatic variables \texttt{g} and \texttt{inc} occupies 8 contiguous bytes on the stack (2 words), in our case the addresses will always fit in the 0x8 and 0xc slots.
+% In this scenario, \texttt{g} will never alias with any of the static variables -- as it always covers the 0x8 slot not occupied by either of \texttt{i}, \texttt{j} or \texttt{k}.
+% A less fortunate scenario with respect to the number of alias events occurs when there can be collisions with both stack allocated variables, which can be achieved for example by reserving an extra 8 bytes to offset \texttt{i}, \texttt{j} into the 0x8, 0xc slots. 
+% While this will give significantly more alias counts, we found that it had little effect on the total number of cycles executed.
 
-Because the stack is aligned to 16 bytes, or 4 \emph{words}, there are a couple of different scenarios that could have been observed here.
-Static variables are fixed and cover 12 contiguous bytes (3 words), in our case the addresses end in 0x0, 0x4 and 0xc, leaving the 0x8 slot free.
-The two automatic variables \texttt{g} and \texttt{inc} occupies 8 contiguous bytes on the stack (2 words), in our case the addresses will always fit in the 0x8 and 0xc slots.
-In this scenario, \texttt{g} will never alias with any of the static variables -- as it always covers the 0x8 slot not occupied by either of \texttt{i}, \texttt{j} or \texttt{k}.
-A less fortunate scenario with respect to the number of alias events occurs when there can be collisions with both stack allocated variables, which can be achieved for example by reserving an extra 8 bytes to offset \texttt{i}, \texttt{j} into the 0x8, 0xc slots. 
-While this will give significantly more alias counts, we found that it had little effect on the total number of cycles executed.
-
-In conclusion, we identified that address aliasing is the root cause of measurement bias from environment size for this program.
-Worst case occurs for precisely one out of 256 possible initial stack addresses in every 4K segment, where resource stalls are generated because of false dependencies between the stack and static data.
-The program is \emph{biased} towards environment sizes that avoid this specific stack alignment, which in principle could be triggered just by changing user name.
-This type of bias can occur in a number of memory configurations.
-Here, the aliasing was caused by interactions between the stack and static variables, but we can imagine similar conflicts between the stack and the heap, depending also on how dynamic memory allocators behave.
-Because the stack is used for local variables, complex code is likely to contain many potential conflicts with other areas of memory.
+% In conclusion, we identified that address aliasing is the root cause of measurement bias from environment size for this program.
+% Worst case occurs for precisely one out of 256 possible initial stack addresses in every 4K segment, where resource stalls are generated because of false dependencies between the stack and static data.
+% The program is \emph{biased} towards environment sizes that avoid this specific stack alignment, which in principle could be triggered just by changing user name.
+% This type of bias can occur in a number of memory configurations.
+% Here, the aliasing was caused by interactions between the stack and static variables, but we can imagine similar conflicts between the stack and the heap, depending also on how dynamic memory allocators behave.
+% Because the stack is used for local variables, complex code is likely to contain many potential conflicts with other areas of memory.
 
 % See /analysis for results showing this does not alias
 \begin{figure}
@@ -609,10 +609,10 @@ We were only able to observe the effect on this particular architecture, and did
 Results for the ``Nehalem'' and ``Ivy Bridge'' architectures are more clear-cut, with large spikes only at the aliasing environment configuration.
 It is clear that the address alias issue exist for a wide range of Intel microarchitectures.
 
-\subsubsection{Note on Hyper-Threading}
-As described in Section~\ref{sec:methodology}, Hyper-Threading was disabled by default in order to avoid any potential interference while collecting data.
-However, we found that configuration of Hyper-Threading either way did not change the alias behavior.
-As an example of this, we show the results for ``Nehalem'' with HT enabled in Figure~\ref{fig:microkernel-all-archs}.
+% \subsubsection{Note on Hyper-Threading}
+% As described in Section~\ref{sec:methodology}, Hyper-Threading was disabled by default in order to avoid any potential interference while collecting data.
+% However, we found that configuration of Hyper-Threading either way did not change the alias behavior.
+% As an example of this, we show the results for ``Nehalem'' with HT enabled in Figure~\ref{fig:microkernel-all-archs}.
 
 
 \section{Bias from Heap Allocation}
@@ -861,10 +861,10 @@ We identify some mitigation or optimization techniques that can be used:
 In our convolution kernel implementation, the compiler has to account for the fact that input and output pointers might alias, or that the buffers partially overlap.
 This limits the extent generated code can keep data in registers without updating the values from memory, as a write to one buffer potentially could invalidate a cached value from the other.
 The C99 keyword \emph{restrict} can be used to explicitly tell the compiler that accesses through a pointer does not alias with any other, allowing for more efficient code generation with fewer memory accesses.
-\begin{lstlisting}[breaklines=true]
-    void conv(int n, const float * restrict in, float * restrict out);
-\end{lstlisting}
-With this updated function prototype, the compiler is able to move a store instruction out of the inner loop, reducing the number of stores executed by more than 80 \% on optimization level O2.
+% \begin{lstlisting}[breaklines=true]
+%     void conv(int n, const float * restrict in, float * restrict out);
+% \end{lstlisting}
+Applied to our example, the compiler is able to move a store instruction out of the inner loop, reducing the number of stores executed by more than 80 \% on optimization level O2.
 Alias events is reduced by about 10 million for the default alignment, with a corresponding improvement in cycle count. % File backing this in results
 
 \subsubsection{Use a special purpose allocator}
@@ -878,12 +878,12 @@ The allocator could also accept hints to which buffers are going to be accessed 
 
 \subsubsection{Manually adjust address offsets}
 In some cases it might make sense to explicitly control the memory addresses used, for example forcing some fixed relative offset between input and output pointers.
-This can be achieved by exploiting the fact the \texttt{mmap} is in fact guaranteed to be placed at a page boundary, and use that directly instead of \texttt{malloc}.
-The following approach can be used to make an anonymous memory mapping with offset \texttt{d} bytes away from page alignment.
-\begin{lstlisting}[breaklines=true]
-    mmap(NULL, (n+d), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) +d;
-\end{lstlisting}
-The same pointer difference must of course by subtracted before unmapping the memory.
+This can be achieved by exploiting the fact the \texttt{mmap} is in fact guaranteed to be placed at a page boundary, and use that directly instead of \texttt{malloc} to create specific alignments.
+% The following approach can be used to make an anonymous memory mapping with offset \texttt{d} bytes away from page alignment.
+% \begin{lstlisting}[breaklines=true]
+%     mmap(NULL, (n+d), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) +d;
+% \end{lstlisting}
+% The same pointer difference must of course by subtracted before unmapping the memory.
 
 %\newpage
 \section{Aliasing in Real Applications}
