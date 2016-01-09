@@ -127,19 +127,21 @@ lars.kirkholt.melhus@gmail.com, runeerle@idi.ntnu.no}
 
 % Motivation -- Problem statement -- Approach -- Results -- Conclusions
 \begin{abstract} % Should be 150 -- 200 words max
-Understanding program behavior and obtaining accurate measurements is important in performance analysis.
-However, recent research has shown that performance measurements can be \emph{biased} by external factors in unpredictable ways.
-Seemingly irrelevant properties---such as the length of your user name---can impact program performance.
-In this paper, we identify an important underlying mechanism that causes this type of measurement bias on modern Intel microarchitectures.
-Our approach is to use a large set of hardware performance counter measurements to reveal the inner workings of the CPU, and search for correlations over a series of execution contexts.
-We find that \emph{address aliasing} can explain bias from two external factors; size of environment variables, and characteristics of dynamically linked heap allocators.
+%Understanding program behavior and obtaining accurate measurements is important in performance analysis.
+%However, recent research has shown that performance measurements can be \emph{biased} by external factors in unpredictable ways.
+%Seemingly irrelevant properties---such as the length of your user name---can impact program performance.
+In this paper, we identify \emph{address aliasing} as an important underlying mechanism causing measurement bias on modern Intel microarchitectures.
+By analyzing hardware performance counters, we show how bias can occur from two external factors; size of environment variables, and characteristics of dynamically linked heap allocators.
+%Our approach is to use a large set of hardware performance counter measurements to reveal the inner workings of the CPU, and search for correlations over a series of execution contexts.
+%We find that \emph{address aliasing} can explain bias from two external factors; size of environment variables, and characteristics of dynamically linked heap allocators.
 
-This result not only makes accounting for and avoiding measurement bias much simpler, but also enables explicit optimizations for it.
-We demonstrate this by implementing runtime detection and correction of aliasing conditions.
-For heap allocators, we show that common implementations tend to give worst case alignment by default, favoring page alignment for large allocations.
-The performance impact of unfavorable memory layouts can be significant, with as much as $2x$ speedup in one of our examples.
-Finally, we show that even highly optimized BLAS libraries can be impacted by address aliasing.
-Our results can enable new architecture specific optimization strategies to account for this effect.
+%This result not only makes accounting for and avoiding measurement bias much simpler, but also enables explicit optimizations for it.
+We demonstrate ways to deal with this type of bias, through runtime detection and correction of aliasing conditions.
+This is especially important for heap allocations, as most allocators tend to produce worst case alignment by default; favoring page alignment.
+%For heap allocators, we show that common implementations tend to give worst case alignment by default, favoring page alignment for large allocations.
+The performance impact of unfavorable memory layouts can be significant, with as much as $2x$ speedup in already optimized code.
+%Finally, we show that even highly optimized BLAS libraries can be impacted by address aliasing.
+Our results can enable new architecture specific optimization strategies to account for this phenomenon.
 \end{abstract}
 
 % Choose from classification tree http://www.acm.org/about/class/ccs98-html
@@ -175,55 +177,15 @@ Changes to external factors of the system, such as link ordering or the contents
 The underlying explanation is likely that this changes memory addresses of code or data, which in turn interacts with various low level hardware buffers at runtime.
 Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes to for example system environment variables ultimately affect program execution.
 
-%\pgfplotstableread{bin/microkernel-cycles-core2.dat}{\microkernelcoretwotable}
-\pgfplotstableread{bin/microkernel-core.dat}{\tblmicrokernelcore}
-\begin{figure}[t]
-  \begin{tikzpicture}
-    \begin{axis}[
-        title = Core,
-        width = \textwidth/2.1,
-        height = 4.5cm,
-        font = \footnotesize,
-        xlabel=Bytes added to environment,
-        ylabel=Cycles,
-        domain = 0:4096,
-        xtick = {0,1024,...,4096},
-        xmin = 0,
-        xmax = 4096,
-        cycle list name = exotic
-      ]
-      \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelcore ;
-    \end{axis}
-  \end{tikzpicture}
-  \caption{\label{fig:motivation}Performance counter data running the micro-kernel from Figure~\ref{fig:microkernel} under different environment sizes. Notice the clear spike at around 3200 bytes, where the number of cycles executed nearly doubles. Measuring performance in this configuration would give a biased result.}
-\end{figure}
-
-\begin{figure}[t]
-  \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth]
-static int i, j, k;
-int main() {
-    int g = 0, inc = 1;
-    for (; g < 65536; g++) {
-        i += inc;
-        j += inc;
-        k += inc;
-    }
-    return 0;
-}
-  \end{lstlisting}
-  \caption{\label{fig:microkernel}Microkernel first presented by Mytkowicz et al.\cite{Mytkowicz:2009:WrongData}, showing bias to environment size.}
-\end{figure}
-
-
 
 A literature study of 88 papers by Mytkowicz et al. showed that the median reported speedup was within the margin of bias, possibly invalidating the claimed speedups~\cite{Mytkowicz:2008:OE&MB}.
 To alleviate the impact of measurement bias in performance analysis, researchers have proposed techniques like causal analysis, and randomization of execution contexts~\cite{Mytkowicz:2008:OE&MB}.
 Others treat the interaction complexity as a potential optimization problem, using search over variant spaces to find optimal environments~\cite{Knights:2009:BlindOpt}.
 Our approach is to analyze isolated programs in detail using hardware performance counters, in an attempt to identify which underlying mechanisms are causing bias.
 
-In Figure~\ref{fig:motivation}, we have reproduced a result originally presented in a paper by Mytkowicz et al.\cite{Mytkowicz:2009:WrongData}, showing how the number of cycles executed for a simple program (Figure~\ref{fig:microkernel}) depends on environment variables.
-This example provides the basis for our analysis.
-We show how some instances of measurement bias, such as the above, can be explained by \emph{address aliasing}, an artifact of a presumably Intel specific optimization on the out-of-order execution pipeline.
+%In Figure~\ref{fig:motivation}, we have reproduced a result originally presented in a paper by Mytkowicz et al.\cite{Mytkowicz:2009:WrongData}, showing how the number of cycles executed for a simple program (Figure~\ref{fig:microkernel}) depends on environment variables.
+%This example provides the basis for our analysis.
+We show how some instances of measurement bias can be explained by \emph{address aliasing}, an artifact of a presumably Intel specific optimization on the out-of-order execution pipeline.
 The CPU uses a heuristic for determining whether loads are dependent on previous stores, comparing only the 12 least significant virtual address bits.
 Aliased memory accesses can produce false dependencies, and incur performance penalties.
 We look at how address aliasing can trigger bias from two external factors; size of system environment variables and configuration of dynamic heap allocation libraries.
@@ -263,9 +225,9 @@ Interesting events are identified by computing linear correlation to cycle count
 % Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{OptimizationManual}.
 Results are also averaged over multiple runs to reduce potential random error, using built-in perf rerun functionality.
 
-Because bias can be hardware dependent, and to keep the scope of this work manageable, we initially chose to focus our analysis on the 4th generation Intel ``Haswell'' microarchitecture.
-We later reproduced similar results for the ``Core'', ``Nehalem'', and ``Ivy Bridge'' microarchitectures as well.
-Each setup is described in Table~\ref{tab:machines}, and referenced throughout the paper.
+%Because bias can be hardware dependent, and to keep the scope of this work manageable, we initially chose to focus our analysis on the 4th generation Intel ``Haswell'' microarchitecture.
+%We later reproduced similar results for the ``Core'', ``Nehalem'', and ``Ivy Bridge'' microarchitectures as well.
+%Each setup is described in Table~\ref{tab:machines}, and referenced throughout the paper.
 
 \begin{table}
   \caption{Experimental setups used.\label{tab:machines}}{
@@ -292,9 +254,7 @@ Best practices for controlling the execution context were applied, ensuring that
 Most importantly, this means keeping the memory address space under control.
 For security reasons, addresses of the stack, heap and dynamic libraries are often randomized at load time, a technique known as \emph{Address Space Layout Randomization}~\cite{Pax:ASLR,Bhatkar:AddressObfuscation}. 
 By disabling ASLR, we are able to execute the same program multiple times with identical virtual address spaces.
-All experiments are done on a dedicated machine under minimal load, with \emph{frequency scaling} disabled to keep the CPU's clock speed fixed.
-Finally, we disable \emph{Hyper-threading} (HT), which reduces the possibility for resource contention between threads.
-Some PMU events also require HT to be turned off, or produce inaccurate results with HT enabled.
+All experiments are done with the machine under minimal load, disabling \emph{frequency scaling} to keep the CPU's clock speed fixed, and \emph{Hyper-threading} (HT) to reduce the possibility for resource contention between threads.\footnote{Some PMU events also require HT to be turned off, or produce inaccurate results with HT enabled.}
 
 % Virtual memory/randomization illustration
 \begin{figure}
@@ -329,10 +289,10 @@ Some PMU events also require HT to be turned off, or produce inaccurate results 
     \node[right] at (m.south east)
       { \scriptsize{0x400000} } ;
   \end{tikzpicture}
-  \caption{Memory execution context, assuming a 64-bit process running on a Linux system.
-  Initial addresses of stack, heap and memory mapped files are often randomized for security reasons.
-  The stack is also offset by environment variables and program arguments.
-  Addresses of code and statically allocated data are allocated at compile time by the linker, and can be determined by inspecting the executable.}
+  \caption{Memory execution context, assuming a 64-bit process running on a Linux system.}
+  %Initial addresses of stack, heap and memory mapped files are often randomized for security reasons.
+  %The stack is also offset by environment variables and program arguments.
+  %Addresses of code and statically allocated data are allocated at compile time by the linker, and can be determined by inspecting the executable.}
   \label{fig:virtualmemory}
 \end{figure}
 
@@ -372,8 +332,8 @@ As indicated in Figure \ref{fig:virtualmemory}, environment variables and progra
 Changing environment variables will therefore offset the location of the stack, and consequently all stack allocated variables.
 After this offset, the stack is normally realigned to a 16 byte boundary, enforced by the compiler.
 Within a span of 4096 bytes there are thus 256 possible initial stack addresses, each representing a different execution context with respect to address aliasing. 
-Note that there is no clear relationship between environment size and stack location with ASLR enabled.
-However, there will still be as many execution contexts with respect to aliasing (considering the stack only), making any occurrences of measurement bias indeed random.
+%Note that there is no clear relationship between environment size and stack location with ASLR enabled.
+%However, there will still be as many execution contexts with respect to aliasing (considering the stack only), making any occurrences of measurement bias indeed random.
 
 \subsection{Microkernel Analysis}
 \label{sec:microkernel}
@@ -382,6 +342,23 @@ This example is interesting for several reasons; the bias effects are significan
 Still, no satisfactory explanation as to what actually causes bias was given in the original paper.
 The following data and analysis of this program is from the ``Haswell'' configuration.
 Similar experiments were conducted on the other experimental setups listed in Table~\ref{tab:machines}, all arriving at the same conclusion.
+
+% Original code presented my Mytkowicz et al.
+\begin{figure}[t]
+  \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth]
+static int i, j, k;
+int main() {
+    int g = 0, inc = 1;
+    for (; g < 65536; g++) {
+        i += inc;
+        j += inc;
+        k += inc;
+    }
+    return 0;
+}
+  \end{lstlisting}
+  \caption{\label{fig:microkernel}Microkernel first presented by Mytkowicz et al.\cite{Mytkowicz:2009:WrongData}, showing bias to environment size.}
+\end{figure}
 
 % Large plot of cycle count for two 4K stack sections.
 \pgfplotstableread{bin/microkernel-cycles-haswell.dat}{\stackoffsettable}
@@ -409,7 +386,7 @@ Similar experiments were conducted on the other experimental setups listed in Ta
 
 Performance counter measurements of cycle counts over 512 different environment sizes are shown in Figure~\ref{fig:envbias}.
 Every 16 byte increment of environment size is measured, covering two 4K periods of initial stack addresses.
-A finer sampling is not necessary, because the stack is by default aligned to 16 bytes.
+%A finer sampling is not necessary, because the stack is by default aligned to 16 bytes.
 The microkernel is compiled with {\small{GCC}} using no optimization; any optimization would likely disregard most of the function as redundant code, reducing it to return zero immediately.
 
 There are clearly two worst cases, indicated by significant spikes at the 3184 and 7280 byte offsets.
@@ -462,16 +439,15 @@ However, this program use only 2 cache-lines, except for the initial startup.
 Using the L1 hit and miss counts also revealed that the L1 load is 99.3\% and store hit rate is ~100\%.
 These events do not indicate a cache hit rate issue, but are probably due to having to wait for aliased writes to be retired and committed to cache.
 
-Performance counter data clearly points to address aliasing as a plausible explanation, thus the next step is to see exactly which memory accesses are aliasing. 
-For that we need to know the addresses of each variable at runtime.
-The program contains five variables; \texttt{g} and \texttt{inc} which are stack allocated, and \texttt{i}, \texttt{j} and \texttt{k} which are statically allocated.
-Memory layout of static data is decided at compile time, and we can find the location of these variables by looking at the symbol table in the ELF executable.
-We find the addresses to be \texttt{\&i} = 0x60103c, \texttt{\&j} = 0x601040, and \texttt{\&k} = 0x601044.\footnote{ELF symbol tables can be read using \texttt{readelf -s}}
+Performance counter data clearly points to address aliasing as a plausible explanation, so the next step is to see exactly which memory accesses are aliasing.
+%For that we need to know the addresses of each variable at runtime.
+%The program contains five variables; \texttt{g} and \texttt{inc} which are stack allocated, and \texttt{i}, \texttt{j} and \texttt{k} which are statically allocated.
+Memory layout of static data is decided at compile time, and we find the addresses to be \texttt{\&i} = 0x60103c, \texttt{\&j} = 0x601040, and \texttt{\&k} = 0x601044 by reading the ELF symbol table.%\footnote{ELF symbol tables can be read using \texttt{readelf -s}}
 
-Observing addresses of stack allocated data at runtime is more challenging, as we have to make sure to not introduce any observer effects that alters the addresses as we are observing them.
-Assembly code was injected to calculate and output the addresses of \texttt{g} and \texttt{inc}.
-We made no change to the stack allocation instructions, and the code offset did not affect the addresses of static variables.
-The same experiment was run again, showing that the modified program had the exact same bias to environment size.
+%Observing addresses of stack allocated data at runtime is more challenging, as we have to make sure to not introduce any observer effects that alters the addresses as we are observing them.
+Assembly code was injected to calculate and output the runtime addresses of \texttt{g} and \texttt{inc}, carefully craftet to not introduce any observer effects.
+%We made no change to the stack allocation instructions, and the code offset did not affect the addresses of static variables.
+%The same experiment was run again, showing that the modified program had the exact same bias to environment size.
 From the output at each spike, we found the addresses to be \texttt{\&g} = 0x7fffffffe038, \texttt{\&inc} = 0x7fffffffe03c, and \texttt{\&g} = 0x7fffffffd038, \texttt{\&inc} = 0x7fffffffd03c, respectively
 Notice the common suffix 0x03c between \texttt{inc} and \texttt{i}, which is the aliasing pair.
 
@@ -533,9 +509,29 @@ Calling the function recursively will effectively allocate a new set of variable
 
 Even though this particular solution is impractical, it shows that compilers and programmers \emph{could} take measures to account for aliasing.
 
+%\pgfplotstableread{bin/microkernel-cycles-core2.dat}{\microkernelcoretwotable}
+\pgfplotstableread{bin/microkernel-core.dat}{\tblmicrokernelcore}
 \pgfplotstableread{bin/microkernel-nehalem.dat}{\tblmicrokernelnehalem}
 \pgfplotstableread{bin/microkernel-ivybridge.dat}{\tblmicrokernelivybridge}
 \begin{figure}[t]
+  \begin{tikzpicture}
+    \begin{axis}[
+        title = Core,
+        width = \textwidth/2.1,
+        height = 4.5cm,
+        font = \footnotesize,
+        xlabel=Bytes added to environment,
+        ylabel=Cycles,
+        domain = 0:4096,
+        xtick = {0,1024,...,4096},
+        xmin = 0,
+        xmax = 4096,
+        cycle list name = exotic
+      ]
+      \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelcore ;
+    \end{axis}
+  \end{tikzpicture}
+  %\caption{\label{fig:motivation}Performance counter data running the micro-kernel from Figure~\ref{fig:microkernel} under different environment sizes. Notice the clear spike at around 3200 bytes, where the number of cycles executed nearly doubles. Measuring performance in this configuration would give a biased result.}
   \begin{tikzpicture}
     \begin{axis}[
         title = Nehalem (HT),
@@ -589,9 +585,9 @@ Even though this particular solution is impractical, it shows that compilers and
 
 \subsection{Other Architectures}
 While we show only the analysis for ``Haswell'' here, the same approach gave similar results for all the CPUs we tested.
-Figure~\ref{fig:microkernel-all-archs} shows additional cycle count plots for ``Nehalem'' and ``Ivy Bridge'', revealing the same alias behavior.\footnote{For these results we also pinned the process to a single core during measurements using \texttt{taskset}, which helps remove some of the random noise.}
-The experiment was also done for the older ``Core'' setup, shown in Figure~\ref{fig:motivation}.
-On this architecture, the \emph{load\_blocks.overlap\_store} event is used to indicate address aliasing.
+Figure~\ref{fig:microkernel-all-archs} shows additional cycle count plots for ``Core'', ``Nehalem'' and ``Ivy Bridge'', revealing the same alias behavior.%\footnote{For these results we also pinned the process to a single core during measurements using \texttt{taskset}, which helps remove some of the random noise.}
+%The experiment was also done for the older ``Core'' setup, shown in Figure~\ref{fig:motivation}.
+On the older ``Core'' architecture, \emph{load\_blocks.overlap\_store} is used to indicate address aliasing.
 Notably, this event was also found to be significant in the original paper, where the authors used a similar setup~\cite{Mytkowicz:2009:WrongData}.
 We were able to verify that partial address overlap was indeed occuring at the same time this event is spiking, and draw the conclusion that address aliasing must be the underlying explanation.
 Still, this only explains part of what is going on in Figure~\ref{fig:motivation}, as there seem to be yet another bias effect at every fourth environment increment.
