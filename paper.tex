@@ -614,7 +614,7 @@ Heap allocation routines such as \texttt{malloc} and \texttt{free} are typically
 If this assignment is independent of the initial stack offset all heap memory accesses can be biased.
 The particular library used therefore constitutes an important part of the execution context, as linking to a different library, or a library with some alternative configuration, can impact heap addresses at runtime.
 
-\subsection{Most Allocators Alias by Default}
+\subsection{Memory Allocators and Alias}
 Acquiring dynamic memory at runtime is usually done by calling \texttt{malloc}, which takes a number of bytes to allocate as input, and returns a pointer to that area.
 Depending on the particular request and allocator used, the returned value will either point to the ``regular'' heap, or to a memory mapped area (see Figure \ref{fig:virtualmemory}).
 \begin{itemize}
