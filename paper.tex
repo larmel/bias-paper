@@ -931,7 +931,7 @@ The C99 keyword \emph{restrict} can be used to explicitly tell the compiler that
 % \begin{lstlisting}[breaklines=true]
 %     void conv(int n, const float * restrict in, float * restrict out);
 % \end{lstlisting}
-Applied to our example, the compiler is able to move a store instruction out of the inner loop, reducing the number of stores executed by more than 80 \% and alias events by approximately 10 million on optimization level O2.
+Applied to our example, the compiler is able to move a store instruction out of the inner loop, reducing the number of stores by more than 80 \% and alias events by approximately 10 million on optimization level O2.
 %Alias events are reduced by about 10 million for the default alignment, with a corresponding improvement in cycle count. % File backing this in results
 
 \subsection{Use a special purpose allocator}
