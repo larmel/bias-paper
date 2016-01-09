@@ -372,8 +372,8 @@ As indicated in Figure \ref{fig:virtualmemory}, environment variables and progra
 Changing environment variables will therefore offset the location of the stack, and consequently all stack allocated variables.
 After this offset, the stack is normally realigned to a 16 byte boundary, enforced by the compiler.
 Within a span of 4096 bytes there are thus 256 possible initial stack addresses, each representing a different execution context with respect to address aliasing. 
-Note that there is no clear relationship between environment size and stack location with ASLR enabled.
-However, there will still be as many execution contexts with respect to aliasing (considering the stack only), making any occurrences of measurement bias indeed random.
+%Note that there is no clear relationship between environment size and stack location with ASLR enabled.
+%However, there will still be as many execution contexts with respect to aliasing (considering the stack only), making any occurrences of measurement bias indeed random.
 
 \subsection{Microkernel Analysis}
 \label{sec:microkernel}
@@ -409,7 +409,7 @@ Similar experiments were conducted on the other experimental setups listed in Ta
 
 Performance counter measurements of cycle counts over 512 different environment sizes are shown in Figure~\ref{fig:envbias}.
 Every 16 byte increment of environment size is measured, covering two 4K periods of initial stack addresses.
-A finer sampling is not necessary, because the stack is by default aligned to 16 bytes.
+%A finer sampling is not necessary, because the stack is by default aligned to 16 bytes.
 The microkernel is compiled with {\small{GCC}} using no optimization; any optimization would likely disregard most of the function as redundant code, reducing it to return zero immediately.
 
 There are clearly two worst cases, indicated by significant spikes at the 3184 and 7280 byte offsets.
@@ -462,16 +462,15 @@ However, this program use only 2 cache-lines, except for the initial startup.
 Using the L1 hit and miss counts also revealed that the L1 load is 99.3\% and store hit rate is ~100\%.
 These events do not indicate a cache hit rate issue, but are probably due to having to wait for aliased writes to be retired and committed to cache.
 
-Performance counter data clearly points to address aliasing as a plausible explanation, thus the next step is to see exactly which memory accesses are aliasing. 
-For that we need to know the addresses of each variable at runtime.
-The program contains five variables; \texttt{g} and \texttt{inc} which are stack allocated, and \texttt{i}, \texttt{j} and \texttt{k} which are statically allocated.
-Memory layout of static data is decided at compile time, and we can find the location of these variables by looking at the symbol table in the ELF executable.
-We find the addresses to be \texttt{\&i} = 0x60103c, \texttt{\&j} = 0x601040, and \texttt{\&k} = 0x601044.\footnote{ELF symbol tables can be read using \texttt{readelf -s}}
+Performance counter data clearly points to address aliasing as a plausible explanation, so the next step is to see exactly which memory accesses are aliasing.
+%For that we need to know the addresses of each variable at runtime.
+%The program contains five variables; \texttt{g} and \texttt{inc} which are stack allocated, and \texttt{i}, \texttt{j} and \texttt{k} which are statically allocated.
+Memory layout of static data is decided at compile time, and we find the addresses to be \texttt{\&i} = 0x60103c, \texttt{\&j} = 0x601040, and \texttt{\&k} = 0x601044 by reading the ELF symbol table.%\footnote{ELF symbol tables can be read using \texttt{readelf -s}}
 
-Observing addresses of stack allocated data at runtime is more challenging, as we have to make sure to not introduce any observer effects that alters the addresses as we are observing them.
-Assembly code was injected to calculate and output the addresses of \texttt{g} and \texttt{inc}.
-We made no change to the stack allocation instructions, and the code offset did not affect the addresses of static variables.
-The same experiment was run again, showing that the modified program had the exact same bias to environment size.
+%Observing addresses of stack allocated data at runtime is more challenging, as we have to make sure to not introduce any observer effects that alters the addresses as we are observing them.
+Assembly code was injected to calculate and output the runtime addresses of \texttt{g} and \texttt{inc}, carefully craftet to not introduce any observer effects.
+%We made no change to the stack allocation instructions, and the code offset did not affect the addresses of static variables.
+%The same experiment was run again, showing that the modified program had the exact same bias to environment size.
 From the output at each spike, we found the addresses to be \texttt{\&g} = 0x7fffffffe038, \texttt{\&inc} = 0x7fffffffe03c, and \texttt{\&g} = 0x7fffffffd038, \texttt{\&inc} = 0x7fffffffd03c, respectively
 Notice the common suffix 0x03c between \texttt{inc} and \texttt{i}, which is the aliasing pair.
 
