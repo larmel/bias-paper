@@ -211,15 +211,14 @@ Performance counters are supported in the Linux kernel, and can be accessed via 
 This utility instructs the kernel to enable the processor's Performance Monitoring Unit (PMU), before executing a specified program.
 Using this technique avoids modifications to the executed program, unlike tools like PAPI~\cite{PAPI:PortableInterface}.
 We use the perf-stat command in all experiments, which accepts raw PMU event codes listed in the reference manual~\cite{Volume3B}.
-
-%Reliability of PMU measurements have been evaluated by Weaver and Mckee~\cite{Weaver:2008:PCTrusted}.
-%The issues they find are either handled explicitly or are irrelevant to our setup.
+Reliability of PMU measurements have been evaluated by Weaver and Mckee~\cite{Weaver:2008:PCTrusted}.
+The issues they find are either handled explicitly or are irrelevant to our setup.
 %They find intra-machine variations of up to 1.07\%, 
 
 A small Python script is used to iterate over an exhaustive set of all known counters, which amounts to about 200 on our architecture.
 Only a small set of events are collected at a time, to ensure events are actually counted continuously.
 We do not use multiplexing between a limited set of counter registers, as it will introduce significant variations~\cite{Wiplove:ImproveEstimation}. % Paper is rename of "Toward Accurate Performance Evaluation using Hardware Counters".
-Controlled variations in environment size is performed by setting a dummy environment variable to $n$ number of zero characters, starting from a minimal environment.\footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
+Controlled variations in environment size is performed by setting a dummy environment variable to $n$ number of zero characters.\footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
 Interesting events are identified by computing linear correlation to cycle count, measuring all counters over a series of execution contexts.
 % Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{OptimizationManual}.
 Results are also averaged over multiple runs to reduce potential random error.%, using built-in perf rerun functionality.
