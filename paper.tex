@@ -675,20 +675,19 @@ We use an input size of $n=2^{20}$ (4 MiB in memory for each array), which resul
 By default, even with address randomization enabled, both \texttt{input} and \texttt{output} will have start addresses with the same address suffix of 0x010.
 To analyze performance for different addresses, we manually insert padding to offset the start address of one buffer.
 This is accomplished by requesting a bit more memory, and use pointer arithmetic to offset one of the function arguments.
-Controlling the offset parameter, we can create environments where the address suffixes are any desired number of \texttt{sizeof(float)} bytes apart.
-Allocating and managing these buffers at startup takes a non-negligible amount of work.
-The overhead can be masked by repeatedly invoking the convolution kernel after allocating and initializing all the inputs.
+Controlling the offset parameter, we can create environments where the address suffixes are offset by any desired number of bytes.
+Allocating and managing these buffers at startup takes a non-negligible amount of work, but the overhead can be masked by repeatedly invoking the convolution kernel in a loop, after allocating and initializing all the inputs.
 Repeated invocation will also even out performance by warming up the cache.
 %\begin{lstlisting}
 %    for (i = 0; i < k; ++i)
 %        conv(n, input, output + offset);
 %\end{lstlisting}
-
-An estimate of the actual cost a single invocation can be calculated by averaging over a number of repeated function calls, after subtracting the overhead of invoking it the first time.
+An estimate of the actual cost a single invocation can be calculated by the following formula:
+%An estimate of the actual cost a single invocation can be calculated by averaging over $ k $ repeated function calls, after subtracting time $ t_{1} $ which includes allocation overhead.
 \[
 t_{\text{estimate}} = \frac{t_{k} - t_{1}}{k - 1}
 \]
-Our results are with $k=11$, effectively using the average over 10 loop iterations to estimate the cost of a single invocation.
+We choose $k=11$, effectively getting the average over 10 iterations.
 In addition, performance counter measurements are averaged over 10 samples using the repeat mechanism of perf.
 
 \pgfplotstableread{bin/conv-default-o2-haswell.estimate.dat}{\convtabletwohaswell}
@@ -735,13 +734,13 @@ In addition, performance counter measurements are averaged over 10 samples using
 \end{figure*}
 
 Figure~\ref{fig:conv-default} illustrates how the convolution kernel behaves for increasing offsets between the heap addresses (modulo 4096), clearly indicating a relationship between address aliasing events and cycles executed.
-The effects are most distinct on optimization level 2 and 3, where the ratio of cycles to alias events is most significant.
-Numbers on the x axis represent the amount of offset, measured in number of \texttt{sizeof(float)} bytes.
+%The effects are most distinct on optimization level 2 and 3, where the ratio of cycles to alias events is most significant.
+%Numbers on the x axis represent the amount of offset, measured in number of \texttt{sizeof(float)} bytes.
 An offset of zero is the default behavior for this program when using \texttt{malloc} and moderately large inputs.
-Both for optimization level 2 and 3, the default alignment is close to worst case performance.
+For both for optimization levels 2 and 3, this is close to worst case performance.
 The differences in cycles executed is significant, with about $1.7x$ speedup for O2 and as much as $2x$ speedup for O3 for increasing relative offset.
-This effect is only observed for address separations close to zero, thus we only show the first 20 data points.
-If extended to cover the full width of possible offsets within a 4K segment, we see that the performance is uniform everywhere else.
+%This effect is only observed for address separations close to zero, thus we only show the first 20 data points.
+%If extended to cover the full width of possible offsets within a 4K segment, we see that the performance is uniform everywhere else.
 
 More detailed performance counter data is presented in Table~\ref{tab:convstats}, where we show the subset that correlates best with the cycle count.
 The numbers are for the level 2 optimization case, which we choose to study in more detail.
