@@ -973,7 +973,7 @@ Each library behaves differently, but in all cases we identify a significant amo
 The diagrams can be understood the same way as for the convolution example; partial address overlap occur when the address suffix delta of $A$ and $\boldsymbol{y}$ is close to zero.
 Libblas generates the most distinct pattern, with a relatively clear spike for address deltas between 0x10 and 0x60.
 % NB: Taken from analysis directory, update manually on new results
-Correlation between cycles executed and address aliasing events were calculated to 95\% for libblas, 81\% for libatlas and 45\% for libopenblas.
+Correlation between cycles executed and address aliasing events were 95\% for libblas, 81\% for libatlas and 45\% for libopenblas.
 
 We do not go into a more detailed analysis of the raw performance data here, but note that we see many of the previously discussed events stand out; such as execution port occupancy, resource stalls, branch instructions executed, offcore requests, and ldm pending.
 Especially for the libblas case, results look quite similar to what we saw for the convolution kernel.
