@@ -816,6 +816,7 @@ By manually adjusting the address alignment of one of these buffers, cycle count
 \label{sec:blas}
 To investigate how real world applications can be impacted by aliasing, we look at low level numerical applications.
 Basic Linear Algebra Subroutines (BLAS) is the de facto standard API for high performance linear algebra routines, with several heavily optimized implementations available~\cite{Blackford:2002:UpdatedBLAS}.
+\iffalse
 The functionality is divided into three categories:
 \begin{description}
   \item[Level 1] \hspace{0.1cm} Scalar and vector operations, such as dot product and vector addition.
@@ -823,7 +824,8 @@ The functionality is divided into three categories:
   \item[Level 3] \hspace{0.1cm} Matrix-matrix operations, including the widely applied gemm routine for general matrix multiplication.
 \end{description}
 Procedures operating on vectors, intuitively appears the most likely to have potential for aliasing.
-
+\fi
+Here the level 1 and 2 vector operations intuitively appears to be more likely to have potential for aliasing.
 We look at three different libraries available through the Ubuntu package manager; \emph{libblas}, \emph{libatlas}, and \emph{libopenblas}~\cite{Whaley:1998:ATLAS,Wang:2013:OpenBLAS}.
 We ran our bias analysis on the level 2 procedure \texttt{cblas\_dgemv}, which computes the matrix-vector product $\boldsymbol{y} = \alpha\text{op}\left(A\right)\boldsymbol{x} + \beta\boldsymbol{y}$ for \texttt{double} sized numbers.
 In this equation,  $\alpha$ and $\beta$ are constants, and $\text{op}\left(A\right)$ is an optional transpose or complex conjugate of the matrix.
