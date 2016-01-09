@@ -904,7 +904,7 @@ Each library behaves differently, but in all cases we identify a significant amo
 The diagrams can be understood the same way as for the convolution example; partial address overlap occur when the address suffix delta of $A$ and $\boldsymbol{y}$ is close to zero.
 Libblas generates the most distinct pattern, with a clear spike for address deltas between 0x10 and 0x60.
 % NB: Taken from analysis directory, update manually on new results
-Correlation between cycles executed and address aliasing events were 95\% for libblas, 81\% for libatlas and 45\% for libopenblas.
+Correlation between cycles and address aliasing were 95\% for libblas, 81\% for libatlas and 45\% for libopenblas.
 
 We do not go into a more detailed analysis of the raw performance data here, but note that we see many of the previously discussed events stand out; such as execution port occupancy, resource stalls, branch instructions executed, offcore requests, and ldm pending.
 Especially for the libblas case, results look quite similar to what we saw for the convolution kernel.
@@ -931,8 +931,9 @@ Applied to our example, the compiler is able to move a store instruction out of 
 %Alias events are reduced by about 10 million for the default alignment, with a corresponding improvement in cycle count. % File backing this in results
 
 \subsection{Use a special purpose allocator}
-The Intel optimization manual mentions this in \emph{User/Source Coding Rule 8}, suggesting that special purpose allocators could be used to avoid aliasing ~\cite{OptimizationManual}.
-However, to our knowledge there are no commonly used allocators that specifically try to mitigate aliasing in heap allocated memory.
+The Intel optimization manual mentions this% in \emph{User/Source Coding Rule 8}
+, suggesting that special purpose allocators could be used to avoid aliasing~\cite{OptimizationManual}.
+However, to our knowledge there are no allocators that specifically try to mitigate aliasing in heap allocated memory.
 %Similarly none offset their allocations based on the initial stack frame.
 We show that heap allocators are prone to generate pairwise aliasing buffers, the worst case for many functions.
 
