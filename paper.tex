@@ -212,8 +212,8 @@ This utility instructs the kernel to enable the processor's Performance Monitori
 Using this technique avoids modifications to the executed program, unlike tools like PAPI~\cite{PAPI:PortableInterface}.
 We use the perf-stat command in all experiments, which accepts raw PMU event codes listed in the reference manual~\cite{Volume3B}.
 
-Reliability of PMU measurements have been evaluated by Weaver and Mckee~\cite{Weaver:2008:PCTrusted}.
-The issues they find are either handled explicitly or are irrelevant to our setup.
+%Reliability of PMU measurements have been evaluated by Weaver and Mckee~\cite{Weaver:2008:PCTrusted}.
+%The issues they find are either handled explicitly or are irrelevant to our setup.
 %They find intra-machine variations of up to 1.07\%, 
 
 A small Python script is used to iterate over an exhaustive set of all known counters, which amounts to about 200 on our architecture.
@@ -300,16 +300,17 @@ All experiments are done with the machine under minimal load, disabling \emph{fr
 \label{sec:aliasing}
 Modern processors are \emph{superscalar}, and achieve parallelism by issuing multiple instructions simultaneously and out of order.
 One of the issues that can limit throughput is dependencies between a load and previous stores.
-To increase parallelism, modern architectures use a technique called \emph{memory disambiguation} to execute memory these operations out of order~\cite{Intel:2006:InsideICM:SmartMemoryAccess} as well. 
+To increase parallelism, modern architectures use a technique called \emph{memory disambiguation} to execute memory operations out of order~\cite{Intel:2006:InsideICM:SmartMemoryAccess}.
 %More often than not, loads can safely be issued before a previous store has completed and written its value to L1 cache.
-Loads are then issued \emph{speculatively}, based on a prediction on whether it will conflict with a previous store that is still not retired.
+Loads are issued \emph{speculatively}, based on a prediction on whether it will conflict with a previous store that is still not retired.
 The prediction is later verified, replaying any instructions that were wrongly assumed to have no dependencies.
 Similarly, if the load and store locations are the same, the value can be \emph{forwarded} from the store before it retires.
 
 While optimizations such as these are good on the average case, there are corner cases. 
 In particular, an event known as ``4K aliasing'' can occur when the memory addresses of a store followed by a load differ by a multiple of 4096 bytes.
-A store to address 0x601020 followed by a load to address 0x821020 is an aliasing pair, because the 12-bit address suffix of 0x020 is the same in both. 
-Despite being independent, in these cases the memory order subsystem generates \emph{false} dependencies, causing the load to be reissued.
+%A store to address 0x601020 followed by a load to address 0x821020 is an aliasing pair, because the 12-bit address suffix of 0x020 is the same in both. 
+%Despite being independent, 
+In these cases, the memory order subsystem generates \emph{false} dependencies, causing the load to be reissued.
 The number of times this happens can be counted by the following event:
 \begin{description}
   \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS.}] \hfill \\ \emph{``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.''} \cite[B.3.4.4]{OptimizationManual}
@@ -422,7 +423,7 @@ Table \ref{tab:loopcorrelation} shows numerical counter values for the first spi
   ]{bin/microkernel-comparison-haswell.csv}
 \end{table}
 
-We see a huge change from the median in the number of alias events. 
+We see a significant change from the median in the number of alias events. 
 %If we plot the graph for address aliasing, we see that it is near zero everywhere and spikes at exactly the points we observe bias. 
 We found that there are near zero address aliasing events everywhere except exactly the points we observe bias. 
 The results show a high number of resource stalls and pending memory loads when the spikes occur, which is consistent with address aliasing issues.
@@ -728,7 +729,8 @@ In addition, performance counter measurements are averaged over 10 samples using
     \end{axis}
   \end{tikzpicture}
   \hspace{0.5cm}
-  \caption{\label{fig:conv-default}Cycle- and alias counts for different offsets between input and output arrays in convolution kernel from Figure~\ref{lst:conv}. Offset 0 means equal 12-bit address suffix, which is default behavior for \texttt{mmap} allocations. Showing results for optimization levels O2 and O3 compiled with GCC, input size $n=2^{20}$.}
+  \caption{\label{fig:conv-default}Cycle- and alias counts for different offsets between input and output arrays in convolution kernel from Figure~\ref{lst:conv}, input size $n=2^{20}$.}
+  %Offset 0 means equal 12-bit address suffix, which is default behavior for \texttt{mmap} allocations. Showing results for optimization levels O2 and O3 compiled with GCC, input size $n=2^{20}$.}
 \end{figure*}
 
 Figure~\ref{fig:conv-default} illustrates how the convolution kernel behaves for increasing offsets between the heap addresses (modulo 4096), clearly indicating a relationship between address aliasing events and cycles executed.
@@ -822,7 +824,7 @@ The functionality is divided into three categories:
 \end{description}
 Procedures operating on vectors, intuitively appears the most likely to have potential for aliasing.
 \fi
-Here, the level 1 and 2 vector operations intuitively appears to be more likely to have potential for aliasing.
+%The level 1 and 2 routines involving vectors intuitively appears to be more likely to have potential for aliasing.
 We look at three different libraries available through the Ubuntu package manager; \emph{libblas}, \emph{libatlas}, and \emph{libopenblas}~\cite{Whaley:1998:ATLAS,Wang:2013:OpenBLAS}.
 We ran our bias analysis on the level 2 procedure \texttt{cblas\_dgemv}, which computes the matrix-vector product $\boldsymbol{y} = \alpha\text{op}\left(A\right)\boldsymbol{x} + \beta\boldsymbol{y}$ for \texttt{double} sized numbers.
 In this equation,  $\alpha$ and $\beta$ are constants, and $\text{op}\left(A\right)$ is an optional transpose or complex conjugate of the matrix.
