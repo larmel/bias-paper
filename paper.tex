@@ -584,7 +584,7 @@ If this assignment is independent of the initial stack offset all heap memory ac
 The particular library used therefore constitutes an important part of the execution context, as linking to a different library, or a library with some alternative configuration, can impact heap addresses at runtime.
 
 \subsection{Memory Allocators and Alias}
-Acquiring dynamic memory at runtime is usually done by calling \texttt{malloc}, which takes a number of bytes to allocate as input, and returns a pointer to that area.
+Acquiring dynamic memory at runtime is usually handled by the \texttt{malloc} function.
 Depending on the particular request and allocator used, the returned value will either point to the ``regular'' heap, or to a memory mapped area (see Figure \ref{fig:virtualmemory}).
 \begin{itemize}
   \item The \emph{heap} is marked by a break point representing the end of uninitialized data in virtual memory, and more space is requested by the \texttt{brk} or \texttt{sbrk} system calls.
