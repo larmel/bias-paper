@@ -127,19 +127,21 @@ lars.kirkholt.melhus@gmail.com, runeerle@idi.ntnu.no}
 
 % Motivation -- Problem statement -- Approach -- Results -- Conclusions
 \begin{abstract} % Should be 150 -- 200 words max
-Understanding program behavior and obtaining accurate measurements is important in performance analysis.
-However, recent research has shown that performance measurements can be \emph{biased} by external factors in unpredictable ways.
-Seemingly irrelevant properties---such as the length of your user name---can impact program performance.
-In this paper, we identify an important underlying mechanism that causes this type of measurement bias on modern Intel microarchitectures.
-Our approach is to use a large set of hardware performance counter measurements to reveal the inner workings of the CPU, and search for correlations over a series of execution contexts.
-We find that \emph{address aliasing} can explain bias from two external factors; size of environment variables, and characteristics of dynamically linked heap allocators.
+%Understanding program behavior and obtaining accurate measurements is important in performance analysis.
+%However, recent research has shown that performance measurements can be \emph{biased} by external factors in unpredictable ways.
+%Seemingly irrelevant properties---such as the length of your user name---can impact program performance.
+In this paper, we identify \emph{address aliasing} as an important underlying mechanism causing measurement bias on modern Intel microarchitectures.
+By analyzing hardware performance counters, we show how bias can occur from two external factors; size of environment variables, and characteristics of dynamically linked heap allocators.
+%Our approach is to use a large set of hardware performance counter measurements to reveal the inner workings of the CPU, and search for correlations over a series of execution contexts.
+%We find that \emph{address aliasing} can explain bias from two external factors; size of environment variables, and characteristics of dynamically linked heap allocators.
 
-This result not only makes accounting for and avoiding measurement bias much simpler, but also enables explicit optimizations for it.
-We demonstrate this by implementing runtime detection and correction of aliasing conditions.
-For heap allocators, we show that common implementations tend to give worst case alignment by default, favoring page alignment for large allocations.
-The performance impact of unfavorable memory layouts can be significant, with as much as $2x$ speedup in one of our examples.
-Finally, we show that even highly optimized BLAS libraries can be impacted by address aliasing.
-Our results can enable new architecture specific optimization strategies to account for this effect.
+%This result not only makes accounting for and avoiding measurement bias much simpler, but also enables explicit optimizations for it.
+We demonstrate ways to deal with this type of bias, through runtime detection and correction of aliasing conditions.
+This is especially important for heap allocations, as most allocators tend to produce worst case alignment by default; favoring page alignment.
+%For heap allocators, we show that common implementations tend to give worst case alignment by default, favoring page alignment for large allocations.
+The performance impact of unfavorable memory layouts can be significant, with as much as $2x$ speedup in already optimized code.
+%Finally, we show that even highly optimized BLAS libraries can be impacted by address aliasing.
+Our results can enable new architecture specific optimization strategies to account for this phenomenon.
 \end{abstract}
 
 % Choose from classification tree http://www.acm.org/about/class/ccs98-html
