@@ -557,14 +557,15 @@ Figure~\ref{fig:microkernel-all-archs} shows cycle count plots for ``Core'', ``N
 %The experiment was also done for the older ``Core'' setup, shown in Figure~\ref{fig:motivation}.
 On the older ``Core'' architecture, \emph{load\_blocks.overlap\_store} is used to indicate address aliasing.
 Notably, this event was also found to be significant in the original paper, where the authors used a similar setup~\cite{Mytkowicz:2009:WrongData}.
-We were able to verify that partial address overlap was indeed occuring at the same time this event is spiking, and draw the conclusion that address aliasing must be the underlying explanation.
+We were able to verify that partial address overlap was occurring at the same time this event is spiking, concluding that address aliasing must be the underlying explanation.
 Still, this only explains part of what is going on in Figure~\ref{fig:microkernel-all-archs}, as there seem to be yet another bias effect at every fourth environment increment.
 These smaller spikes correlate with the performance event \emph{load\_blocks.std}, which is described as ``loads blocked by a preceding store with unknown data''~\cite[Table 19-17]{Volume3B}.
 %Our assumption is that this is a different phenomenon, not related to 4K aliasing.
 We were only able to observe the effect on this particular architecture, and did not investigate the root cause.% is related to 4K aliasing.
 
-Results for the ``Nehalem'' and ``Ivy Bridge'' architectures are more clear-cut, with large spikes only at the aliasing environment configuration.
-It is clear that the address alias issue exist for a wide range of Intel microarchitectures.
+Results for the ``Nehalem'' and ``Ivy Bridge'' architectures are clearer, with large spikes only at the aliasing environment configuration.
+It is clear that this issue exist for a wide range of Intel microarchitectures.
+%We believe that address alias issue exist for a wider range of Intel microarchitectures.
 
 % \subsubsection{Note on Hyper-Threading}
 % As described in Section~\ref{sec:methodology}, Hyper-Threading was disabled by default in order to avoid any potential interference while collecting data.
