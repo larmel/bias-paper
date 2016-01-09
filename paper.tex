@@ -191,7 +191,7 @@ Aliased memory accesses can produce false dependencies, and incur performance pe
 We look at how address aliasing can trigger bias from two external factors; size of system environment variables and configuration of dynamic heap allocation libraries.
 
 Our results show that the cost of aliasing can be significant, exemplified by a simple program with up to $2x$ speedup based in heap address alignment alone.
-We also find that many heap allocation libraries tend to produce worst case behavior by default with respect to aliasing, by favoring page alignment for large allocations.
+We also find that many heap allocation libraries tend to produce worst case behavior by default with respect to aliasing.%, by favoring page alignment for large allocations.
 With an understanding of how false dependencies in the CPU can impact performance, measurement bias caused by it can to some extent be predicted and even accounted for in software.
 We show how techniques like manual padding of allocations and dynamic detection of aliasing conditions can be used to improve performance. 
 Being able to handle address aliasing can give significant speedups, and our findings show potential for further architecture-specific optimizations.
@@ -214,7 +214,7 @@ Using this technique avoids modifications to the executed program, unlike tools 
 We use the perf-stat command in all experiments, which accepts raw PMU event codes listed in the reference manual~\cite{Volume3B}.
 
 Reliability of PMU measurements have been evaluated by Weaver and Mckee~\cite{Weaver:2008:PCTrusted}.
-The potential issues they find are either handled explicitly or are irrelevant to our setup.
+The issues they find are either handled explicitly or are irrelevant to our setup.
 %They find intra-machine variations of up to 1.07\%, 
 
 A small Python script is used to iterate over an exhaustive set of all known counters, which amounts to about 200 on our architecture.
@@ -223,7 +223,7 @@ We do not use multiplexing between a limited set of counter registers, as it wil
 Controlled variations in environment size is performed by setting a dummy environment variable to $n$ number of zero characters, starting from a minimal environment.\footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
 Interesting events are identified by computing linear correlation to cycle count, measuring all counters over a series of execution contexts.
 % Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{OptimizationManual}.
-Results are also averaged over multiple runs to reduce potential random error, using built-in perf rerun functionality.
+Results are also averaged over multiple runs to reduce potential random error.%, using built-in perf rerun functionality.
 
 %Because bias can be hardware dependent, and to keep the scope of this work manageable, we initially chose to focus our analysis on the 4th generation Intel ``Haswell'' microarchitecture.
 %We later reproduced similar results for the ``Core'', ``Nehalem'', and ``Ivy Bridge'' microarchitectures as well.
