@@ -941,8 +941,8 @@ A potential solution could be to apply some heuristic to randomize addresses mor
 The allocator could also accept hints to which buffers are going to be accessed in parallel, for example as an optional argument to a custom version of \texttt{malloc}.
 
 \subsection{Manually adjust address offsets}
-In some cases it might make sense to explicitly control the memory addresses used, for example forcing some fixed relative offset between input and output pointers.
-This can be achieved by exploiting the fact the \texttt{mmap} is in fact guaranteed to be placed at a page boundary, and use that directly instead of \texttt{malloc} to create specific alignments.
+In some cases it might help to explicitly control the memory addresses used, for example by requiring fixed relative offset between input and output pointers.
+This can be achieved by exploiting \texttt{mmap's} guarantee to be page boundary aligned, and use that directly instead of \texttt{malloc} to create specific alignments.
 % The following approach can be used to make an anonymous memory mapping with offset \texttt{d} bytes away from page alignment.
 % \begin{lstlisting}[breaklines=true]
 %     mmap(NULL, (n+d), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) +d;
