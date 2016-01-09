@@ -368,7 +368,7 @@ int main() {
     \begin{axis}[
         title = Haswell,
         width = \textwidth,
-        height = 6cm,
+        height = 5.5cm,
         font = \footnotesize,
         xlabel=Bytes added to environment,
         ylabel=Cycles,
@@ -388,7 +388,7 @@ int main() {
 Performance counter measurements of cycle counts over 512 different environment sizes are shown in Figure~\ref{fig:envbias}.
 Every 16 byte increment of environment size is measured, covering two 4K periods of initial stack addresses.
 %A finer sampling is not necessary, because the stack is by default aligned to 16 bytes.
-The microkernel is compiled with {\small{GCC}} using no optimization; any optimization would likely disregard most of the function as redundant code, reducing it to return zero immediately.
+The code is compiled with {\small{GCC}} using no optimization; any optimization would likely disregard most of the function as redundant, reducing it to return zero immediately.
 
 There are clearly two worst cases, indicated by significant spikes at the 3184 and 7280 byte offsets.
 We sampled an extensive set of performance counters in addition to cycle count for each execution context.
@@ -436,7 +436,7 @@ Note that the number of micro-ops \emph{retired} overall does not change.
 The memory disambiguation system automatically assumes dependency between a load and a previous store that are aliased, which can limit the potential for issuing many instructions simultaneously and out of order~\cite[Page 2-20]{OptimizationManual}.
 In our case, lower occupation of execution ports, and less pressure on the reservation station, can be explained by the CPU not being able to issue more operations while waiting for an aliased memory access to be resolved.
 
-The cycles\_ldm\_pending and stalls\_l2\_pending are interesting, as they are related to the memory and cache system.
+The cycles\_ldm\_pending and stalls\_l2\_pending numbers are interesting, as they are related to the memory and cache system.
 However, this program use only 2 cache-lines, except for the initial startup.
 Using the L1 hit and miss counts also revealed that the L1 load is 99.3\% and store hit rate is ~100\%.
 These events do not indicate a cache hit rate issue, but are probably due to having to wait for aliased writes to be retired and committed to cache.
