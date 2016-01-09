@@ -170,14 +170,13 @@ Our results can enable new architecture specific optimization strategies to acco
 
 
 \section{Introduction}
-Accurately measuring the performance of computer programs is important in order to evaluate new algorithms, or compare different implementations.
+%Accurately measuring the performance of computer programs is important in order to evaluate new algorithms, or compare different implementations.
 A key challenge for performance analysts and systems researchers is handling \emph{measurement bias}.
-Changes to external factors of the system, such as link ordering or the contents of environment variables, has been shown to have potentially significant impacts on performance in real applications~\cite{Mytkowicz:2009:WrongData}.
-The underlying explanation is that this changes memory addresses of code or data, which in turn interacts with various low level hardware buffers at runtime.
-Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes to for example system environment variables ultimately affect program execution.
+Seemingly innocious external factors---such as link ordering or contents of environment variables---have been shown to have potentially significant impacts on performance in real applications~\cite{Mytkowicz:2009:WrongData}.
+The underlying explanation is that these factors affect memory addresses of code or data at runtime, which in turn interacts with various low level hardware buffers.
+Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes to things like environment variables ultimately affect program execution.
 
-
-A literature study of 88 papers by Mytkowicz et al. showed that the median reported speedup was within the margin of bias, possibly invalidating the claimed speedups~\cite{Mytkowicz:2008:OE&MB}.
+%A literature study of 88 papers by Mytkowicz et al. showed that the median reported speedup was within the margin of bias, possibly invalidating the claimed speedups~\cite{Mytkowicz:2008:OE&MB}.
 To alleviate the impact of measurement bias in performance analysis, researchers have proposed techniques like causal analysis, and randomization of execution contexts~\cite{Mytkowicz:2008:OE&MB}.
 Others treat the interaction complexity as a potential optimization problem, using search over variant spaces to find optimal environments~\cite{Knights:2009:BlindOpt}.
 Our approach is to analyze isolated programs in detail using hardware performance counters, in an attempt to identify which underlying mechanisms are causing bias.
@@ -190,23 +189,23 @@ Aliased memory accesses can produce false dependencies, and incur performance pe
 We look at how address aliasing can trigger bias from two external factors; size of system environment variables and configuration of dynamic heap allocation libraries.
 
 Our results show that the cost of aliasing can be significant, exemplified by a simple program with up to $2x$ speedup based in heap address alignment alone.
-We also find that many heap allocation libraries tend to produce worst case behavior by default with respect to aliasing.%, by favoring page alignment for large allocations.
+%We also find that many heap allocation libraries tend to produce worst case behavior by default with respect to aliasing, by favoring page alignment for large allocations.
 With an understanding of how false dependencies in the CPU can impact performance, measurement bias caused by it can to some extent be predicted and even accounted for in software.
 We show how techniques like manual padding of allocations and dynamic detection of aliasing conditions can be used to improve performance. 
 Being able to handle address aliasing can give significant speedups, and our findings show potential for further architecture-specific optimizations.
 
-The rest of this paper is structured as follows: Our methodology and experimental setup is explained in the next section.
-Then section~\ref{sec:aliasing} introduces ``4K aliasing'', providing necessary background for interpreting the later results.
+The rest of this paper is structured as follows:
+Section~\ref{sec:methodology} starts by describing methodology and experimental setup.
+Then, section~\ref{sec:aliasing} introduces ``4K aliasing'', providing necessary background for interpreting the later results.
 Section~\ref{sec:environment} presents an analysis of how the size of environment variables causes bias, and in Section~\ref{sec:heap} we go through a similar analysis for bias to heap address alignment.
 Section~\ref{sec:blas} looks at alias in BLAS libraries.
 Finally, in Section~\ref{sec:mitigation} we discuss some approaches to deal with aliasing effects.
 Related work is discussed in Section~\ref{sec:related}, before we summarize and conclude in Section~\ref{sec:conclusions}.
 
-
 \section{Experimental Methodology}
 \label{sec:methodology}
 In order to understand biased behavior it is important to be able to do precise and detailed measurements, without introducing \emph{observer effects}~\cite{Mytkowicz:2008:OE&MB}.
-This can be achieved by using performance counters, instrumentation support in hardware that can be used to \emph{count} various events, such as cycles executed, branch misses, instructions fetched, and so on.
+This can be achieved by using performance counters; instrumentation support in hardware that can be used to \emph{count} various events, such as cycles executed, branch misses, instructions fetched, and so on.
 Recent Intel architectures have several hundred available events, providing a detailed view of what happens inside the CPU.
 Performance counters are supported in the Linux kernel, and can be accessed via a tool called \emph{perf}.
 This utility instructs the kernel to enable the processor's Performance Monitoring Unit (PMU), before executing a specified program.
