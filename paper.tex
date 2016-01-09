@@ -265,9 +265,9 @@ Interesting events are identified by computing linear correlation to cycle count
 % Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{OptimizationManual}.
 Results are also averaged over multiple runs to reduce potential random error, using built-in perf rerun functionality.
 
-Because bias can be hardware dependent, and to keep the scope of this work manageable, we initially chose to focus our analysis on the 4th generation Intel ``Haswell'' microarchitecture.
-We later reproduced similar results for the ``Core'', ``Nehalem'', and ``Ivy Bridge'' microarchitectures as well.
-Each setup is described in Table~\ref{tab:machines}, and referenced throughout the paper.
+%Because bias can be hardware dependent, and to keep the scope of this work manageable, we initially chose to focus our analysis on the 4th generation Intel ``Haswell'' microarchitecture.
+%We later reproduced similar results for the ``Core'', ``Nehalem'', and ``Ivy Bridge'' microarchitectures as well.
+%Each setup is described in Table~\ref{tab:machines}, and referenced throughout the paper.
 
 \begin{table}
   \caption{Experimental setups used.\label{tab:machines}}{
@@ -294,9 +294,7 @@ Best practices for controlling the execution context were applied, ensuring that
 Most importantly, this means keeping the memory address space under control.
 For security reasons, addresses of the stack, heap and dynamic libraries are often randomized at load time, a technique known as \emph{Address Space Layout Randomization}~\cite{Pax:ASLR,Bhatkar:AddressObfuscation}. 
 By disabling ASLR, we are able to execute the same program multiple times with identical virtual address spaces.
-All experiments are done on a dedicated machine under minimal load, with \emph{frequency scaling} disabled to keep the CPU's clock speed fixed.
-Finally, we disable \emph{Hyper-threading} (HT), which reduces the possibility for resource contention between threads.
-Some PMU events also require HT to be turned off, or produce inaccurate results with HT enabled.
+All experiments are done with the machine under minimal load, disabling \emph{frequency scaling} to keep the CPU's clock speed fixed, and \emph{Hyper-threading} (HT) to reduce the possibility for resource contention between threads.\footnote{Some PMU events also require HT to be turned off, or produce inaccurate results with HT enabled.}
 
 % Virtual memory/randomization illustration
 \begin{figure}
