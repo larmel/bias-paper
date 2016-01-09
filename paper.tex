@@ -815,34 +815,6 @@ By manually adjusting the address alignment of one of these buffers, cycle count
 \label{sec:blas}
 To investigate how real world applications can be impacted by aliasing, we look at low level numerical applications.
 Basic Linear Algebra Subroutines (BLAS) is the de facto standard API for high performance linear algebra routines, with several heavily optimized implementations available~\cite{Blackford:2002:UpdatedBLAS}.
-\iffalse
-The functionality is divided into three categories:
-\begin{description}
-  \item[Level 1] \hspace{0.1cm} Scalar and vector operations, such as dot product and vector addition.
-  \item[Level 2] \hspace{0.1cm} Matrix-vector operations, such as gemv for general matrix-vector multiplication.
-  \item[Level 3] \hspace{0.1cm} Matrix-matrix operations, including the widely applied gemm routine for general matrix multiplication.
-\end{description}
-Procedures operating on vectors, intuitively appears the most likely to have potential for aliasing.
-\fi
-%The level 1 and 2 routines involving vectors intuitively appears to be more likely to have potential for aliasing.
-We look at three different libraries available through the Ubuntu package manager; \emph{libblas}, \emph{libatlas}, and \emph{libopenblas}~\cite{Whaley:1998:ATLAS,Wang:2013:OpenBLAS}.
-We ran our bias analysis on the level 2 procedure \texttt{cblas\_dgemv}, which computes the matrix-vector product $\boldsymbol{y} = \alpha\text{op}\left(A\right)\boldsymbol{x} + \beta\boldsymbol{y}$ for \texttt{double} sized numbers.
-In this equation,  $\alpha$ and $\beta$ are constants, and $\text{op}\left(A\right)$ is an optional transpose or complex conjugate of the matrix.
-We set $\alpha = 1$, $\beta = 0$ and $\text{op} \left(A\right) = A$ to reduce the formula to $\boldsymbol{y}=A\boldsymbol{x}$.
-Denote the matrix size as $M \times N$, making $\boldsymbol{x}$ of length $N$ and $\boldsymbol{y}$ of length $M$.
-%In code, the function is invoked with the following parameters:
-%\begin{lstlisting}[breaklines=true]
-%    cblas_dgemv(CblasColMajor, CblasNoTrans, M, N, alpha, A, M, x, 1, beta, y, 1);
-%\end{lstlisting}
-
-Each of the structures \texttt{A}, \texttt{x} and \texttt{y} represent different locations in memory, and their addresses is part of the execution context.
-The \texttt{mmap} method outlined in the previous section is used to control the location of each of these buffers on the heap.
-From our experiments, we found that the memory address offset of vector $\boldsymbol{y}$ compared to matrix $A$ is the most important with respect to the number of alias events.
-For the results presented here, we set $A = I$ (identity matrix) and $\boldsymbol{x} = [0, 1, 2, ..., N-1]$, with parameters $M = N = 1024$.
-Address suffix of $A$ and $\boldsymbol{x}$ is fixed to 0x000, while performance events are sampled for increasing address offset of $\boldsymbol{y}$, starting at a baseline of 0x000.
-The experiment was run on the ``Haswell'' setup, with Hyper-Threading enabled.
-In an attempt to isolate the cost of a single \texttt{cblas_dgemv} invocation, we use the estimation approach described in Section~\ref{sec:heap} to subtract the constant overhead from heap allocation and initialization.
-
 \pgfplotstableread{bin/libblas.dat}{\libblastable}
 \pgfplotstableread{bin/libatlas.dat}{\libatlastable}
 \pgfplotstableread{bin/libopenblas.dat}{\libopenblastable}
@@ -901,6 +873,34 @@ In an attempt to isolate the cost of a single \texttt{cblas_dgemv} invocation, w
   \end{tikzpicture}
   \caption{\label{fig:blas}Performance of \texttt{cblas\_dgemv} for different BLAS packages, measuring cycles executed and address alias events for varying relative address offset between matrix $A$ and vector $\boldsymbol{y}$. Each sample point represents an increment of 16 bytes, or 0x10.}
 \end{figure*}
+
+\iffalse
+The functionality is divided into three categories:
+\begin{description}
+  \item[Level 1] \hspace{0.1cm} Scalar and vector operations, such as dot product and vector addition.
+  \item[Level 2] \hspace{0.1cm} Matrix-vector operations, such as gemv for general matrix-vector multiplication.
+  \item[Level 3] \hspace{0.1cm} Matrix-matrix operations, including the widely applied gemm routine for general matrix multiplication.
+\end{description}
+Procedures operating on vectors, intuitively appears the most likely to have potential for aliasing.
+\fi
+%The level 1 and 2 routines involving vectors intuitively appears to be more likely to have potential for aliasing.
+We look at three different libraries available through the Ubuntu package manager; \emph{libblas}, \emph{libatlas}, and \emph{libopenblas}~\cite{Whaley:1998:ATLAS,Wang:2013:OpenBLAS}.
+We ran our bias analysis on the level 2 procedure \texttt{cblas\_dgemv}, which computes the matrix-vector product $\boldsymbol{y} = \alpha\text{op}\left(A\right)\boldsymbol{x} + \beta\boldsymbol{y}$ for \texttt{double} sized numbers.
+In this equation,  $\alpha$ and $\beta$ are constants, and $\text{op}\left(A\right)$ is an optional transpose or complex conjugate of the matrix.
+We set $\alpha = 1$, $\beta = 0$ and $\text{op} \left(A\right) = A$ to reduce the formula to $\boldsymbol{y}=A\boldsymbol{x}$.
+Denote the matrix size as $M \times N$, making $\boldsymbol{x}$ of length $N$ and $\boldsymbol{y}$ of length $M$.
+%In code, the function is invoked with the following parameters:
+%\begin{lstlisting}[breaklines=true]
+%    cblas_dgemv(CblasColMajor, CblasNoTrans, M, N, alpha, A, M, x, 1, beta, y, 1);
+%\end{lstlisting}
+
+Each of the structures \texttt{A}, \texttt{x} and \texttt{y} represent different locations in memory, and their addresses is part of the execution context.
+The \texttt{mmap} method outlined in the previous section is used to control the location of each of these buffers on the heap.
+From our experiments, we found that the memory address offset of vector $\boldsymbol{y}$ compared to matrix $A$ is the most important with respect to the number of alias events.
+For the results presented here, we set $A = I$ (identity matrix) and $\boldsymbol{x} = [0, 1, 2, ..., N-1]$, with parameters $M = N = 1024$.
+Address suffix of $A$ and $\boldsymbol{x}$ is fixed to 0x000, while performance events are sampled for increasing address offset of $\boldsymbol{y}$, starting at a baseline of 0x000.
+The experiment was run on the ``Haswell'' setup, with Hyper-Threading enabled.
+In an attempt to isolate the cost of a single \texttt{cblas_dgemv} invocation, we use the estimation approach described in Section~\ref{sec:heap} to subtract the constant overhead from heap allocation and initialization.
 
 Cycles executed and alias events for each library is shown in Figure~\ref{fig:blas}.
 Each library behaves differently, but in all cases we identify a significant amount of alias. 
