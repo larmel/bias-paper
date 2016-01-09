@@ -825,7 +825,7 @@ The functionality is divided into three categories:
 \end{description}
 Procedures operating on vectors, intuitively appears the most likely to have potential for aliasing.
 \fi
-Here the level 1 and 2 vector operations intuitively appears to be more likely to have potential for aliasing.
+Here, the level 1 and 2 vector operations intuitively appears to be more likely to have potential for aliasing.
 We look at three different libraries available through the Ubuntu package manager; \emph{libblas}, \emph{libatlas}, and \emph{libopenblas}~\cite{Whaley:1998:ATLAS,Wang:2013:OpenBLAS}.
 We ran our bias analysis on the level 2 procedure \texttt{cblas\_dgemv}, which computes the matrix-vector product $\boldsymbol{y} = \alpha\text{op}\left(A\right)\boldsymbol{x} + \beta\boldsymbol{y}$ for \texttt{double} sized numbers.
 In this equation,  $\alpha$ and $\beta$ are constants, and $\text{op}\left(A\right)$ is an optional transpose or complex conjugate of the matrix.
@@ -921,7 +921,7 @@ The amount of \emph{bias} this creates with respect to number of cycles executed
 \label{sec:mitigation}
 Performance penalties caused by address aliasing can be significant, creating bias towards certain memory layouts.
 However, with an understanding of the underlying mechanism that causes bias, the effects can be predicted and to some extent eliminated in software.
-The most relevant scenario to consider is probably code that can hit the aliasing \texttt{mmap} scenario, where performance impact can be consistently bad over all environments.
+%The most relevant scenario to consider is probably code that can hit the aliasing \texttt{mmap} scenario, where performance impact can be consistently bad over all environments.
 We identify some relevant optimization techniques:
 
 \subsection{Mark buffers with \texttt{restrict}}
@@ -939,15 +939,14 @@ The Intel optimization manual mentions this% in \emph{User/Source Coding Rule 8}
 , suggesting that special purpose allocators could be used to avoid aliasing~\cite{OptimizationManual}.
 However, to our knowledge there are no allocators that specifically try to mitigate aliasing in heap allocated memory.
 %Similarly none offset their allocations based on the initial stack frame.
-We show that heap allocators are prone to generate pairwise aliasing buffers, the worst case for many functions.
+%We show that heap allocators are prone to generate pairwise aliasing buffers, the worst case for many functions.
 
-
-A potential solution could be to apply some heuristic to randomize addresses more, and in particular not always return the same 12 bit suffix for large allocations.
+One approach could be to apply some heuristic to randomize addresses more, and in particular not always return the same 12 bit suffix for large allocations.
 The allocator could also accept hints to which buffers are going to be accessed in parallel, for example as an optional argument to a custom version of \texttt{malloc}.
 
 \subsection{Manually adjust address offsets}
 In some cases it might help to explicitly control the memory addresses used, for example by requiring fixed relative offset between input and output pointers.
-This can be achieved by exploiting \texttt{mmap's} guarantee to be page boundary aligned, and use that directly instead of \texttt{malloc} to create specific alignments.
+For heap allocations, one can exploit that \texttt{mmap} is guaranteed to be page aligned, and use that directly to create specific alignments.
 % The following approach can be used to make an anonymous memory mapping with offset \texttt{d} bytes away from page alignment.
 % \begin{lstlisting}[breaklines=true]
 %     mmap(NULL, (n+d), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) +d;
@@ -980,7 +979,7 @@ int main() {
 % In addition to being offset by environment variables, the initial stack address can also be perturbed by for example program arguments or address randomization.
 % Although one can not easily know if a collision is going to happen for a given environment a priori, it is possible to change the program to account for possible alias conditions.
 It is also possible to manipulate addresses of automatic (stack allocated) variables.
-A proof of concept of how alias-free code could be generated for the microkernel example is shown in Figure \ref{lst:loopfixed}.
+A proof of concept of how alias-free code could be generated for the program discussed in Section~\ref{sec:microkernel} is shown in Figure \ref{lst:loopfixed}.
 If the addresses do alias, a branch to an alternative but semantically equivalent code path is performed.
 Calling the function recursively will effectively allocate a new set of variables further down the stack, and the alias condition is avoided.
 Even though this particular solution is impractical, it proves that compilers and programmers \emph{could} take measures to account for aliasing.
@@ -1020,7 +1019,7 @@ We are able to identify instances of alias issues in matrix-vector multiplicatio
 
 We show how techniques like padding of variables and alternative alias-free code paths can be used to avoid aliasing at runtime.
 For heap address aliasing especially, we find that manual intervention can be required in order to achieve optimal performance.
-Our results should inspire more clever optimizations and heuristics taking address aliasing effects into account, as the potential performance improvements can be substantial.
+Our results can inspire more clever optimizations and heuristics taking address aliasing effects into account, as the potential performance improvements can be substantial.
 
 % Acknowledgements
 %\begin{acks}
