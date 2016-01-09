@@ -199,7 +199,8 @@ Being able to handle address aliasing can give significant speedups, and our fin
 The rest of this paper is structured as follows: Our methodology and experimental setup is explained in the next section.
 Then section~\ref{sec:aliasing} introduces ``4K aliasing'', providing necessary background for interpreting the later results.
 Section~\ref{sec:environment} presents an analysis of how the size of environment variables causes bias, and in Section~\ref{sec:heap} we go through a similar analysis for bias to heap address alignment.
-Finally, in Section~\ref{sec:blas} we look at alias in BLAS libraries.
+Section~\ref{sec:blas} looks at alias in BLAS libraries.
+Finally, in Section~\ref{seg:mitigation} we discuss some approaches to deal with aliasing effects.
 Related work is discussed in Section~\ref{sec:related}, before we summarize and conclude in Section~\ref{sec:conclusions}.
 
 
@@ -475,39 +476,6 @@ Notice the common suffix 0x03c between \texttt{inc} and \texttt{i}, which is the
 % This type of bias can occur in a number of memory configurations.
 % Here, the aliasing was caused by interactions between the stack and static variables, but we can imagine similar conflicts between the stack and the heap, depending also on how dynamic memory allocators behave.
 % Because the stack is used for local variables, complex code is likely to contain many potential conflicts with other areas of memory.
-
-% See /analysis for results showing this does not alias
-\begin{figure}
-  \begin{lstlisting}[frame=single, xleftmargin=.005\textwidth, xrightmargin=.005\textwidth]
-#define ALIAS(a, b) \
-    ((((long)&a) & 0xfff) == (((long)&b) & 0xfff))
-static int i, j, k;
-int main() {
-    int g = 0, inc = 1;
-    if (ALIAS(inc, i) || ALIAS(g, i))
-        return main();
-    for (; g < 65536; g++) {
-        i += inc;
-        j += inc;
-        k += inc;
-    }
-    return 0;
-}
-  \end{lstlisting}
-  \caption{Modified microkernel that can dynamically detect aliasing case, and avoid it by pushing another stack frame.}
-  \label{lst:loopfixed}
-\end{figure}
-
-%\newpage
-\subsection{Avoiding Aliasing}
-Addresses of automatic variables can not be determined statically, because the location of the stack at runtime is generally unknown.
-In addition to being offset by environment variables, the initial stack address can also be perturbed by for example program arguments or address randomization.
-Although one can not easily know if a collision is going to happen for a given environment a priori, it is possible to change the program to account for possible alias conditions.
-A proof of concept of how alias-free code could be generated in this particular case is shown in Figure \ref{lst:loopfixed}.
-If the addresses do alias, a branch to an alternative but semantically equivalent code path is performed.
-Calling the function recursively will effectively allocate a new set of variables further down the stack, and the alias condition is avoided.
-
-Even though this particular solution is impractical, it shows that compilers and programmers \emph{could} take measures to account for aliasing.
 
 %\pgfplotstableread{bin/microkernel-cycles-core2.dat}{\microkernelcoretwotable}
 \pgfplotstableread{bin/microkernel-core.dat}{\tblmicrokernelcore}
@@ -841,41 +809,6 @@ By manually adjusting the address alignment of one of these buffers, cycle count
 % We do not attempt to pinpoint exactly which assembly instructions might alias, but one can assume that the processor thinks memory accesses to \texttt{input[i]} potentially conflicts with \texttt{output[i]}.
 
 
-\subsection{Ways to Deal with Heap Address Aliasing}
-Performance penalties caused by address aliasing can be significant, creating bias towards certain memory layouts.
-However, with an understanding of the underlying mechanism that causes bias, the effects can be predicted and to some extent eliminated in software.
-The most relevant scenario to consider is probably code that can hit the aliasing \texttt{mmap} scenario, where performance impact can be consistently bad over all environments.
-We identify some relevant optimization techniques:
-
-\subsubsection{Mark buffers with \texttt{restrict}}
-In our convolution kernel implementation, the compiler has to account for the fact that input and output pointers might alias, or that the buffers partially overlap.
-This limits the extent generated code can keep data in registers without updating the values from memory, as a write to one buffer potentially could invalidate a cached value from the other.
-The C99 keyword \emph{restrict} can be used to explicitly tell the compiler that accesses through a pointer does not alias with any other, allowing for more efficient code generation with fewer memory accesses.
-% \begin{lstlisting}[breaklines=true]
-%     void conv(int n, const float * restrict in, float * restrict out);
-% \end{lstlisting}
-Applied to our example, the compiler is able to move a store instruction out of the inner loop, reducing the number of stores executed by more than 80 \% and alias events by approximately 10 million on optimization level O2.
-%Alias events are reduced by about 10 million for the default alignment, with a corresponding improvement in cycle count. % File backing this in results
-
-\subsubsection{Use a special purpose allocator}
-The Intel optimization manual mentions this in \emph{User/Source Coding Rule 8}, suggesting that special purpose allocators could be used to avoid aliasing ~\cite{OptimizationManual}.
-However, to our knowledge there are no commonly used allocators that specifically try to mitigate aliasing in heap allocated memory.
-%Similarly none offset their allocations based on the initial stack frame.
-We show that heap allocators are prone to generate pairwise aliasing buffers, the worst case for many functions.
-
-
-A potential solution could be to apply some heuristic to randomize addresses more, and in particular not always return the same 12 bit suffix for large allocations.
-The allocator could also accept hints to which buffers are going to be accessed in parallel, for example as an optional argument to a custom version of \texttt{malloc}.
-
-\subsubsection{Manually adjust address offsets}
-In some cases it might make sense to explicitly control the memory addresses used, for example forcing some fixed relative offset between input and output pointers.
-This can be achieved by exploiting the fact the \texttt{mmap} is in fact guaranteed to be placed at a page boundary, and use that directly instead of \texttt{malloc} to create specific alignments.
-% The following approach can be used to make an anonymous memory mapping with offset \texttt{d} bytes away from page alignment.
-% \begin{lstlisting}[breaklines=true]
-%     mmap(NULL, (n+d), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) +d;
-% \end{lstlisting}
-% The same pointer difference must of course by subtracted before unmapping the memory.
-
 %\newpage
 \section{Aliasing in Real Applications}
 \label{sec:blas}
@@ -978,6 +911,75 @@ Especially for the libblas case, results look quite similar to what we saw for t
 
 Our results show that address aliasing can indeed occur in real, performance critical applications.
 The amount of \emph{bias} this creates with respect to number of cycles executed is not as clear in all cases, but at least for libblas we are confident in claiming that aliasing is indeed causing a performance degradation.
+
+
+\section{Ways to Deal with Address Aliasing}
+\label{sec:mitigation}
+Performance penalties caused by address aliasing can be significant, creating bias towards certain memory layouts.
+However, with an understanding of the underlying mechanism that causes bias, the effects can be predicted and to some extent eliminated in software.
+The most relevant scenario to consider is probably code that can hit the aliasing \texttt{mmap} scenario, where performance impact can be consistently bad over all environments.
+We identify some relevant optimization techniques:
+
+\subsection{Mark buffers with \texttt{restrict}}
+In our convolution kernel implementation, the compiler has to account for the fact that input and output pointers might alias, or that the buffers partially overlap.
+This limits the extent generated code can keep data in registers without updating the values from memory, as a write to one buffer potentially could invalidate a cached value from the other.
+The C99 keyword \emph{restrict} can be used to explicitly tell the compiler that accesses through a pointer does not alias with any other, allowing for more efficient code generation with fewer memory accesses.
+% \begin{lstlisting}[breaklines=true]
+%     void conv(int n, const float * restrict in, float * restrict out);
+% \end{lstlisting}
+Applied to our example, the compiler is able to move a store instruction out of the inner loop, reducing the number of stores executed by more than 80 \% and alias events by approximately 10 million on optimization level O2.
+%Alias events are reduced by about 10 million for the default alignment, with a corresponding improvement in cycle count. % File backing this in results
+
+\subsection{Use a special purpose allocator}
+The Intel optimization manual mentions this in \emph{User/Source Coding Rule 8}, suggesting that special purpose allocators could be used to avoid aliasing ~\cite{OptimizationManual}.
+However, to our knowledge there are no commonly used allocators that specifically try to mitigate aliasing in heap allocated memory.
+%Similarly none offset their allocations based on the initial stack frame.
+We show that heap allocators are prone to generate pairwise aliasing buffers, the worst case for many functions.
+
+
+A potential solution could be to apply some heuristic to randomize addresses more, and in particular not always return the same 12 bit suffix for large allocations.
+The allocator could also accept hints to which buffers are going to be accessed in parallel, for example as an optional argument to a custom version of \texttt{malloc}.
+
+\subsection{Manually adjust address offsets}
+In some cases it might make sense to explicitly control the memory addresses used, for example forcing some fixed relative offset between input and output pointers.
+This can be achieved by exploiting the fact the \texttt{mmap} is in fact guaranteed to be placed at a page boundary, and use that directly instead of \texttt{malloc} to create specific alignments.
+% The following approach can be used to make an anonymous memory mapping with offset \texttt{d} bytes away from page alignment.
+% \begin{lstlisting}[breaklines=true]
+%     mmap(NULL, (n+d), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) +d;
+% \end{lstlisting}
+% The same pointer difference must of course by subtracted before unmapping the memory.
+
+% See /analysis for results showing this does not alias
+\begin{figure}
+  \begin{lstlisting}[frame=single, xleftmargin=.005\textwidth, xrightmargin=.005\textwidth]
+#define ALIAS(a, b) \
+    ((((long)&a) & 0xfff) == (((long)&b) & 0xfff))
+static int i, j, k;
+int main() {
+    int g = 0, inc = 1;
+    if (ALIAS(inc, i) || ALIAS(g, i))
+        return main();
+    for (; g < 65536; g++) {
+        i += inc;
+        j += inc;
+        k += inc;
+    }
+    return 0;
+}
+  \end{lstlisting}
+  \caption{Modified microkernel that can dynamically detect aliasing case, and avoid it by pushing another stack frame.}
+  \label{lst:loopfixed}
+\end{figure}
+
+% Addresses of automatic variables can not be determined statically, because the location of the stack at runtime is generally unknown.
+% In addition to being offset by environment variables, the initial stack address can also be perturbed by for example program arguments or address randomization.
+% Although one can not easily know if a collision is going to happen for a given environment a priori, it is possible to change the program to account for possible alias conditions.
+It is also possible to manipulate addresses of automatic (stack allocated) variables.
+A proof of concept of how alias-free code could be generated for the microkernel example is shown in Figure \ref{lst:loopfixed}.
+If the addresses do alias, a branch to an alternative but semantically equivalent code path is performed.
+Calling the function recursively will effectively allocate a new set of variables further down the stack, and the alias condition is avoided.
+Even though this particular solution is impractical, it proves that compilers and programmers \emph{could} take measures to account for aliasing.
+
 
 
 \section{Related Work}
