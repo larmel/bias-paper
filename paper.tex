@@ -393,8 +393,8 @@ The microkernel is compiled with {\small{GCC}} using no optimization; any optimi
 There are clearly two worst cases, indicated by significant spikes at the 3184 and 7280 byte offsets.
 We sampled an extensive set of performance counters in addition to cycle count for each execution context.
 To analyze the bias effects at these points, we calculate the \emph{median} value of each counter over all contexts, and compare that to the two extreme cases.
-Going through the list of events manually, we selected the set that had the highest correlation with cycle count\footnote{Some correlating performance events are omitted; for example bus-cycles, which will naturally vary with total cycle count.}.
-Table \ref{tab:loopcorrelation} shows numerical counter values for the first spike, compared to the median values. Event counts on the second spike are virtually identical to the first, and omitted for brevity.
+Going through the list of events, we selected the set that had the highest correlation with cycle count\footnote{Some correlating performance events are omitted; for example bus-cycles, which will naturally vary with total cycle count.}.
+Table \ref{tab:loopcorrelation} shows numerical counter values for the first spike, compared to the median values. Event counts on the second spike are almost identical to the first, and omitted for brevity.
 
 % Detailed comparison between median and worst cases.
 \begin{table}
@@ -424,13 +424,14 @@ Table \ref{tab:loopcorrelation} shows numerical counter values for the first spi
   ]{bin/microkernel-comparison-haswell.csv}
 \end{table}
 
-We see the most extreme change from median to worst case in the number of alias events. 
-If we plot the graph for address aliasing, we see that it is near zero everywhere and spikes at exactly the points we observe bias. 
+We see a huge change from the median in the number of alias events. 
+%If we plot the graph for address aliasing, we see that it is near zero everywhere and spikes at exactly the points we observe bias. 
+We found that there are near zero address aliasing events everywhere except exactly the points we observe bias. 
 The results show a high number of resource stalls and pending memory loads when the spikes occur, which is consistent with address aliasing issues.
 On the other end we get a much lower number of reservation station (RS) stalls in the aliasing case, with a reduction from around 272,000 to 136,000.
 The reservation station buffers micro-ops for scheduling to the execution units, and a stall event means that there are no free slots available~\cite[Table 19-2]{Volume3B}.
 Fewer stalls in the aliasing case could indicate less contention on the reservation station.
-This probably has to do with the overall \emph{decrease} in the number of micro-ops executed per port, as all but one of the in total 8 execution ports have fewer operations going in parallel.
+This probably has to do with the overall \emph{decrease} in the number of micro-ops executed per port, as all but one of the 8 execution ports have fewer operations going in parallel.
 Note that the number of micro-ops \emph{retired} overall does not change.
 The memory disambiguation system automatically assumes dependency between a load and a previous store that are aliased, which can limit the potential for issuing many instructions simultaneously and out of order~\cite[Page 2-20]{OptimizationManual}.
 In our case, lower occupation of execution ports, and less pressure on the reservation station, can be explained by the CPU not being able to issue more operations while waiting for an aliased memory access to be resolved.
@@ -446,7 +447,7 @@ Performance counter data clearly points to address aliasing as a plausible expla
 Memory layout of static data is decided at compile time, and we find the addresses to be \texttt{\&i} = 0x60103c, \texttt{\&j} = 0x601040, and \texttt{\&k} = 0x601044 by reading the ELF symbol table.%\footnote{ELF symbol tables can be read using \texttt{readelf -s}}
 
 %Observing addresses of stack allocated data at runtime is more challenging, as we have to make sure to not introduce any observer effects that alters the addresses as we are observing them.
-Assembly code was injected to calculate and output the runtime addresses of \texttt{g} and \texttt{inc}, carefully craftet to not introduce any observer effects.
+Carefully crafted assembly code was used to capture the runtime addresses of \texttt{g} and \texttt{inc}.
 %We made no change to the stack allocation instructions, and the code offset did not affect the addresses of static variables.
 %The same experiment was run again, showing that the modified program had the exact same bias to environment size.
 From the output at each spike, we found the addresses to be \texttt{\&g} = 0x7fffffffe038, \texttt{\&inc} = 0x7fffffffe03c, and \texttt{\&g} = 0x7fffffffd038, \texttt{\&inc} = 0x7fffffffd03c, respectively
