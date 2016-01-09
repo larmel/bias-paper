@@ -709,10 +709,11 @@ Controlling the offset parameter, we can create environments where the address s
 Allocating and managing these buffers at startup takes a non-negligible amount of work.
 The overhead can be masked by repeatedly invoking the convolution kernel after allocating and initializing all the inputs.
 Repeated invocation will also even out performance by warming up the cache.
-\begin{lstlisting}
-    for (i = 0; i < k; ++i)
-        conv(n, input, output + offset);
-\end{lstlisting}
+%\begin{lstlisting}
+%    for (i = 0; i < k; ++i)
+%        conv(n, input, output + offset);
+%\end{lstlisting}
+
 An estimate of the actual cost a single invocation can be calculated by averaging over a number of repeated function calls, after subtracting the overhead of invoking it the first time.
 \[
 t_{\text{estimate}} = \frac{t_{k} - t_{1}}{k - 1}
@@ -893,10 +894,10 @@ We ran our bias analysis on the level 2 procedure \texttt{cblas\_dgemv}, which c
 In this equation,  $\alpha$ and $\beta$ are constants, and $\text{op}\left(A\right)$ is an optional transpose or complex conjugate of the matrix.
 We set $\alpha = 1$, $\beta = 0$ and $\text{op} \left(A\right) = A$ to reduce the formula to $\boldsymbol{y}=A\boldsymbol{x}$.
 Denote the matrix size as $M \times N$, making $\boldsymbol{x}$ of length $N$ and $\boldsymbol{y}$ of length $M$.
-In code, the function is invoked with the following parameters:
-\begin{lstlisting}[breaklines=true]
-    cblas_dgemv(CblasColMajor, CblasNoTrans, M, N, alpha, A, M, x, 1, beta, y, 1);
-\end{lstlisting}
+%In code, the function is invoked with the following parameters:
+%\begin{lstlisting}[breaklines=true]
+%    cblas_dgemv(CblasColMajor, CblasNoTrans, M, N, alpha, A, M, x, 1, beta, y, 1);
+%\end{lstlisting}
 
 Each of the structures \texttt{A}, \texttt{x} and \texttt{y} represent different locations in memory, and their addresses is part of the execution context.
 The \texttt{mmap} method outlined in the previous section is used to control the location of each of these buffers on the heap.
