@@ -585,12 +585,12 @@ Even though this particular solution is impractical, it shows that compilers and
 
 \subsection{Other Architectures}
 While we show only the analysis for ``Haswell'' here, the same approach gave similar results for all the CPUs we tested.
-Figure~\ref{fig:microkernel-all-archs} shows additional cycle count plots for ``Core'', ``Nehalem'' and ``Ivy Bridge'', revealing the same alias behavior.%\footnote{For these results we also pinned the process to a single core during measurements using \texttt{taskset}, which helps remove some of the random noise.}
+Figure~\ref{fig:microkernel-all-archs} shows cycle count plots for ``Core'', ``Nehalem'' and ``Ivy Bridge'', revealing the same alias behavior.%\footnote{For these results we also pinned the process to a single core during measurements using \texttt{taskset}, which helps remove some of the random noise.}
 %The experiment was also done for the older ``Core'' setup, shown in Figure~\ref{fig:motivation}.
 On the older ``Core'' architecture, \emph{load\_blocks.overlap\_store} is used to indicate address aliasing.
 Notably, this event was also found to be significant in the original paper, where the authors used a similar setup~\cite{Mytkowicz:2009:WrongData}.
 We were able to verify that partial address overlap was indeed occuring at the same time this event is spiking, and draw the conclusion that address aliasing must be the underlying explanation.
-Still, this only explains part of what is going on in Figure~\ref{fig:motivation}, as there seem to be yet another bias effect at every fourth environment increment.
+Still, this only explains part of what is going on in Figure~\ref{fig:microkernel-all-archs}, as there seem to be yet another bias effect at every fourth environment increment.
 These smaller spikes correlate with the performance event \emph{load\_blocks.std}, which is described as ``loads blocked by a preceding store with unknown data''~\cite[Table 19-17]{Volume3B}.
 %Our assumption is that this is a different phenomenon, not related to 4K aliasing.
 We were only able to observe the effect on this particular architecture, and did not investigate the root cause.% is related to 4K aliasing.
