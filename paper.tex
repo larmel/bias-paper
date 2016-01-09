@@ -301,9 +301,9 @@ All experiments are done with the machine under minimal load, disabling \emph{fr
 \label{sec:aliasing}
 Modern processors are \emph{superscalar}, and achieve parallelism by issuing multiple instructions simultaneously and out of order.
 One of the issues that can limit throughput is dependencies between a load and previous stores.
-To increase parallelism, modern architectures use a technique called \emph{memory disambiguation} to execute memory operations out of order~\cite{Intel:2006:InsideICM:SmartMemoryAccess}. 
-More often than not, loads can safely be issued before a previous store has completed and written its value to L1 cache.
-Loads are therefore issued \emph{speculatively}, based on a prediction on whether it will conflict with a previous store that is still not retired.
+To increase parallelism, modern architectures use a technique called \emph{memory disambiguation} to execute memory these operations out of order~\cite{Intel:2006:InsideICM:SmartMemoryAccess} as well. 
+%More often than not, loads can safely be issued before a previous store has completed and written its value to L1 cache.
+Loads are then issued \emph{speculatively}, based on a prediction on whether it will conflict with a previous store that is still not retired.
 The prediction is later verified, replaying any instructions that were wrongly assumed to have no dependencies.
 Similarly, if the load and store locations are the same, the value can be \emph{forwarded} from the store before it retires.
 
