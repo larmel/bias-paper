@@ -114,17 +114,10 @@ Anonymous\\
 }
 \fi
 
-\author{\IEEEauthorblockN{Authors Name/s per 1st Affiliation (Author)}
-\IEEEauthorblockA{line 1 (of Affiliation): dept. name of organization\\
-line 2: name of organization, acronyms acceptable\\
-line 3: City, Country\\
-line 4: Email: name@xyz.com}
-\and
-\IEEEauthorblockN{Authors Name/s per 2nd Affiliation (Author)}
-\IEEEauthorblockA{line 1 (of Affiliation): dept. name of organization\\
-line 2: name of organization, acronyms acceptable\\
-line 3: City, Country\\
-line 4: Email: name@xyz.com}
+\author{\IEEEauthorblockN{Lars Kirkholt Melhus, Rune Erlend Jensen}
+\IEEEauthorblockA{Dept. of Computer and Information Science (IDI)\\
+NTNU, Norway\\
+lars.kirkholt.melhus@gmail.com, runeerle@idi.ntnu.no}
 }
 
 
@@ -1017,7 +1010,7 @@ Comparing four different libraries, we show that most implementations tend to fa
 This means that structures such as vectors and matrices are likely to alias by default, which can be worst case scenarios for many algorithms.
 %Address aliasing can have significant performance impact for algorithms operating on heap allocated buffers, which 
 We analyze an example with up to $2x$ variation in cycle count between different heap alignments, showing that address aliasing can have a significant performance impact.
-We are able to identify instances of alias issues in matrix-vector multiplication routines for different BLAS libraries, proving that this phenomenon also appear in real, performance critical code.
+We are able to identify instances of alias issues in matrix-vector multiplication routines for different BLAS libraries, showing that this effect also appears in real, performance critical code.
 
 We show how techniques like padding of variables and alternative alias-free code paths can be used to avoid aliasing at runtime.
 For heap address aliasing especially, we find that manual intervention can be required in order to achieve optimal performance.
