@@ -864,7 +864,8 @@ Applied to our example, the compiler is able to move a store instruction out of 
 The Intel optimization manual mentions this in \emph{User/Source Coding Rule 8}, suggesting that special purpose allocators could be used to avoid aliasing ~\cite{OptimizationManual}.
 However, to our knowledge there are no commonly used allocators that specifically try to mitigate aliasing in heap allocated memory.
 %Similarly none offset their allocations based on the initial stack frame.
-We show that heap allocators are prone to generate pairwise aliasing buffers, the worst case for functions such as the convolution example.
+We show that heap allocators are prone to generate pairwise aliasing buffers, the worst case for many functions.
+
 
 A potential solution could be to apply some heuristic to randomize addresses more, and in particular not always return the same 12 bit suffix for large allocations.
 The allocator could also accept hints to which buffers are going to be accessed in parallel, for example as an optional argument to a custom version of \texttt{malloc}.
