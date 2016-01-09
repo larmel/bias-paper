@@ -327,7 +327,7 @@ In the following sections, we show how performance penalties from address aliasi
 
 \section{Bias from Environment Size}
 \label{sec:environment}
-System environment variables contain things like the name of the logged in user, home directory, shell state, and various other settings.
+System environment variables contain strings like the name of the logged in user, home directory, shell state, and various other settings.
 As a source of bias, it is not the environment variables themselves that are important, but rather the effect their total \emph{size} has on the position and alignment of the stack.
 As indicated in Figure \ref{fig:virtualmemory}, environment variables and program arguments are allocated in the stack section of virtual memory, close to the upper address 0x7fff'ffffffff\footnote{Modern processors do not actually use the full 64-bit space, only the low order 47 bits are used for addressing memory.} and before the first call frame.
 Changing environment variables will therefore offset the location of the stack, and consequently all stack allocated variables.
