@@ -139,7 +139,7 @@ We demonstrate this by implementing runtime detection and correction of aliasing
 For heap allocators, we show that common implementations tend to give worst case alignment by default, favoring page alignment for large allocations.
 The performance impact of unfavorable memory layouts can be significant, with as much as $2x$ speedup in one of our examples.
 Finally, we show that even highly optimized BLAS libraries can be impacted by address aliasing.
-Our results can enable new architecture specific optimization strategies to account for this phenomenon.
+Our results can enable new architecture specific optimization strategies to account for this effect.
 \end{abstract}
 
 % Choose from classification tree http://www.acm.org/about/class/ccs98-html
@@ -773,7 +773,7 @@ Numbers on the x axis represent the amount of offset, measured in number of \tex
 An offset of zero is the default behavior for this program when using \texttt{malloc} and moderately large inputs.
 Both for optimization level 2 and 3, the default alignment is close to worst case performance.
 The differences in cycles executed is significant, with about $1.7x$ speedup for O2 and as much as $2x$ speedup for O3 for increasing relative offset.
-This phenomenon is only observed for address separations close to zero, thus we only show the first 20 data points.
+This effect is only observed for address separations close to zero, thus we only show the first 20 data points.
 If extended to cover the full width of possible offsets within a 4K segment, we see that the performance is uniform everywhere else.
 
 More detailed performance counter data is presented in Table~\ref{tab:convstats}, where we show the subset that correlates best with the cycle count.
@@ -999,8 +999,9 @@ The authors of MAO present a framework for extending compilers to provide very l
 \section{Conclusions}
 \label{sec:conclusions}
 We have shown how address aliasing affects program performance under different memory contexts, and how it can explain certain cases of measurement bias.
-The effect is caused by how speculative and out-of-order memory operations are handled by the CPU, which only considers the last 12 address bits to resolve conflicts between a load and previous store operations.
-This phenomenon is likely present on most consumer hardware based on Intel platforms today, ranging from ``Core'' to ``Haswell'' microarchitectures.
+%The effect is caused by how speculative and out-of-order memory operations are handled by the CPU, which only considers the last 12 address bits to resolve conflicts between a load and previous store operations.
+Speculative and out-of-order memory operations handling only considers the last 12 address bits to resolve conflicts between a load and previous store operations.
+This effect is observed on Intel platforms, ranging from ``Core'' to ``Haswell'' microarchitectures.
 
 In general, any change to how data is laid out in memory layout can potentially introduce bias effects from address aliasing.
 Analyzing an example with bias to environment size, we determined that collisions between automatic variables and static data resulted in aliasing for certain stack positions.
