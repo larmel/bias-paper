@@ -150,17 +150,17 @@ anonymous@mail.com}
 %However, recent research has shown that performance measurements can be \emph{biased} by external factors in unpredictable ways.
 %Seemingly irrelevant properties---such as the length of your user name---can impact program performance.
 In this paper, we identify \emph{address aliasing} as an important underlying mechanism causing measurement bias on modern Intel microarchitectures.
-By analyzing hardware performance counters, we show how bias can occur from two external factors; size of environment variables, and characteristics of dynamically linked heap allocators.
+By analyzing hardware performance counters, we show how bias arises from two external factors; size of environment variables, and characteristics of dynamically linked heap allocators.
 %Our approach is to use a large set of hardware performance counter measurements to reveal the inner workings of the CPU, and search for correlations over a series of execution contexts.
 %We find that \emph{address aliasing} can explain bias from two external factors; size of environment variables, and characteristics of dynamically linked heap allocators.
 
 %This result not only makes accounting for and avoiding measurement bias much simpler, but also enables explicit optimizations for it.
 We demonstrate ways to deal with this type of bias, through runtime detection and correction of aliasing conditions.
-This is especially important for heap allocations, as most allocators tend to produce worst case alignment by default; favoring page alignment.
+This is especially important for heap allocations, by default most allocators tend to produce worst case alignment, favoring page alignment.
 %For heap allocators, we show that common implementations tend to give worst case alignment by default, favoring page alignment for large allocations.
-The performance impact of unfavorable memory layouts can be significant, with as much as $2x$ speedup in already optimized code.
+The performance impact of unfavorable memory layouts can be significant, causing up to a $2x$ performance degradation in already optimized code.
 %Finally, we show that even highly optimized BLAS libraries can be impacted by address aliasing.
-Our results can enable new architecture specific optimization strategies to account for this phenomenon.
+Our results can enable new optimization strategies to account for this phenomenon.
 \end{abstract}
 
 % Choose from classification tree http://www.acm.org/about/class/ccs98-html
@@ -192,9 +192,9 @@ Our results can enable new architecture specific optimization strategies to acco
 \section{Introduction}
 %Accurately measuring the performance of computer programs is important in order to evaluate new algorithms, or compare different implementations.
 A key challenge for performance analysts and systems researchers is handling \emph{measurement bias}.
-Seemingly innocious external factors---such as link ordering or contents of environment variables---have been shown to have potentially significant impacts on performance in real applications~\cite{Mytkowicz:2009:WrongData}.
+Seemingly harmless external factors---such as link ordering or contents of environment variables---have been shown to have significant impact on performance in real applications~\cite{Mytkowicz:2009:WrongData}.
 The underlying explanation is that these factors affect memory addresses of code or data at runtime, which in turn interacts with various low level hardware buffers.
-Because of the complexity of modern processors, it is often hard or even impossible to predict exactly how changes to things like environment variables ultimately affect program execution.
+Because of the complexity of modern processors, it is often hard or impossible to predict exactly how changes to things like environment variables ultimately affect program execution.
 
 %A literature study of 88 papers by Mytkowicz et al. showed that the median reported speedup was within the margin of bias, possibly invalidating the claimed speedups~\cite{Mytkowicz:2008:OE&MB}.
 To alleviate the impact of measurement bias in performance analysis, researchers have proposed techniques like causal analysis, and randomization of execution contexts~\cite{Mytkowicz:2008:OE&MB}.
@@ -203,29 +203,28 @@ Our approach is to analyze isolated programs in detail using hardware performanc
 
 %In Figure~\ref{fig:motivation}, we have reproduced a result originally presented in a paper by Mytkowicz et al.\cite{Mytkowicz:2009:WrongData}, showing how the number of cycles executed for a simple program (Figure~\ref{fig:microkernel}) depends on environment variables.
 %This example provides the basis for our analysis.
-We show how some instances of measurement bias can be explained by \emph{address aliasing}, an artifact of a presumably Intel specific optimization on the out-of-order execution pipeline.
+We show how some instances of measurement bias can be explained by \emph{address aliasing}, an artifact of a known Intel specific optimization on the out-of-order execution pipeline.
 The CPU uses a heuristic for determining whether loads are dependent on previous stores, comparing only the 12 least significant virtual address bits.
 Aliased memory accesses can produce false dependencies, and incur performance penalties.
 We look at how address aliasing can trigger bias from two external factors; size of system environment variables and configuration of dynamic heap allocation libraries.
 
 Our results show that the cost of aliasing can be significant, exemplified by a simple program with up to $2x$ speedup based in heap address alignment alone.
 %We also find that many heap allocation libraries tend to produce worst case behavior by default with respect to aliasing, by favoring page alignment for large allocations.
-With an understanding of how false dependencies in the CPU can impact performance, measurement bias caused by it can to some extent be predicted and even accounted for in software.
+With an understanding of how false dependencies in the CPU can impact performance, measurement bias caused by it can to some extent be predicted, and even accounted for in software.
 We show how techniques like manual padding of allocations and dynamic detection of aliasing conditions can be used to improve performance. 
-Being able to handle address aliasing can give significant speedups, and our findings show potential for further architecture-specific optimizations.
 
 The rest of this paper is structured as follows:
 Section~\ref{sec:methodology} starts by describing methodology and experimental setup.
-Then, section~\ref{sec:aliasing} introduces ``4K aliasing'', providing necessary background for interpreting the later results.
-Section~\ref{sec:environment} presents an analysis of how the size of environment variables causes bias, and in Section~\ref{sec:heap} we go through a similar analysis for bias to heap address alignment.
+Section~\ref{sec:aliasing} introduces ``4K aliasing'', providing necessary background for interpreting the later results.
+Section~\ref{sec:environment} presents an analysis of how the size of environment variables causes bias, and in Section~\ref{sec:heap} we go through a similar analysis for bias and heap address alignment.
 Section~\ref{sec:blas} looks at alias in BLAS libraries.
-Finally, in Section~\ref{sec:mitigation} we discuss some approaches to deal with aliasing effects.
+Finally, in Section~\ref{sec:mitigation} we discuss some approaches to handle aliasing effects.
 Related work is discussed in Section~\ref{sec:related}, before we summarize and conclude in Section~\ref{sec:conclusions}.
 
 \section{Experimental Methodology}
 \label{sec:methodology}
-In order to understand biased behavior it is important to be able to do precise and detailed measurements, without introducing \emph{observer effects}~\cite{Mytkowicz:2008:OE&MB}.
-This can be achieved by using performance counters; instrumentation support in hardware that can be used to \emph{count} various events, such as cycles executed, branch misses, instructions fetched, and so on.
+In order to understand biased behavior it is important to be able to make precise and detailed measurements, without introducing \emph{observer effects}~\cite{Mytkowicz:2008:OE&MB}.
+This can be achieved by using performance counters; instrumentation support in hardware that can be used to count various events, such as cycles executed, branch misses, instructions fetched, and so on.
 Recent Intel architectures have several hundred available events, providing a detailed view of what happens inside the CPU.
 Performance counters are supported in the Linux kernel, and can be accessed via a tool called \emph{perf}.
 This utility instructs the kernel to enable the processor's Performance Monitoring Unit (PMU), before executing a specified program.
@@ -235,7 +234,7 @@ Reliability of PMU measurements have been evaluated by Weaver and Mckee~\cite{We
 The issues they find are either handled explicitly or are irrelevant to our setup.
 %They find intra-machine variations of up to 1.07\%, 
 
-A small Python script is used to iterate over an exhaustive set of all known counters, which amounts to about 200 on our architecture.
+To identify issues we use a small Python script to iterate over an exhaustive set of all known counters, which amounts to about 200 on our architecture.
 Only a small set of events are collected at a time, to ensure events are actually counted continuously.
 We do not use multiplexing between a limited set of counter registers, as it will introduce significant variations~\cite{Wiplove:ImproveEstimation}. % Paper is rename of "Toward Accurate Performance Evaluation using Hardware Counters".
 Controlled variations in environment size is performed by setting a dummy environment variable to $n$ number of zero characters.\footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
@@ -272,7 +271,7 @@ Best practices for controlling the execution context were applied, ensuring that
 Most importantly, this means keeping the memory address space under control.
 For security reasons, addresses of the stack, heap and dynamic libraries are often randomized at load time, a technique known as \emph{Address Space Layout Randomization}~\cite{Pax:ASLR,Bhatkar:AddressObfuscation}. 
 By disabling ASLR, we are able to execute the same program multiple times with identical virtual address spaces.
-All experiments are done with the machine under minimal load, disabling \emph{frequency scaling} to keep the CPU's clock speed fixed, and \emph{Hyper-threading} (HT) to reduce the possibility for resource contention between threads.\footnote{Some PMU events also require HT to be turned off, or produce inaccurate results with HT enabled.}
+All experiments are conducted under minimal load, disabling \emph{frequency scaling} to keep the CPU's clock speed fixed, and \emph{Hyper-threading} (HT) to reduce the possibility for resource contention between threads.\footnote{Some PMU events also require HT to be turned off, or produce inaccurate results with HT enabled.}
 
 % Virtual memory/randomization illustration
 \begin{figure}
@@ -321,7 +320,7 @@ Modern processors are \emph{superscalar}, and achieve parallelism by issuing mul
 One of the issues that can limit throughput is dependencies between a load and previous stores.
 To increase parallelism, modern architectures use a technique called \emph{memory disambiguation} to execute memory operations out of order~\cite{Intel:2006:InsideICM:SmartMemoryAccess}.
 %More often than not, loads can safely be issued before a previous store has completed and written its value to L1 cache.
-Loads are issued \emph{speculatively}, based on a prediction on whether it will conflict with a previous store that is still not retired.
+Loads are issued \emph{speculatively}, based on a prediction on whether it will conflict with a previous store that is not yet retired.
 The prediction is later verified, replaying any instructions that were wrongly assumed to have no dependencies.
 Similarly, if the load and store locations are the same, the value can be \emph{forwarded} from the store before it retires.
 
@@ -332,12 +331,16 @@ In particular, an event known as ``4K aliasing'' can occur when the memory addre
 In these cases, the memory order subsystem generates \emph{false} dependencies, causing the load to be reissued.
 The number of times this happens can be counted by the following event:
 \begin{description}
-  \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS.}] \hfill \\ \emph{``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.''} \cite[B.3.4.4]{OptimizationManual}
+  \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS.}] 
+  \hfill \\ \emph{``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.''} 
+  \cite[B.3.4.4]{OptimizationManual}
 \end{description}
 This event is listed in the manual for microarchitectures going back to ``Nehalem'', including ``Ivy Bridge'' and ``Haswell'' CPUs~\cite{Volume3B}.
 Older architectures such as Core do not have this particular event listed, but 4K aliasing is covered by a more general event:
 \begin{description}
-  \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE.}] \hfill \\ \emph{``Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.''} \cite[Table 19-17]{Volume3B}
+  \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE.}] 
+  \hfill \\ \emph{``Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.''} 
+  \cite[Table 19-17]{Volume3B}
 \end{description}
 As address aliasing depends on the memory addresses of loads and stores, any environmental factor that affects memory layout has the potential to induce aliasing conditions.
 In the following sections, we show how performance penalties from address aliasing can be the root cause of measurement bias.
@@ -349,18 +352,19 @@ System environment variables contain strings like the name of the logged in user
 As a source of bias, it is not the environment variables themselves that are important, but rather the effect their total \emph{size} has on the position and alignment of the stack.
 Environment variables and program arguments are allocated in the stack section of virtual memory, close to the upper address 0x7fff'ffffffff\footnote{Modern processors do not actually use the full 64-bit space, only the low order 47 bits are used for addressing memory.} and before the first call frame. Figure \ref{fig:virtualmemory} shows this layout.
 Changing environment variables will offset the location of the stack, and consequently all stack allocated variables.
-After this offset, the stack is normally realigned to a 16 byte boundary by the compiler.
+After this offset, the stack is realigned to a 16 byte boundary on x86_64 Linux systems.
 Within a span of 4096 bytes there are thus 256 possible initial addresses, each representing a different execution context with respect to address aliasing. 
 %Note that there is no clear relationship between environment size and stack location with ASLR enabled.
 %However, there will still be as many execution contexts with respect to aliasing (considering the stack only), making any occurrences of measurement bias indeed random.
 
 \subsection{Microkernel Analysis}
 \label{sec:microkernel}
-To illustrate how address aliasing can cause bias, we revisit the example first presented in ``Producing Wrong Data Without Doing Anything Obviously Wrong!'' by Mytkowicz et al.~\cite{Mytkowicz:2009:WrongData}, a small C program reproduced here in Figure~\ref{fig:microkernel}.
+To illustrate how address aliasing can cause bias, we revisit the example first presented by Mytkowicz \emph{et al.}~\cite{Mytkowicz:2009:WrongData}, a small C program reproduced here in Figure~\ref{fig:microkernel}.
+% in ``Producing Wrong Data Without Doing Anything Obviously Wrong!'' 
 This example is interesting for several reasons; the bias effects are significant and easily reproducible, while the code itself is simple and straightforward to analyze.
 Still, no satisfactory explanation as to what actually causes bias was given in the original paper.
-The following data and analysis of this program is from the ``Haswell'' configuration.
-Similar experiments were conducted on the other experimental setups listed in Table~\ref{tab:machines}, all arriving at the same conclusion.
+The following data and analysis of this program is from the ``Haswell'' configuration in Table~\ref{tab:machines}.
+Similar experiments were conducted on all other experimental setups listed, arriving at the same conclusion.
 
 % Original code presented my Mytkowicz et al.
 \begin{figure}[t]
@@ -410,7 +414,7 @@ The code is compiled with {\small{GCC}} using no optimization; any optimization 
 
 There are clearly two worst cases, indicated by significant spikes at the 3184 and 7280 byte offsets.
 We sampled an extensive set of performance counters in addition to cycle count for each execution context.
-To analyze the bias effects at these points, we calculate the \emph{median} value of each counter over all contexts, and compare that to the two extreme cases.
+To analyze the bias effects at these points, we calculate the median value of each counter over all contexts, and compare that to the two extreme cases.
 Going through the list of events, we selected the set that had the highest correlation with cycle count\footnote{Some correlating performance events are omitted; for example bus-cycles, which will naturally vary with total cycle count.}.
 Table \ref{tab:loopcorrelation} shows numerical counter values for the first spike, compared to the median values. Event counts on the second spike are almost identical to the first, and omitted for brevity.
 
@@ -449,8 +453,8 @@ This counter reports close to zero except exactly at the two spikes, where it re
 The results show a high number of resource stalls and pending memory loads when the spikes occur, which is consistent with address aliasing issues.
 On the other end we get a much lower number of reservation station (RS) stalls in the aliasing case, with a reduction from around 272,000 to 136,000.
 The reservation station buffers micro-ops for scheduling to the execution units, and a stall event means that there are no free slots available~\cite[Table 19-2]{Volume3B}.
-Fewer stalls in the aliasing case could indicate less contention on the reservation station.
-This probably has to do with the overall \emph{decrease} in the number of micro-ops executed per port, as all but one of the 8 execution ports have fewer operations going in parallel.
+We attribute fewer stalls in the aliasing case to less contention on the reservation station, 
+relating to the overall \emph{decrease} in the number of micro-ops executed per port, as all but one of the 8 execution ports perform fewer operations in parallel.
 Note that the number of micro-ops \emph{retired} overall does not change.
 The memory disambiguation system automatically assumes dependency between a load and a previous store that are aliased, which can limit the potential for issuing many instructions simultaneously and out of order~\cite[Page 2-20]{OptimizationManual}.
 In our case, lower occupation of execution ports, and less pressure on the reservation station, can be explained by the CPU not being able to issue more operations while waiting for an aliased memory access to be resolved.
@@ -572,20 +576,20 @@ Notice the common suffix 0x03c between \texttt{inc} and \texttt{i}, which is the
 \end{figure}
 
 \subsection{Other Architectures}
-While we show only the analysis for ``Haswell'' here, the same approach gave similar results for all the CPUs we tested.
+While we show only the analysis for ``Haswell'', the same approach gave similar results for all the CPUs we tested.
 Figure~\ref{fig:microkernel-all-archs} shows cycle count plots for ``Core'', ``Nehalem'' and ``Ivy Bridge'', revealing the same alias behavior.
 %\footnote{For these results we also pinned the process to a single core during measurements using \texttt{taskset}, which helps remove some of the random noise.}
 %The experiment was also done for the older ``Core'' setup, shown in Figure~\ref{fig:motivation}.
 On the older ``Core'' architecture, \emph{load\_blocks.overlap\_store} is used to indicate address aliasing.
 Notably, this event was also found to be significant in the original paper, where the authors used a similar setup~\cite{Mytkowicz:2009:WrongData}.
 We were able to verify that partial address overlap was occurring at the same time this event is spiking, concluding that address aliasing must be the underlying explanation.
-Still, this only explains part of what is going on in Figure~\ref{fig:microkernel-all-archs}, as there seem to be yet another bias effect at every fourth environment increment.
+Still, this only explains part of what is shown in Figure~\ref{fig:microkernel-all-archs}, as there seems to be yet another bias effect at every fourth environment increment.
 These smaller spikes correlate with the performance event \emph{load\_blocks.std}, which is described as ``loads blocked by a preceding store with unknown data''~\cite[Table 19-17]{Volume3B}.
 %Our assumption is that this is a different phenomenon, not related to 4K aliasing.
-We were only able to observe this effect on this particular architecture, and did not investigate further.% is related to 4K aliasing.
+We were only able to observe this effect on this particular architecture, and did not investigate it further.% is related to 4K aliasing.
 
 Results for the ``Nehalem'' and ``Ivy Bridge'' architectures are more uniform, with large spikes only at the aliasing environment configuration.
-It is clear that this issue exist for a wide range of Intel microarchitectures.
+It is clear that this issue exists for a wide range of Intel microarchitectures.
 %We believe that address alias issue exist for a wider range of Intel microarchitectures.
 
 % \subsubsection{Note on Hyper-Threading}
@@ -609,14 +613,15 @@ Acquiring dynamic memory at runtime is usually handled by a variant of \texttt{m
 Depending on the particular request and allocator used, the returned value will either point to the ``regular'' heap, or to a memory mapped area.
 \begin{itemize}
   \item The \emph{heap} is marked by a break point representing the end of uninitialized data in virtual memory, and more space is requested by the \texttt{brk} or \texttt{sbrk} system calls.
-  \item The \texttt{mmap} system call is used to map file descriptors to virtual memory. \emph{Anonymous} mappings, i.e. buffers not backed by a file, can be used for general purpose allocations.
+  \item The \texttt{mmap} system call is used to map file descriptors to virtual memory. \emph{Anonymous} mappings, \emph{i.e.} buffers not backed by a file, can be used for general purpose allocations.
 \end{itemize}
-The allocator included as part of glibc uses both mechanisms, choosing which based on the \emph{size} of the request~\cite{GlibcManual}.
-Small sizes generally live in the heap, while larger allocations tend to be memory mapped.
+The allocator included as part of glibc uses both mechanisms, choosing which based on the size of the request~\cite{GlibcManual}.
+Small sizes are generally allocated on the heap, while larger allocations tend to be memory mapped.
 
-The heap section starts at a relatively low address right above static code and data, while memory mapped chunks are placed towards the upper end of the virtual address space, closer to the stack (see Figure \ref{fig:virtualmemory}).
-Whether a request is served by the heap or by memory mapping is therefore easy to determine just by looking at the pointer values returned:
-Addresses in the regular heap can look something like 0x16e30a0 or 0x1723020, while pointers returned by \texttt{mmap} are numerically much larger, for example 0x7f0318a8f010 or 0x7f03105d2010.
+The heap section starts at a low address right above static code and data, while memory mapped chunks are placed towards the upper end of the virtual address space, closer to the stack (see Figure \ref{fig:virtualmemory}).
+Whether a request is served by the heap or by memory mapping can be determined by looking at the pointer values returned:
+%Addresses in the regular heap can look something like 0x16e30a0 or 0x1723020, while pointers returned by \texttt{mmap} are numerically much larger, for example 0x7f0318a8f010 or 0x7f03105d2010.
+Addresses in the regular heap are several orders of magnitude smaller than pointers returned by \texttt{mmap}.
 This distinction is unimportant for application developers, as everything is conceptually the same ``heap''.
 However, \texttt{mmap} has an interesting property in that allocations will always be page aligned.
 The page size is usually 4096 bytes, meaning addresses returned by \texttt{mmap} will \emph{always} alias.\footnote{glibc's version of malloc adds 16 bytes of metadata at the beginning, therefore every memory mapped address ends with 0x010.}
@@ -648,7 +653,7 @@ This behavior is often the worst case for functions that operate on two or more 
   ]{bin/malloc-comparison.csv}
 \end{table}
 
-Table \ref{tab:mallocompare} illustrates how using a different allocator can affect potential aliasing between heap pointers.\footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}\footnote{Memory mapped addresses starting with the 0x2aa... prefix is an artifact of using \emph{make} to generate results. Executing the test program from \emph{bash} directly result in 0x7fff... prefixes. This difference is not important to our discussion.}
+Table \ref{tab:mallocompare} illustrates how using a different allocator can affect potential aliasing between heap pointers.\footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.} \footnote{Memory mapped addresses starting with the 0x2aa... prefix is an artifact of using \emph{make} to generate results. Executing the test program from \emph{bash} directly result in 0x7fff... prefixes. This difference is not important to our discussion.}
 We observe the addresses of two equally sized \texttt{char} buffers allocated with \texttt{malloc} for different size parameters.
 %Equal three digit address suffix indicate an aliasing pair.
 In addition to glibc, where the heap allocator is called \emph{ptmalloc}, we look at the following alternatives:
@@ -658,7 +663,7 @@ In addition to glibc, where the heap allocator is called \emph{ptmalloc}, we loo
   \item Hoard~\cite{Berger:2000:Hoard}.
 \end{enumerate}
 All of the above focus heavily on performance in multithreaded environments.
-Heap allocation is intrinsically inefficient in that all threads share the same address space, leading to a high potential lock contention on memory accesses.
+Heap allocation is inefficient in that all threads share the same address space, leading to a high potential lock contention on memory accesses.
 Here, we only look at behavior for a single thread, and whether the addresses returned alias or not.
 
 We see that glibc and tcmalloc utilize the normal heap area for smaller allocations, returning numerically low addresses. % Verified by looking at strace that tcmalloc actually uses brk
@@ -666,8 +671,8 @@ Interestingly, jemalloc and Hoard appear to never use the heap, but allocate to 
 Conversely, tcmalloc seem manage only the heap.
 We also find an example where one allocator yields aliasing buffers while another does not.
 Allocating $2 \times 5120$ bytes returns aliasing pointers for jemalloc and Hoard, but not with glibc or tcmalloc.
-Given that these results are deterministic (with ASLR disabled), it is not hard to construct a program with significant bias towards one or the other allocator.
-But even with ASLR, pointers returned by \texttt{mmap} must still be page aligned.
+Given that these results are deterministic (with ASLR disabled), it is possible to construct a program with significant bias towards one or the other allocator.
+Even with ASLR enabled, pointers returned by \texttt{mmap} must still be page aligned.
 This means that addresses returned by allocators using this mechanism directly will \emph{always} alias, giving a deterministic execution context considering only the address suffix.
 From our limited analysis, this seems to be the case for glibc, jemalloc and Hoard.
 
@@ -706,7 +711,7 @@ An estimate of the actual cost a single invocation can be calculated by the foll
 \[
 t_{\text{estimate}} = \frac{t_{k} - t_{1}}{k - 1}
 \]
-Time spent on a sigle invocation is subtracted from the estimate to mask initialization time.We choose $k=11$, effectively getting the average over 10 iterations.
+Time spent on a single invocation is subtracted from the estimate to mask initialization time.We choose $k=11$, effectively getting the average over 10 iterations.
 In addition, performance counter measurements are averaged over 10 samples using the repeat mechanism of perf.
 
 \pgfplotstableread{bin/conv-default-o2-haswell.estimate.dat}{\convtabletwohaswell}
@@ -757,14 +762,14 @@ Figure~\ref{fig:conv-default} illustrates how the convolution kernel behaves for
 %The effects are most distinct on optimization level 2 and 3, where the ratio of cycles to alias events is most significant.
 %Numbers on the x axis represent the amount of offset, measured in number of \texttt{sizeof(float)} bytes.
 An offset of zero is the default behavior for this program when using \texttt{malloc} and moderately large inputs.
-For both for optimization levels 2 and 3, this is close to worst case performance.
+For both optimization levels 2 and 3, this is close to worst case performance.
 The differences in cycles executed is significant, with around $1.7x$ speedup for O2 and as much as $2x$ speedup for O3 on increasing relative offset.
 %This effect is only observed for address separations close to zero, thus we only show the first 20 data points.
 %If extended to cover the full width of possible offsets within a 4K segment, we see that the performance is uniform everywhere else.
 
 More detailed performance counter data is presented in Table~\ref{tab:convstats}, where we show the subset that correlates best with the cycle count.
 The numbers are for the level 2 optimization case, which we choose to study in more detail.
-However, the performance data looks fairly similar between the two data sets, with a couple of events that appear to stand out:
+However, the performance data are similar between the two data sets, with a couple of events that stand out:
 \begin{itemize}
     \item A high number of resource stalls for the default alignment, which is reduced substantially together with increasing offsets. 
     \item A high number of cycles with memory loads pending, indicating that the pipeline is stalled waiting for load operations to resolve.
@@ -806,9 +811,9 @@ However, the performance data looks fairly similar between the two data sets, wi
   }
 \end{table*}
 
-Interestingly, it looks like small address offsets incur a massive increase in operations issued on port 0 for the O2 case.
+Interestingly, small address offsets incur a substantial increase in operations issued on port 0 for the O2 case.
 On ``Haswell'', this port handles various ALU operations, and branching together with port 6~\cite[Figure 2.1]{OptimizationManual}.
-As there is also variations in the number of branch instructions executed, it seems like these counters together show that certain branches are being re-issued.
+As there are also variations in the number of branch instructions executed, it appears that these counters together show that certain branches are being re-issued.
 Unlike the microkernel in section \ref{sec:microkernel}, the micro-ops executed and RS stall counts drop together with aliasing events.
 Speculation is possible in this kernel, as there are many independent store addresses.
 However, false dependencies will limit the amount of speculation, making the CPU incorrectly discard executed instructions.
@@ -822,8 +827,8 @@ On the other hand, we see a fairly strong correlation between cycle count and ou
 These events count the number of outstanding loads to memory outside the processor core each cycle.
 Since we do not see any significant number of L1 misses, the correlation to outstanding loads is probably a result of stalling and more cycles executed.
 
-Overall, it seems reasonable to conclude that the resource stalling is causing the slowdown, ultimately generated by false dependencies from address aliasing.
-We do not attempt to pinpoint exactly which accesses generates these conflicts, but at a high level the CPU falsely assumes dependencies between \texttt{in[i]} and \texttt{out[i]}.
+Overall, we conclude that the resource stalling is causing the slowdown, ultimately generated by false dependencies from address aliasing.
+We do not attempt to pinpoint exactly which access generates these conflicts, but at a high level the CPU falsely assumes dependencies between \texttt{in[i]} and \texttt{out[i]}.
 By manually adjusting the address alignment of one of these buffers, cycle count can be reduced by as much as 50\%.
 %This is a speedup on top of already aggressive compiler optimization.
 % Variations in execution port activity, and in this case increased number of branches executed, is consistent with micro-ops being reissued after the potential conflict is detected.
@@ -904,7 +909,7 @@ The functionality is divided into three categories:
 Procedures operating on vectors, intuitively appears the most likely to have potential for aliasing.
 \fi
 %The level 1 and 2 routines involving vectors intuitively appears to be more likely to have potential for aliasing.
-We look at three different libraries available through the Ubuntu package manager; \emph{libblas}, \emph{libatlas}, and \emph{libopenblas}~\cite{Whaley:1998:ATLAS,Wang:2013:OpenBLAS}.
+We look at three different publicly available libraries; \emph{libblas}, \emph{libatlas}, and \emph{libopenblas}~\cite{Whaley:1998:ATLAS,Wang:2013:OpenBLAS}.
 We ran our bias analysis on the level 2 procedure \texttt{cblas\_dgemv}, which computes the matrix-vector product $\boldsymbol{y} = \alpha\text{op}\left(A\right)\boldsymbol{x} + \beta\boldsymbol{y}$ for \texttt{double} sized numbers.
 In this equation,  $\alpha$ and $\beta$ are constants, and $\text{op}\left(A\right)$ is an optional transpose or complex conjugate of the matrix.
 We set $\alpha = 1$, $\beta = 0$ and $\text{op} \left(A\right) = A$ to reduce the formula to $\boldsymbol{y}=A\boldsymbol{x}$.
@@ -914,7 +919,7 @@ Denote the matrix size as $M \times N$, making $\boldsymbol{x}$ of length $N$ an
 %    cblas_dgemv(CblasColMajor, CblasNoTrans, M, N, alpha, A, M, x, 1, beta, y, 1);
 %\end{lstlisting}
 
-Each of the structures \texttt{A}, \texttt{x} and \texttt{y} represent different locations in memory, and their addresses is part of the execution context.
+Each of the structures \texttt{A}, \texttt{x} and \texttt{y} represent different locations in memory, and their addresses are part of the execution context.
 We use \texttt{mmap} with manually added offsets to control the location of each of these buffers on the heap.
 From our experiments, we found that the memory address offset of vector $\boldsymbol{y}$ compared to matrix $A$ is the most important with respect to the number of alias events.
 For the results presented here, we set $A = I$ (identity matrix) and $\boldsymbol{x} = [0, 1, 2, ..., N-1]$, with parameters $M = N = 1024$.
@@ -930,23 +935,23 @@ Libblas generates the most distinct pattern, with a clear spike for address delt
 Correlation between cycles and address aliasing were 95\% for libblas, 81\% for libatlas and 45\% for libopenblas.
 
 We do not go into a more detailed analysis of the raw performance data here, but note that we see many of the previously discussed events stand out; such as execution port occupancy, resource stalls, branch instructions executed, offcore requests, and ldm pending.
-Especially for the libblas case, results look quite similar to what we saw for the convolution kernel.
+Especially for the libblas case, results are similar to what we saw for the convolution kernel.
 
-Our results show that address aliasing can indeed occur in real, performance critical applications.
+Our results show that address aliasing can indeed occur in real, compute bound applications.
 The amount of \emph{bias} this creates with respect to number of cycles executed is not as clear in all cases, but at least for libblas we are confident in claiming that aliasing is indeed causing a performance degradation.
 
 
-\section{Ways to Deal with Address Aliasing}
+\section{Address Aliasing Mitigation Techniques}
 \label{sec:mitigation}
 Performance penalties caused by address aliasing can be significant, creating bias towards certain memory layouts.
-However, with an understanding of the underlying mechanism that causes bias, the effects can be predicted and to some extent eliminated in software.
+However, with an understanding of the underlying mechanism that causes bias, the effects can be predicted, and to some extent eliminated in software.
 %The most relevant scenario to consider is probably code that can hit the aliasing \texttt{mmap} scenario, where performance impact can be consistently bad over all environments.
 We identify some relevant optimization techniques:
 
 \subsection{Mark buffers with \texttt{restrict}}
 In our convolution kernel implementation, the compiler has to account for the fact that input and output pointers might alias, or that the buffers partially overlap.
-This limits the extent generated code can keep data in registers without updating the values from memory, as a write to one buffer potentially could invalidate a cached value from the other.
-The C99 keyword \emph{restrict} can be used to explicitly tell the compiler that accesses through a pointer does not alias with any other, allowing for more efficient code generation with fewer memory accesses.
+This limits the extent to which generated code can keep data in registers without updating the values from memory, as a write to one buffer potentially could invalidate a cached value from the other.
+The C99 keyword \emph{restrict} can be used to explicitly tell the compiler that accesses through a pointer do not alias with any other, allowing for more efficient code generation with fewer memory accesses.
 % \begin{lstlisting}[breaklines=true]
 %     void conv(int n, const float * restrict in, float * restrict out);
 % \end{lstlisting}
