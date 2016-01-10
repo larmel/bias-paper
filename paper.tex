@@ -352,9 +352,10 @@ System environment variables contain strings like the name of the logged in user
 As a source of bias, it is not the environment variables themselves that are important, but rather the effect their total \emph{size} has on the position and alignment of the stack.
 Environment variables and program arguments are allocated in the stack section of virtual memory, close to the upper address 0x7fff'ffffffff\footnote{Modern processors do not actually use the full 64-bit space, only the low order 47 bits are used for addressing memory.} and before the first call frame. Figure \ref{fig:virtualmemory} shows this layout.
 Changing environment variables will offset the location of the stack, and consequently all stack allocated variables.
-%After this offset, the stack is realigned to a 16 byte boundary on x86_64 Linux systems.
-Alignment is restricted to 16 byte boundaries accoring to the ABI, creating 256 possible initial addresses for every period of 4096 bytes.
-Each one representing a different execution context with respect to address aliasing.
+After this offset, the stack is aligned to a 16 byte boundary on x86_64 Linux systems.
+Within a span of 4096 bytes there are thus 256 possible initial addresses, each representing a different execution context with respect to address aliasing.
+%Alignment is restricted to 16 byte boundaries accoring to the ABI, creating 256 possible initial addresses for every period of 4096 bytes.
+%Each one representing a different execution context with respect to address aliasing.
 %Note that there is no clear relationship between environment size and stack location with ASLR enabled.
 %However, there will still be as many execution contexts with respect to aliasing (considering the stack only), making any occurrences of measurement bias indeed random.
 
