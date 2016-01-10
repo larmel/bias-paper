@@ -380,7 +380,7 @@ int main() {
     return 0;
 }
   \end{lstlisting}
-  \caption{\label{fig:microkernel}Microkernel first presented by Mytkowicz et al.\cite{Mytkowicz:2009:WrongData}, showing bias to environment size.}
+  \caption{\label{fig:microkernel}Microkernel first presented by Mytkowicz \emph{et al.}\cite{Mytkowicz:2009:WrongData}, showing bias to environment size.}
 \end{figure}
 
 % Large plot of cycle count for two 4K stack sections.
@@ -1012,13 +1012,13 @@ Even though this particular solution is impractical, it proves that compilers an
 
 \section{Related Work}
 \label{sec:related}
-Measurement bias and observer effect in performance analysis has been studied in detail by Mytkowicz et al.~\cite{Mytkowicz:2008:OE&MB,Mytkowicz:2008:Easy}.
+Measurement bias and observer effect in performance analysis has been studied in detail by Mytkowicz \emph{et al.}~\cite{Mytkowicz:2008:OE&MB,Mytkowicz:2008:Easy}.
 The authors introduce environment variables and link ordering as examples of external bias triggers, showing how standardized {\small SPECint} benchmarks suffer from measurement bias when trying to evaluate the effectiveness of O3 over O2. 
 Strategies for detecting bias through causal analysis and randomization of experimental setups is introduced.
 The microkernel we analyzed is taken from a followup paper by the same authors, where it is used as an example of how environment size can cause bias~\cite{Mytkowicz:2009:WrongData}.
 
 Many different approaches have been explored in order to take performance counter data and processor intrinsics into account for optimization.
-Knights et al. introduce ``blind'' optimization, treating the underlying hardware as a black box and use search over \emph{variant spaces}~\cite{Knights:2009:BlindOpt}.
+Knights \emph{et al.} introduce ``blind'' optimization, treating the underlying hardware as a black box and use search over \emph{variant spaces}~\cite{Knights:2009:BlindOpt}.
 Their space of variants consist of different position and alignment for each function and global variable, in principle exploring the different configurations possible by altering link order.
 Others have used machine learning to classify performance counter data, recognizing patterns or \emph{pathologies} in measurements to identify optimization opportunities~\cite{Yoo:ADD}.
 The authors of MAO present a framework for extending compilers to provide very low level microarchitectural assembly optimization, using rules, pattern matching, and random insertion of nop-instructions to discover optimal assembly outputs~\cite{Hundt:2011:MAO}.
@@ -1034,7 +1034,7 @@ This effect is observed on Intel platforms, ranging from ``Core'' to ``Haswell''
 In general, any change to how data is laid out in memory layout can potentially introduce bias effects from address aliasing.
 Analyzing an example with bias to environment size, we determined that collisions between automatic variables and static data resulted in aliasing for certain stack positions.
 Aliasing conditions were triggered because variations in environment size offset the virtual addresses of stack allocated variables.
-Dynamically allocated data is controlled by heap allocators, which we find is another source of bias.
+Dynamically allocated data is controlled by heap allocators, which we show is another source of bias.
 Comparing four different libraries, we show that most implementations tend to favor page alignment for larger requests.
 This means that structures such as vectors and matrices are likely to alias by default, which can be worst case scenarios for many algorithms.
 %Address aliasing can have significant performance impact for algorithms operating on heap allocated buffers, which 
