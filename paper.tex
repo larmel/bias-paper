@@ -156,9 +156,9 @@ By analyzing hardware performance counters, we show how bias arises from two ext
 
 %This result not only makes accounting for and avoiding measurement bias much simpler, but also enables explicit optimizations for it.
 We demonstrate ways to deal with this type of bias, through runtime detection and correction of aliasing conditions.
-This is especially important for heap allocations, by default most allocators tend to produce worst case alignment, favoring page alignment.
-%For heap allocators, we show that common implementations tend to give worst case alignment by default, favoring page alignment for large allocations.
-The performance impact of unfavorable memory layouts can be significant, causing up to a $2x$ performance degradation in already optimized code.
+%This is especially important for heap allocations, by default most allocators tend to produce worst case alignment, favoring page alignment.
+For heap allocators, we show that common implementations tend to give worst case alignment by default; favoring page alignment for large allocations.
+The performance impact of aliased memory accesses can be significant, causing up to a $2x$ performance degradation in already optimized code.
 %Finally, we show that even highly optimized BLAS libraries can be impacted by address aliasing.
 Our results can enable new optimization strategies to account for this phenomenon.
 \end{abstract}
@@ -203,7 +203,7 @@ Our approach is to analyze isolated programs in detail using hardware performanc
 
 %In Figure~\ref{fig:motivation}, we have reproduced a result originally presented in a paper by Mytkowicz et al.\cite{Mytkowicz:2009:WrongData}, showing how the number of cycles executed for a simple program (Figure~\ref{fig:microkernel}) depends on environment variables.
 %This example provides the basis for our analysis.
-We show how some instances of measurement bias can be explained by \emph{address aliasing}, an artifact of a known Intel specific optimization on the out-of-order execution pipeline.
+We show how some instances of measurement bias can be explained by \emph{address aliasing}, an artifact of a presumably Intel specific optimization on the out-of-order execution pipeline.
 The CPU uses a heuristic for determining whether loads are dependent on previous stores, comparing only the 12 least significant virtual address bits.
 Aliased memory accesses can produce false dependencies, and incur performance penalties.
 We look at how address aliasing can trigger bias from two external factors; size of system environment variables and configuration of dynamic heap allocation libraries.
@@ -352,8 +352,9 @@ System environment variables contain strings like the name of the logged in user
 As a source of bias, it is not the environment variables themselves that are important, but rather the effect their total \emph{size} has on the position and alignment of the stack.
 Environment variables and program arguments are allocated in the stack section of virtual memory, close to the upper address 0x7fff'ffffffff\footnote{Modern processors do not actually use the full 64-bit space, only the low order 47 bits are used for addressing memory.} and before the first call frame. Figure \ref{fig:virtualmemory} shows this layout.
 Changing environment variables will offset the location of the stack, and consequently all stack allocated variables.
-After this offset, the stack is realigned to a 16 byte boundary on x86_64 Linux systems.
-Within a span of 4096 bytes there are thus 256 possible initial addresses, each representing a different execution context with respect to address aliasing. 
+%After this offset, the stack is realigned to a 16 byte boundary on x86_64 Linux systems.
+Alignment is restricted to 16 byte boundaries accoring to the ABI, creating 256 possible initial addresses for every period of 4096 bytes.
+Each one representing a different execution context with respect to address aliasing.
 %Note that there is no clear relationship between environment size and stack location with ASLR enabled.
 %However, there will still be as many execution contexts with respect to aliasing (considering the stack only), making any occurrences of measurement bias indeed random.
 
@@ -711,7 +712,8 @@ An estimate of the actual cost a single invocation can be calculated by the foll
 \[
 t_{\text{estimate}} = \frac{t_{k} - t_{1}}{k - 1}
 \]
-Time spent on a single invocation is subtracted from the estimate to mask initialization time.We choose $k=11$, effectively getting the average over 10 iterations.
+Time spent on a single invocation is subtracted from the estimate to mask initialization time.
+We choose $k=11$, effectively getting the average over 10 iterations.
 In addition, performance counter measurements are averaged over 10 samples using the repeat mechanism of perf.
 
 \pgfplotstableread{bin/conv-default-o2-haswell.estimate.dat}{\convtabletwohaswell}
