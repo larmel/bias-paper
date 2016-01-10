@@ -422,9 +422,10 @@ Table \ref{tab:loopcorrelation} shows numerical counter values for the first spi
   ]{bin/microkernel-comparison-haswell.csv}
 \end{table}
 
-We see a significant change from the median in the number of alias events. 
+The most distinctive change from the median is the number of alias events.
+This counter reports close to zero except exactly at the two spikes, where it reaches upwards of 320,000.
 %If we plot the graph for address aliasing, we see that it is near zero everywhere and spikes at exactly the points we observe bias. 
-We found that there are near zero address aliasing events everywhere except exactly the points we observe bias. 
+%We found that there are near zero address aliasing events everywhere except exactly the points we observe bias. 
 The results show a high number of resource stalls and pending memory loads when the spikes occur, which is consistent with address aliasing issues.
 On the other end we get a much lower number of reservation station (RS) stalls in the aliasing case, with a reduction from around 272,000 to 136,000.
 The reservation station buffers micro-ops for scheduling to the execution units, and a stall event means that there are no free slots available~\cite[Table 19-2]{Volume3B}.
@@ -439,11 +440,11 @@ However, this program use only 2 cache-lines, except for the initial startup.
 Using the L1 hit and miss counts also revealed that the L1 load is 99.3\% and store hit rate is ~100\%.
 These events do not indicate a cache hit rate issue, but are probably due to having to wait for aliased writes to be retired and committed to cache.
 
-Performance counter data clearly points to address aliasing as a plausible explanation, so the next step is to see exactly which memory accesses are aliasing.
+Performance counter data clearly points to address aliasing as the underlying explanation, so the next step is to see exactly which memory accesses are aliasing.
 %For that we need to know the addresses of each variable at runtime.
 %The program contains five variables; \texttt{g} and \texttt{inc} which are stack allocated, and \texttt{i}, \texttt{j} and \texttt{k} which are statically allocated.
-Memory layout of static data is decided at compile time, and we find the addresses to be \texttt{\&i} = 0x60103c, \texttt{\&j} = 0x601040, and \texttt{\&k} = 0x601044 by reading the ELF symbol table.%\footnote{ELF symbol tables can be read using \texttt{readelf -s}}
-
+Memory layout of static data is decided at compile time, and we find the addresses to be \texttt{\&i} = 0x60103c, \texttt{\&j} = 0x601040, and \texttt{\&k} = 0x601044 by reading the ELF symbol table.
+%\footnote{ELF symbol tables can be read using \texttt{readelf -s}}
 %Observing addresses of stack allocated data at runtime is more challenging, as we have to make sure to not introduce any observer effects that alters the addresses as we are observing them.
 Carefully crafted assembly code was used to capture the runtime addresses of \texttt{g} and \texttt{inc}.
 %We made no change to the stack allocation instructions, and the code offset did not affect the addresses of static variables.
@@ -547,12 +548,13 @@ Notice the common suffix 0x03c between \texttt{inc} and \texttt{i}, which is the
       \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelivybridge ;
     \end{axis}
   \end{tikzpicture}
-  \caption{\label{fig:microkernel-all-archs}Microkernel experiment on the ``Nehalem'' and ``Ivy Bridge'' microarchitectures.}
+  \caption{\label{fig:microkernel-all-archs}Microkernel experiment on the ``Core'', ``Nehalem'' and ``Ivy Bridge'' microarchitectures.}
 \end{figure}
 
 \subsection{Other Architectures}
 While we show only the analysis for ``Haswell'' here, the same approach gave similar results for all the CPUs we tested.
-Figure~\ref{fig:microkernel-all-archs} shows cycle count plots for ``Core'', ``Nehalem'' and ``Ivy Bridge'', revealing the same alias behavior.%\footnote{For these results we also pinned the process to a single core during measurements using \texttt{taskset}, which helps remove some of the random noise.}
+Figure~\ref{fig:microkernel-all-archs} shows cycle count plots for ``Core'', ``Nehalem'' and ``Ivy Bridge'', revealing the same alias behavior.
+%\footnote{For these results we also pinned the process to a single core during measurements using \texttt{taskset}, which helps remove some of the random noise.}
 %The experiment was also done for the older ``Core'' setup, shown in Figure~\ref{fig:motivation}.
 On the older ``Core'' architecture, \emph{load\_blocks.overlap\_store} is used to indicate address aliasing.
 Notably, this event was also found to be significant in the original paper, where the authors used a similar setup~\cite{Mytkowicz:2009:WrongData}.
@@ -560,9 +562,9 @@ We were able to verify that partial address overlap was occurring at the same ti
 Still, this only explains part of what is going on in Figure~\ref{fig:microkernel-all-archs}, as there seem to be yet another bias effect at every fourth environment increment.
 These smaller spikes correlate with the performance event \emph{load\_blocks.std}, which is described as ``loads blocked by a preceding store with unknown data''~\cite[Table 19-17]{Volume3B}.
 %Our assumption is that this is a different phenomenon, not related to 4K aliasing.
-We were only able to observe the effect on this particular architecture, and did not investigate the root cause.% is related to 4K aliasing.
+We were only able to observe this effect on this particular architecture, and did not investigate further.% is related to 4K aliasing.
 
-Results for the ``Nehalem'' and ``Ivy Bridge'' architectures are clearer, with large spikes only at the aliasing environment configuration.
+Results for the ``Nehalem'' and ``Ivy Bridge'' architectures are more uniform, with large spikes only at the aliasing environment configuration.
 It is clear that this issue exist for a wide range of Intel microarchitectures.
 %We believe that address alias issue exist for a wider range of Intel microarchitectures.
 
@@ -575,35 +577,34 @@ It is clear that this issue exist for a wide range of Intel microarchitectures.
 \section{Bias from Heap Allocation}
 \label{sec:heap}
 Address aliasing can be caused by conflicting pairs of load and store operations to any part of memory.
-In the previous sections we saw collisions between static data and the stack, observing bias from external conditions that affected addresses of automatic variables.
+In the previous section, we saw collisions between static data and the stack, observing bias from external conditions that affected addresses of automatic variables.
 Most dynamic memory is allocated on the \emph{heap}, which is managed by an \emph{allocator}.
 A heap allocator is responsible for managing dynamic memory, and ultimately assigns the actual addresses of heap allocated variables at runtime.
 Heap allocation routines such as \texttt{malloc} and \texttt{free} are typically dynamically linked, for example as part of glibc.
-If this assignment is independent of the initial stack offset all heap memory accesses can be biased.
+%If this assignment is independent of the initial stack offset all heap memory accesses can be biased.
 The particular library used therefore constitutes an important part of the execution context, as linking to a different library, or a library with some alternative configuration, can impact heap addresses at runtime.
 
 \subsection{Memory Allocators and Alias}
-Acquiring dynamic memory at runtime is usually handled by the \texttt{malloc} function.
-Depending on the particular request and allocator used, the returned value will either point to the ``regular'' heap, or to a memory mapped area (see Figure \ref{fig:virtualmemory}).
+Acquiring dynamic memory at runtime is usually handled by a variant of \texttt{malloc}.
+Depending on the particular request and allocator used, the returned value will either point to the ``regular'' heap, or to a memory mapped area.
 \begin{itemize}
   \item The \emph{heap} is marked by a break point representing the end of uninitialized data in virtual memory, and more space is requested by the \texttt{brk} or \texttt{sbrk} system calls.
   \item The \texttt{mmap} system call is used to map file descriptors to virtual memory. \emph{Anonymous} mappings, i.e. buffers not backed by a file, can be used for general purpose allocations.
 \end{itemize}
 The allocator included as part of glibc uses both mechanisms, choosing which based on the \emph{size} of the request~\cite{GlibcManual}.
-Small sizes generally live in the heap, while long lived and large allocations tend to be memory mapped.
+Small sizes generally live in the heap, while larger allocations tend to be memory mapped.
 
-The heap section starts at a relatively low address right above static code and data.
-Memory mapped chunks are placed towards the upper end of the virtual address space, closer to the stack.
+The heap section starts at a relatively low address right above static code and data, while memory mapped chunks are placed towards the upper end of the virtual address space, closer to the stack (see Figure \ref{fig:virtualmemory}).
 Whether a request is served by the heap or by memory mapping is therefore easy to determine just by looking at the pointer values returned:
 Addresses in the regular heap can look something like 0x16e30a0 or 0x1723020, while pointers returned by \texttt{mmap} are numerically much larger, for example 0x7f0318a8f010 or 0x7f03105d2010.
 This distinction is unimportant for application developers, as everything is conceptually the same ``heap''.
 However, \texttt{mmap} has an interesting property in that allocations will always be page aligned.
-The page size is 4096 bytes, meaning two pointers returned by \texttt{mmap} will \emph{always} alias.\footnote{glibc's version of malloc adds 16 bytes of metadata at the beginning, therefore every memory mapped address ends with 0x010.}
+The page size is usually 4096 bytes, meaning addresses returned by \texttt{mmap} will \emph{always} alias.\footnote{glibc's version of malloc adds 16 bytes of metadata at the beginning, therefore every memory mapped address ends with 0x010.}
 This behavior is often the worst case for functions that operate on two or more independent buffers.
 
 \begin{table}[t]
   \centering
-  \caption{Addresses returned by different heap allocators when allocating pairs of equally sized buffers.\label{tab:mallocompare}}
+  \caption{Addresses returned by different heap allocators when allocating pairs of equally sized buffers. Equal three digit suffix indicate an aliasing pair.\label{tab:mallocompare}}
   \pgfplotstabletypeset[
     col sep=comma,
     string type,
@@ -629,7 +630,7 @@ This behavior is often the worst case for functions that operate on two or more 
 
 Table \ref{tab:mallocompare} illustrates how using a different allocator can affect potential aliasing between heap pointers.\footnote{Switching allocator was done by setting the LD\_PRELOAD environment variable.}\footnote{Memory mapped addresses starting with the 0x2aa... prefix is an artifact of using \emph{make} to generate results. Executing the test program from \emph{bash} directly result in 0x7fff... prefixes. This difference is not important to our discussion.}
 We observe the addresses of two equally sized \texttt{char} buffers allocated with \texttt{malloc} for different size parameters.
-Equal three digit address suffix indicate an aliasing pair.
+%Equal three digit address suffix indicate an aliasing pair.
 In addition to glibc, where the heap allocator is called \emph{ptmalloc}, we look at the following alternatives:
 \begin{enumerate}
   \item Thread-Caching Malloc (tcmalloc) by Google~\cite{TCMalloc}.
@@ -674,7 +675,7 @@ By default, even with address randomization enabled, both \texttt{input} and \te
 To analyze performance for different addresses, we manually insert padding to offset the start address of one buffer.
 This is accomplished by requesting a bit more memory, and use pointer arithmetic to offset one of the function arguments.
 Controlling the offset parameter, we can create environments where the address suffixes are offset by any desired number of bytes.
-Allocating and managing these buffers at startup takes a non-negligible amount of work, but the overhead can be masked by repeatedly invoking the convolution kernel in a loop, after allocating and initializing all the inputs.
+Allocating and managing these buffers at startup takes a non-negligible amount of work, but the overhead can be masked by repeatedly invoking the convolution kernel in a loop.
 Repeated invocation will also even out performance by warming up the cache.
 %\begin{lstlisting}
 %    for (i = 0; i < k; ++i)
@@ -685,7 +686,7 @@ An estimate of the actual cost a single invocation can be calculated by the foll
 \[
 t_{\text{estimate}} = \frac{t_{k} - t_{1}}{k - 1}
 \]
-We choose $k=11$, effectively getting the average over 10 iterations.
+Time spent on a sigle invocation is subtracted from the estimate to mask initialization time.We choose $k=11$, effectively getting the average over 10 iterations.
 In addition, performance counter measurements are averaged over 10 samples using the repeat mechanism of perf.
 
 \pgfplotstableread{bin/conv-default-o2-haswell.estimate.dat}{\convtabletwohaswell}
@@ -737,7 +738,7 @@ Figure~\ref{fig:conv-default} illustrates how the convolution kernel behaves for
 %Numbers on the x axis represent the amount of offset, measured in number of \texttt{sizeof(float)} bytes.
 An offset of zero is the default behavior for this program when using \texttt{malloc} and moderately large inputs.
 For both for optimization levels 2 and 3, this is close to worst case performance.
-The differences in cycles executed is significant, with about $1.7x$ speedup for O2 and as much as $2x$ speedup for O3 for increasing relative offset.
+The differences in cycles executed is significant, with around $1.7x$ speedup for O2 and as much as $2x$ speedup for O3 on increasing relative offset.
 %This effect is only observed for address separations close to zero, thus we only show the first 20 data points.
 %If extended to cover the full width of possible offsets within a 4K segment, we see that the performance is uniform everywhere else.
 
@@ -894,7 +895,7 @@ Denote the matrix size as $M \times N$, making $\boldsymbol{x}$ of length $N$ an
 %\end{lstlisting}
 
 Each of the structures \texttt{A}, \texttt{x} and \texttt{y} represent different locations in memory, and their addresses is part of the execution context.
-The \texttt{mmap} method outlined in the previous section is used to control the location of each of these buffers on the heap.
+We use \texttt{mmap} with manually added offsets to control the location of each of these buffers on the heap.
 From our experiments, we found that the memory address offset of vector $\boldsymbol{y}$ compared to matrix $A$ is the most important with respect to the number of alias events.
 For the results presented here, we set $A = I$ (identity matrix) and $\boldsymbol{x} = [0, 1, 2, ..., N-1]$, with parameters $M = N = 1024$.
 Address suffix of $A$ and $\boldsymbol{x}$ is fixed to 0x000, while performance events are sampled for increasing address offset of $\boldsymbol{y}$, starting at a baseline of 0x000.
@@ -902,7 +903,7 @@ The experiment was run on the ``Haswell'' setup, with Hyper-Threading enabled.
 In an attempt to isolate the cost of a single \texttt{cblas_dgemv} invocation, we use the estimation approach described in Section~\ref{sec:heap} to subtract the constant overhead from heap allocation and initialization.
 
 Cycles executed and alias events for each library is shown in Figure~\ref{fig:blas}.
-Each library behaves differently, but in all cases we identify a significant amount of alias. 
+Each library behaves differently, but in all cases we identify a significant amount of aliasing. 
 The diagrams can be understood the same way as for the convolution example; partial address overlap occur when the address suffix delta of $A$ and $\boldsymbol{y}$ is close to zero.
 Libblas generates the most distinct pattern, with a clear spike for address deltas between 0x10 and 0x60.
 % NB: Taken from analysis directory, update manually on new results
