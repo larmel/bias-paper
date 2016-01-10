@@ -1006,7 +1006,7 @@ It is also possible to manipulate addresses of automatic (stack allocated) varia
 A proof of concept of how alias-free code could be generated for the program discussed in Section~\ref{sec:microkernel} is shown in Figure \ref{lst:loopfixed}.
 If the addresses do alias, a branch to an alternative but semantically equivalent code path is performed.
 Calling the function recursively will effectively allocate a new set of variables further down the stack, and the alias condition is avoided.
-Even though this particular solution is impractical, it proves that compilers and programmers \emph{could} take measures to account for aliasing.
+Even though this particular solution is impractical, it proves that compilers and programmers can take measures to account for aliasing.
 
 
 
@@ -1034,7 +1034,7 @@ This effect is observed on Intel platforms, ranging from ``Core'' to ``Haswell''
 In general, any change to how data is laid out in memory layout can potentially introduce bias effects from address aliasing.
 Analyzing an example with bias to environment size, we determined that collisions between automatic variables and static data resulted in aliasing for certain stack positions.
 Aliasing conditions were triggered because variations in environment size offset the virtual addresses of stack allocated variables.
-Dynamically allocated data is controlled by heap allocators, which we introduce as another source of bias.
+Dynamically allocated data is controlled by heap allocators, which we find is another source of bias.
 Comparing four different libraries, we show that most implementations tend to favor page alignment for larger requests.
 This means that structures such as vectors and matrices are likely to alias by default, which can be worst case scenarios for many algorithms.
 %Address aliasing can have significant performance impact for algorithms operating on heap allocated buffers, which 
