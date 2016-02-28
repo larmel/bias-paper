@@ -46,8 +46,8 @@
 
 \hypersetup
 {
-%    pdfauthor={L. K. Melhus and R. E. Jensen},
-    pdfauthor={Anonymous and Anonymous},
+    pdfauthor={L. K. Melhus and R. E. Jensen},
+%    pdfauthor={Anonymous and Anonymous},
     pdfsubject={Identification of an underlying mechanism that causes measurement bias},
     pdftitle={Measurement Bias from Address Aliasing},
     pdfkeywords={4K address aliasing, BLAS, heap allocators, measurement bias, memory disambiguation, performance counters}
@@ -1051,12 +1051,13 @@ Our results can inspire more clever optimizations and heuristics taking address 
 % Acknowledgements
 %\begin{acks}
 \section{Acknowledgments}
-\iffalse
+\iftrue
 This work is forked from a Master's thesis project under the supervision of Anne Cathrine Elster and Rune Erlend Jensen, looking at sources of measurement bias on the Intel ``Ivy Bridge'' microarchitecture~\cite{MasterThesis}.
-\fi
+\else
 This work is ... under the ..., .
  under the supervision of ..., looking at sources of measurement bias ... ~\cite{MasterThesis}.
 %\end{acks}
+\fi
 
 % Bibliography
 \bibliographystyle{abbrv}
