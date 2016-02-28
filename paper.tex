@@ -1,7 +1,5 @@
 % paper.tex
-% ACM sigmetric format
 % Author: L. K. Melhus and R. E. Jensen
-%\documentclass{acm_proc_article-sp}
 \documentclass[10pt, conference, compsocconf]{IEEEtran}
 \usepackage{graphicx}
 \usepackage{pgfplots}
@@ -15,26 +13,11 @@
 \usepackage{lmodern} % Much clearer text
 \usepackage[utf8]{inputenc}
 \usepackage{hyperref} % For PDF metadata
-%\usepackage{enumitem} % Controlling list styling
-%http://tex.stackexchange.com/questions/94016/how-to-reduce-space-between-image-and-its-caption
 \usepackage[font=small]{caption}
-
-%\setlength{\intextsep}{10pt plus 2pt minus 2pt}
-
-%\setlength{\belowcaptionskip}{-5pt}
-% too much?
-
-%\captionsetup[table]{aboveskip=-25pt}
-
-%\setlength{\dblfloatsep}{-15pt}
-
-%\addtolength{\belowcaptionskip}{15pt}
 
 \usetikzlibrary{patterns,shapes,positioning,calc}
 
 \lstset{language=C, basicstyle=\ttfamily\small, columns=flexible, belowskip=0pt}
-
-%\setlist{topsep=0pt}
 
 \pgfplotsset{compat=1.8}
 
@@ -47,74 +30,13 @@
 \hypersetup
 {
     pdfauthor={L. K. Melhus and R. E. Jensen},
-%    pdfauthor={Anonymous and Anonymous},
     pdfsubject={Identification of an underlying mechanism that causes measurement bias},
     pdftitle={Measurement Bias from Address Aliasing},
     pdfkeywords={4K address aliasing, BLAS, heap allocators, measurement bias, memory disambiguation, performance counters}
 }
 
-%\conferenceinfo{SIGMETRICS}{2015 Portland, Oregon USA}
-%\CopyrightYear{2015}
-%\acmVolume{V}
-%\acmNumber{N}
-%\acmArticle{A}
-%\acmYear{YYYY}
-%\acmMonth{0}
-
-% Page headers
-%\markboth{L. K. Melhus and R. E. Jensen}{Measurement Bias from Address Aliasing}
-
 \title{Measurement Bias from Address Aliasing}
 
-%\numberofauthors{2}
- 
-\iffalse
-% names here
-\author{
-% You can go ahead and credit any number of authors here,
-% e.g. one 'row of three' or two rows (consisting of one row of three
-% and a second row of one, two or three).
-%
-% The command \alignauthor (no curly braces needed) should
-% precede each author name, affiliation/snail-mail address and
-% e-mail address. Additionally, tag each line of
-% affiliation/address with \affaddr, and tag the
-% e-mail address with \email.
-%
-% 1st. author
-
-\alignauthor
-Lars Kirkholt Melhus\\
-       \affaddr{Norwegian University of Science and Technology}\\
-       \affaddr{Sem Sælands vei 9}\\
-       \affaddr{7491 Trondheim, Norway}\\
-       \email{lars.kirkholt.melhus@gmail.com}
-% 2nd. author
-\alignauthor
-Rune Erlend Jensen\\
-       \affaddr{Norwegian University of Science and Technology}\\
-       \affaddr{Sem Sælands vei 9}\\
-       \affaddr{7491 Trondheim, Norway}\\
-       \email{runeerle@idi.ntnu.no}
-
-\alignauthor
-Anonymous\\
-       \affaddr{Anonymous University}\\
-       \affaddr{Anonymous}\\
-       \affaddr{Anonymous, Anonymous}\\
-       \email{anonymous@anonymous.com}
-% 2nd. author
-\alignauthor
-Anonymous\\
-       \affaddr{Anonymous University }\\
-       \affaddr{Anonymous}\\
-       \affaddr{Anonymous, Anonymous}\\
-       \email{anonymous@anonymous.com}
-}
-\fi
-
-
-\iftrue
 \author{\IEEEauthorblockN{Lars Kirkholt Melhus}
 \IEEEauthorblockA{Dept. of Computer and Information Science (IDI)\\
 NTNU, Norway\\
@@ -125,20 +47,6 @@ lars.kirkholt.melhus@gmail.com}
 NTNU, Norway\\
 runeerle@idi.ntnu.no}
 }
-\else
-\author{\IEEEauthorblockN{Anonymous}
-\IEEEauthorblockA{Organization\\
-University\\
-anonymous@mail.com}
-\and
-\IEEEauthorblockN{Anonymous}
-\IEEEauthorblockA{Organization\\
-University\\
-anonymous@mail.com}
-}
-
-
-\fi
 
 \date{10 January 2016}
 
@@ -163,30 +71,10 @@ The performance impact of aliased memory accesses can be significant, causing up
 Our results can enable new optimization strategies to account for this phenomenon.
 \end{abstract}
 
-% Choose from classification tree http://www.acm.org/about/class/ccs98-html
-%\category{C.4}{Performance of Systems}{Measurement techniques; Performance attributes}
-%\category{D.3.4}{Processors}{Optimization; Run-time environments}
-
-% Terms come from a fixed list of predefined terms
-%\terms{Measurement, Performance}
 % Free to choose keywords, but must be in alphabetical order
 \begin{IEEEkeywords}
 4K address aliasing, BLAS, heap allocators, measurement bias, memory disambiguation, performance counters
 \end{IEEEkeywords}
-
-% Minimum is author, year and title
-%\acmformat{Lars K. Melhus and Rune E. Jensen. 2014. Measurement Bias from Address Aliasing}
-
-
-
-
-% Acknowledgement of support, author(s) address(es)
-%\begin{bottomstuff}
-%New Paper, Not an Extension of a Conference Paper.
-%Authors' addresses: Lars Kirkholt Melhus, Rune Erlend Jensen, Computer and Information Science Department, Norwegian University of Science and Technology, 
-%Sem S{\ae}lands vei 9, Gl{\o}shaugen, 7491 Trondheim, Norway; email: larskirk@alumni.ntnu.no, runeerle@idi.ntnu.no
-%\end{bottomstuff}
-
 
 
 \section{Introduction}
@@ -838,7 +726,6 @@ By manually adjusting the address alignment of one of these buffers, cycle count
 % We do not attempt to pinpoint exactly which assembly instructions might alias, but one can assume that the processor thinks memory accesses to \texttt{input[i]} potentially conflicts with \texttt{output[i]}.
 
 
-%\newpage
 \section{Aliasing in Real Applications}
 \label{sec:blas}
 To investigate how real world applications can be impacted by aliasing, we look at low level numerical applications.
@@ -902,15 +789,6 @@ Basic Linear Algebra Subroutines (BLAS) is the de facto standard API for high pe
   \caption{\label{fig:blas}Performance of \texttt{cblas\_dgemv} for different BLAS packages, measuring cycles executed and address alias events for varying relative address offset between matrix $A$ and vector $\boldsymbol{y}$. Each sample point represents an increment of 16 bytes, or 0x10.}
 \end{figure*}
 
-\iffalse
-The functionality is divided into three categories:
-\begin{description}
-  \item[Level 1] \hspace{0.1cm} Scalar and vector operations, such as dot product and vector addition.
-  \item[Level 2] \hspace{0.1cm} Matrix-vector operations, such as gemv for general matrix-vector multiplication.
-  \item[Level 3] \hspace{0.1cm} Matrix-matrix operations, including the widely applied gemm routine for general matrix multiplication.
-\end{description}
-Procedures operating on vectors, intuitively appears the most likely to have potential for aliasing.
-\fi
 %The level 1 and 2 routines involving vectors intuitively appears to be more likely to have potential for aliasing.
 We look at three different publicly available libraries; \emph{libblas}, \emph{libatlas}, and \emph{libopenblas}~\cite{Whaley:1998:ATLAS,Wang:2013:OpenBLAS}.
 We ran our bias analysis on the level 2 procedure \texttt{cblas\_dgemv}, which computes the matrix-vector product $\boldsymbol{y} = \alpha\text{op}\left(A\right)\boldsymbol{x} + \beta\boldsymbol{y}$ for \texttt{double} sized numbers.
@@ -1026,7 +904,7 @@ Their space of variants consist of different position and alignment for each fun
 Others have used machine learning to classify performance counter data, recognizing patterns or \emph{pathologies} in measurements to identify optimization opportunities~\cite{Yoo:ADD}.
 The authors of MAO present a framework for extending compilers to provide very low level microarchitectural assembly optimization, using rules, pattern matching, and random insertion of nop-instructions to discover optimal assembly outputs~\cite{Hundt:2011:MAO}.
 
-%\newpage
+
 \section{Conclusions}
 \label{sec:conclusions}
 We have shown how address aliasing affects program performance under different memory contexts, and how it can explain certain cases of measurement bias.
@@ -1048,23 +926,14 @@ We show how techniques like padding of variables and alternative alias-free code
 For heap address aliasing especially, we find that manual intervention can be required in order to achieve optimal performance.
 Our results can inspire more clever optimizations and heuristics taking address aliasing effects into account, as the potential performance improvements can be substantial.
 
-% Acknowledgements
-%\begin{acks}
+
 \section{Acknowledgments}
-\iftrue
 This work is forked from a Master's thesis project under the supervision of Anne Cathrine Elster and Rune Erlend Jensen, looking at sources of measurement bias on the Intel ``Ivy Bridge'' microarchitecture~\cite{MasterThesis}.
-\else
-This work is ... under the ..., .
- under the supervision of ..., looking at sources of measurement bias ... ~\cite{MasterThesis}.
-%\end{acks}
-\fi
+
 
 % Bibliography
 \bibliographystyle{abbrv}
 \bibliography{references}
 
-
-% History dates
-%\received{}{}{}
 
 \end{document}
