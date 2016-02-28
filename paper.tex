@@ -224,20 +224,20 @@ Related work is discussed in Section~\ref{sec:related}, before we summarize and 
 \section{Experimental Methodology}
 \label{sec:methodology}
 In order to understand biased behavior it is important to be able to make precise and detailed measurements, without introducing \emph{observer effects}~\cite{Mytkowicz:2008:OE&MB}.
-This can be achieved by using performance counters; instrumentation support in hardware that can be used to count various events, such as cycles executed, branch misses, instructions fetched, and so on.
+This can be achieved by using performance counters; instrumentation support in hardware that can be used to count various events, such as cycles executed, branch prediction misses, instructions fetched, and so on.
 Recent Intel architectures have several hundred available events, providing a detailed view of what happens inside the CPU.
 Performance counters are supported in the Linux kernel, and can be accessed via a tool called \emph{perf}.
 This utility instructs the kernel to enable the processor's Performance Monitoring Unit (PMU), before executing a specified program.
 Using this technique avoids modifications to the executed program, unlike tools like PAPI~\cite{PAPI:PortableInterface}.
 We use the perf-stat command in all experiments, which accepts raw PMU event codes listed in the reference manual~\cite{Volume3B}.
-Reliability of PMU measurements have been evaluated by Weaver and Mckee~\cite{Weaver:2008:PCTrusted}.
+Reliability of PMU measurements has been evaluated by Weaver and Mckee~\cite{Weaver:2008:PCTrusted}.
 The issues they find are either handled explicitly or are irrelevant to our setup.
 %They find intra-machine variations of up to 1.07\%, 
 
 To identify issues we use a small Python script to iterate over an exhaustive set of all known counters, which amounts to about 200 on our architecture.
 Only a small set of events are collected at a time, to ensure events are actually counted continuously.
 We do not use multiplexing between a limited set of counter registers, as it will introduce significant variations~\cite{Wiplove:ImproveEstimation}. % Paper is rename of "Toward Accurate Performance Evaluation using Hardware Counters".
-Controlled variations in environment size is performed by setting a dummy environment variable to $n$ number of zero characters.\footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
+Controlled variations in environment size are achieved by setting a dummy environment variable to $n$ number of zero characters.\footnote{Because perf-stat itself adds a few variables, the environment will never be completely empty.}
 Interesting events are identified by computing linear correlation to cycle count, measuring all counters over a series of execution contexts.
 % Cache related metrics are monitored in order to rule out cache as the underlying cause of bias, such as hit rates of micro-ops for each level of cache~\cite{OptimizationManual}.
 Results are also averaged over multiple runs to reduce potential random error.%, using built-in perf rerun functionality.
@@ -365,7 +365,7 @@ To illustrate how address aliasing can cause bias, we revisit the example first 
 % in ``Producing Wrong Data Without Doing Anything Obviously Wrong!'' 
 This example is interesting for several reasons; the bias effects are significant and easily reproducible, while the code itself is simple and straightforward to analyze.
 Still, no satisfactory explanation as to what actually causes bias was given in the original paper.
-The following data and analysis of this program is from the ``Haswell'' configuration in Table~\ref{tab:machines}.
+The following data and analysis of this program are from the ``Haswell'' configuration in Table~\ref{tab:machines}.
 Similar experiments were conducted on all other experimental setups listed, arriving at the same conclusion.
 
 % Original code presented my Mytkowicz et al.
@@ -462,8 +462,8 @@ The memory disambiguation system automatically assumes dependency between a load
 In our case, lower occupation of execution ports, and less pressure on the reservation station, can be explained by the CPU not being able to issue more operations while waiting for an aliased memory access to be resolved.
 
 The cycles\_ldm\_pending and stalls\_l2\_pending numbers are interesting, as they are related to the memory and cache system.
-However, this program use only 2 cache-lines, except for the initial startup.
-Using the L1 hit and miss counts also revealed that the L1 load is 99.3\% and store hit rate is ~100\%.
+However, this program uses only 2 cache-lines, except for the initial startup.
+Using the L1 hit and miss counts also revealed that the L1 load hit rate is 99.3\% and store hit rate is {\raise.17ex\hbox{$\scriptstyle\mathtt{\sim}$}}100\%.
 These events do not indicate a cache hit rate issue, but are probably due to having to wait for aliased writes to be retired and committed to cache.
 
 Performance counter data clearly points to address aliasing as the underlying explanation, so the next step is to see exactly which memory accesses are aliasing.
@@ -930,7 +930,7 @@ Address suffix of $A$ and $\boldsymbol{x}$ is fixed to 0x000, while performance 
 The experiment was run on the ``Haswell'' setup, with Hyper-Threading enabled.
 In an attempt to isolate the cost of a single \texttt{cblas_dgemv} invocation, we use the estimation approach described in Section~\ref{sec:heap} to subtract the constant overhead from heap allocation and initialization.
 
-Cycles executed and alias events for each library is shown in Figure~\ref{fig:blas}.
+Cycles executed and alias events for each library are shown in Figure~\ref{fig:blas}.
 Each library behaves differently, but in all cases we identify a significant amount of aliasing. 
 The diagrams can be understood the same way as for the convolution example; partial address overlap occur when the address suffix delta of $A$ and $\boldsymbol{y}$ is close to zero.
 Libblas generates the most distinct pattern, with a clear spike for address deltas between 0x10 and 0x60.
