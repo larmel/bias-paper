@@ -1,289 +1,281 @@
-@string { IntelCore = "{Intel\textsuperscript{\textregistered} Core\textsuperscript{\texttrademark}}" }
+@string{IntelCore = "{Intel\textsuperscript{\textregistered} Core\textsuperscript{\texttrademark}}"}
 
-@article{ MasterThesis_ano,
-    author = {Anonymous},
-    title = {Anonymous},
-    school = {Anonymous University},
-    year = {2013}
+@mastersthesis{MasterThesis,
+  author        = "Lars Kirkholt Melhus",
+  title         = "Analyzing Contextual Bias of Program Execution on Modern CPUs",
+  school        = "Norwegian University of Science and Technology",
+  year          = "2013"
 }
 
-@mastersthesis{ MasterThesis,
-    author = {Lars Kirkholt Melhus},
-    title = {Analyzing Contextual Bias of Program Execution on Modern CPUs},
-    school = {Norwegian University of Science and Technology},
-    year = {2013}
+@article{Berger:2000:Hoard,
+  author        = "Berger, Emery D. and McKinley, Kathryn S. and Blumofe, Robert D. and Wilson, Paul R.",
+  title         = "Hoard: A Scalable Memory Allocator for Multithreaded Applications",
+  journal       = "SIGPLAN Not.",
+  volume        = "35",
+  number        = "11",
+  month         = nov,
+  year          = "2000",
+  pages         = "117--128",
+  numpages      = "12",
+  publisher     = "ACM",
+  address       = "New York, NY, USA"
 }
 
-@article { Berger:2000:Hoard,
-    author = {Berger, Emery D. and McKinley, Kathryn S. and Blumofe, Robert D. and Wilson, Paul R.},
-    title = {Hoard: A Scalable Memory Allocator for Multithreaded Applications},
-    journal = {SIGPLAN Not.},
-    volume = {35},
-    number = {11},
-    month = {November},
-    year = {2000},
-    pages = {117--128},
-    numpages = {12},
-    publisher = {ACM},
-    address = {New York, NY, USA}
+@misc{Intel:2006:InsideICM:SmartMemoryAccess,
+  title         = "White Paper: Inside " # IntelCore # " Microarchitecture and Smart Memory Access",
+  author        = "Jack Doweck",
+  year          = "2006",
+  organization  = "Intel Corporation"
 }
 
-@misc { Intel:2006:InsideICM:SmartMemoryAccess,
-    title = "White Paper: Inside " # IntelCore # " Microarchitecture and Smart Memory Access",
-    author = {Jack Doweck},
-    year = {2006},
-    organization = {Intel Corporation}
+@electronic{JEMalloc,
+  author        = "Jason Evans",
+  title         = "A Scalable Concurrent `malloc(3)` Implementation for FreeBSD",
+  url           = "http://people.freebsd.org/~jasone/jemalloc/bsdcan2006/jemalloc.pdf",
+  year          = "2006",
+  month         = apr,
+  date          = "16"
 }
 
-@article { JEMalloc,
-    author = {Jason Evans},
-    title = {A Scalable Concurrent `malloc(3)` Implementation for FreeBSD},
-    url = {http://people.freebsd.org/~jasone/jemalloc/bsdcan2006/jemalloc.pdf},
-    year = {2006},
-    month = {April},
-    date = {16}
-}
-
-@misc { TCMalloc,
-    author = {Sanjay Ghemawat and Paul Menage},
-    title = {TCMalloc: Thread-Caching Malloc},
-    url = {http://google-perftools.googlecode.com/svn/trunk/doc/tcmalloc.html},
-    year = {2007},
-    month = {February}
+@electronic{TCMalloc,
+  author        = "Sanjay Ghemawat and Paul Menage",
+  title         = "TCMalloc: Thread-Caching Malloc",
+  url           = "http://google-perftools.googlecode.com/svn/trunk/doc/tcmalloc.html",
+  year          = "2007",
+  month         = feb
 }
 
 # Google says 8th annual IEEE, ACM says 9th
 # http://research.google.com/pubs/pub37077.html
 # http://dl.acm.org/citation.cfm?id=2190077
-@inproceedings { Hundt:2011:MAO,
-    author = {Hundt, Robert and Raman, Easwaran and Thuresson, Martin and Vachharajani, Neil},
-    title = {MAO -- An Extensible Micro-architectural Optimizer},
-    booktitle = {Proceedings of the 9th Annual IEEE/ACM International Symposium on Code Generation and Optimization},
-    series = {CGO '11},
-    year = {2011},
-    isbn = {978-1-61284-356-8},
-    pages = {1--10},
-    numpages = {10},
-    url = {http://dl.acm.org/citation.cfm?id=2190025.2190077},
-    acmid = {2190077},
-    publisher = {IEEE Computer Society},
-    address = {Washington, DC, USA},
+@inproceedings{Hundt:2011:MAO,
+  author        = "Hundt, Robert and Raman, Easwaran and Thuresson, Martin and Vachharajani, Neil",
+  title         = "MAO -- An Extensible Micro-architectural Optimizer",
+  booktitle     = "Proceedings of the 9th Annual IEEE/ACM International Symposium on Code Generation and Optimization",
+  series        = "CGO '11",
+  year          = "2011",
+  isbn          = "978-1-61284-356-8",
+  pages         = "1--10",
+  numpages      = "10",
+  url           = "http://dl.acm.org/citation.cfm?id  =2190025.2190077",
+  acmid         = "2190077",
+  publisher     = "IEEE Computer Society",
+  address       = "Washington, DC, USA"
 } 
 
-@manual { OptimizationManual,
-    title = {Intel\textsuperscript{\textregistered} 64 and IA-32 Architectures Optimization Reference Manual},
-    year = {2014},
-    month = {March},
-    organization = {Intel Corporation},
-    number = {248966-029},
+@manual{OptimizationManual,
+  title         = "Intel\textsuperscript{\textregistered} 64 and IA-32 Architectures Optimization Reference Manual",
+  year          = "2014",
+  month         = mar,
+  organization  = "Intel Corporation",
+  number        = "248966-029",
 }
 
-@manual { Volume3B,
-    title = {Intel\textsuperscript{\textregistered} 64 and IA-32 Architectures Software Developer's Manual, Volume 3B: System Programming Guide, Part 2},
-    month = {February},
-    year = {2014},
-    organization = {Intel Corporation},
-    number = {253669-050US}
+@manual{Volume3B,
+  title         = "Intel\textsuperscript{\textregistered} 64 and IA-32 Architectures Software Developer's Manual, Volume 3B: System Programming Guide, Part 2",
+  month         = feb,
+  year          = "2014",
+  organization  = "Intel Corporation",
+  number        = "253669-050US"
 }
 
-@techreport { Mytkowicz:2008:OE&MB, 
-    author = {Todd Mytkowicz and Peter F. Sweeney and Matthias Hauswirth and Amer Diwan}, 
-    title = {Observer Effect and Measurement Bias in Performance Analysis}, 
-    institution = {University of Colorado}, 
-    number = {CU-CS-1042-08}, 
-    year = {2008}, 
-    month = {June} 
+@techreport{Mytkowicz:2008:OE&MB, 
+  author        = "Todd Mytkowicz and Peter F. Sweeney and Matthias Hauswirth and Amer Diwan", 
+  title         = "Observer Effect and Measurement Bias in Performance Analysis", 
+  institution   = "University of Colorado", 
+  number        = "CU-CS-1042-08", 
+  year          = "2008", 
+  month         = jun
 }
 
 % http://dblp.uni-trier.de/rec/bibtex/conf/ipps/MytkowiczDHS08
-@inproceedings { Mytkowicz:2008:Easy,
-    author = {Todd Mytkowicz and Amer Diwan and Matthias Hauswirth and Peter F. Sweeney},
-    title = {We have it easy, but do we have it right?},
-    booktitle = {22nd IEEE International Symposium on Parallel and Distributed Processing, IPDPS 2008, Miami, Florida USA, April 14-18, 2008},
-    year = {2008},
-    pages = {1-7},
-    ee = {http://dx.doi.org/10.1109/IPDPS.2008.4536408}
+@inproceedings{Mytkowicz:2008:Easy,
+  author        = "Todd Mytkowicz and Amer Diwan and Matthias Hauswirth and Peter F. Sweeney",
+  title         = "We have it easy, but do we have it right?",
+  booktitle     = "22nd IEEE International Symposium on Parallel and Distributed Processing, IPDPS 2008, Miami, Florida USA, April 14-18, 2008",
+  year          = "2008",
+  pages         = "1-7",
+  ee            = "http://dx.doi.org/10.1109/IPDPS.2008.4536408"
 }
 
-@inproceedings { Knights:2009:BlindOpt,
-    author = {Knights, Dan and Mytkowicz, Todd and Sweeney, Peter F. and Mozer, Michael C. and Diwan, Amer},
-    title = {Blind Optimization for Exploiting Hardware Features},
-    booktitle = {Proceedings of the 18th International Conference on Compiler Construction: Held as Part of the Joint European Conferences on Theory and Practice of Software, ETAPS 2009},
-    series = {CC '09},
-    year = {2009},
-    location = {York, UK},
-    pages = {251--265},
-    numpages = {15},
-    publisher = {Springer-Verlag},
-    address = {Berlin, Heidelberg}
+@inproceedings{Knights:2009:BlindOpt,
+  author        = "Knights, Dan and Mytkowicz, Todd and Sweeney, Peter F. and Mozer, Michael C. and Diwan, Amer",
+  title         = "Blind Optimization for Exploiting Hardware Features",
+  booktitle     = "Proceedings of the 18th International Conference on Compiler Construction: Held as Part of the Joint European Conferences on Theory and Practice of Software, ETAPS 2009",
+  series        = "CC '09",
+  year          = "2009",
+  location      = "York, UK",
+  pages         = "251--265",
+  numpages      = "15",
+  publisher     = "Springer-Verlag",
+  address       = "Berlin, Heidelberg"
 }
 
 % http://dl.acm.org/citation.cfm?id=1508275
-@inproceedings { Mytkowicz:2009:WrongData,
-    author = {Mytkowicz, Todd and Diwan, Amer and Hauswirth, Matthias and Sweeney, Peter F.},
-    title = {Producing Wrong Data Without Doing Anything Obviously Wrong!},
-    booktitle = {Proceedings of the 14th International Conference on Architectural Support for Programming Languages and Operating Systems},
-    series = {ASPLOS XIV},
-    year = {2009},
-    isbn = {978-1-60558-406-5},
-    location = {Washington, DC, USA},
-    pages = {265--276},
-    numpages = {12},
-    url = {http://doi.acm.org/10.1145/1508244.1508275},
-    doi = {10.1145/1508244.1508275},
-    acmid = {1508275},
-    publisher = {ACM},
-    address = {New York, NY, USA},
-    keywords = {bias, measurement, performance},
+@inproceedings{Mytkowicz:2009:WrongData,
+  author        = "Mytkowicz, Todd and Diwan, Amer and Hauswirth, Matthias and Sweeney, Peter F.",
+  title         = "Producing Wrong Data Without Doing Anything Obviously Wrong!",
+  booktitle     = "Proceedings of the 14th International Conference on Architectural Support for Programming Languages and Operating Systems",
+  series        = "ASPLOS XIV",
+  year          = "2009",
+  isbn          = "978-1-60558-406-5",
+  location      = "Washington, DC, USA",
+  pages         = "265--276",
+  numpages      = "12",
+  url           = "http://doi.acm.org/10.1145/1508244.1508275",
+  doi           = "10.1145/1508244.1508275",
+  acmid         = "1508275",
+  publisher     = "ACM",
+  address       = "New York, NY, USA",
+  keywords      = "bias, measurement, performance"
 }
 
-@inproceedings { Shackham:2004:ASLR,
-    author = {Shacham, Hovav and Page, Matthew and Pfaff, Ben and Goh, Eu-Jin and Modadugu, Nagendra and Boneh, Dan},
-    title = {On the effectiveness of address-space randomization},
-    booktitle = {Proceedings of the 11th ACM conference on Computer and communications security},
-    series = {CCS '04},
-    year = {2004},
-    isbn = {1-58113-961-6},
-    location = {Washington DC, USA},
-    pages = {298--307},
-    numpages = {10},
-    publisher = {ACM},
-    address = {New York, NY, USA}
+@inproceedings{Shackham:2004:ASLR,
+  author        = "Shacham, Hovav and Page, Matthew and Pfaff, Ben and Goh, Eu-Jin and Modadugu, Nagendra and Boneh, Dan",
+  title         = "On the effectiveness of address-space randomization",
+  booktitle     = "Proceedings of the 11th ACM conference on Computer and communications security",
+  series        = "CCS '04",
+  year          = "2004",
+  isbn          = "1-58113-961-6",
+  location      = "Washington DC, USA",
+  pages         = "298--307",
+  numpages      = "10",
+  publisher     = "ACM",
+  address       = "New York, NY, USA"
 }
 
-@inproceedings { Bhatkar:AddressObfuscation,
-    author = {Bhatkar, Sandeep and DuVarney, Daniel C. and Sekar, R.},
-    title = {Address Obfuscation: An Efficient Approach to Combat a Board Range of Memory Error Exploits},
-    booktitle = {Proceedings of the 12th Conference on USENIX Security Symposium - Volume 12},
-    series = {SSYM'03},
-    year = {2003},
-    location = {Washington, DC},
-    pages = {8--8},
-    numpages = {1},
-    url = {http://dl.acm.org/citation.cfm?id=1251353.1251361},
-    acmid = {1251361},
-    publisher = {USENIX Association},
-    address = {Berkeley, CA, USA},
+@inproceedings{Bhatkar:AddressObfuscation,
+  author        = "Bhatkar, Sandeep and DuVarney, Daniel C. and Sekar, R.",
+  title         = "Address Obfuscation: An Efficient Approach to Combat a Board Range of Memory Error Exploits",
+  booktitle     = "Proceedings of the 12th Conference on USENIX Security Symposium - Volume 12",
+  series        = "SSYM'03",
+  year          = "2003",
+  location      = "Washington, DC",
+  pages         = "8--8",
+  numpages      = "1",
+  acmid         = "1251361",
+  publisher     = "USENIX Association",
+  address       = "Berkeley, CA, USA"
 }
 
-@misc { Pax:ASLR,
-    author = {Pax},
-    title = {Address Space Layout Randomization},
-    year = {2003},
-    month = {March},
-    url = {http://pax.grsecurity.net/docs/aslr.txt}
+@electronic{Pax:ASLR,
+  author        = "Pax",
+  title         = "Address Space Layout Randomization",
+  year          = "2003",
+  month         = mar,
+  url           = "http://pax.grsecurity.net/docs/aslr.txt"
 }
 
-@book { Kernighan:1988:CProgrammingLanguage,
-    author = {Brian W. Kernighan and Dennis M. Ritchie},
-    title = {The  C Programming Language},
-    year = {1988},
-    isbn = {0131103709},
-    edition = {2nd},
-    publisher = {Prentice Hall Professional Technical Reference}
+@book{Kernighan:1988:CProgrammingLanguage,
+  author        = "Brian W. Kernighan and Dennis M. Ritchie",
+  title         = "The  C Programming Language",
+  year          = "1988",
+  isbn          = "0131103709",
+  edition       = "2nd",
+  publisher     = "Prentice Hall Professional Technical Reference"
 }
 
 
-@article { Intel:2006:InsideICM:EnergyEfficientPerformance,
-    title = "Inside " # IntelCore # " Microarchitecture: Setting New Standards for Energy-Efficient Performance",
-    author = {Ofri Wechsler},
-    journal = {Technology{@}Intel Magazine},
-    year = {2006}
+@article{Intel:2006:InsideICM:EnergyEfficientPerformance,
+  title         = "Inside " # IntelCore # " Microarchitecture: Setting New Standards for Energy-Efficient Performance",
+  author        = "Ofri Wechsler",
+  journal       = {Technology{@}Intel Magazine},
+  year          = "2006"
 }
 
-@misc { GlibcManual,
-    author = {Sandra Loosemore and Richard M. Stallman and Roland McGrath and Andrew Oram and Ullrich Drepper},
-    title = {The GNU C Library Reference Manual},
-    year = {2014},
-    url = {http://www.gnu.org/software/libc/manual/pdf/libc.pdf}
+@electronic{GlibcManual,
+  author        = "Sandra Loosemore and Richard M. Stallman and Roland McGrath and Andrew Oram and Ullrich Drepper",
+  title         = "The GNU C Library Reference Manual",
+  year          = "2014",
+  url           = "http://www.gnu.org/software/libc/manual/pdf/libc.pdf"
 }
 
-@inproceedings { PAPI:PortableInterface,
-    author = {Philip J. Mucci and Shirley Browne and Christine Deane and George Ho},
-    title = {PAPI: A Portable Interface to Hardware Performance Counters},
-    booktitle = {Proceedings of the Department of Defense HPCMP Users Group Conference},
-    year = {1999},
-    pages = {7--10}
+@inproceedings{PAPI:PortableInterface,
+  author        = "Philip J. Mucci and Shirley Browne and Christine Deane and George Ho",
+  title         = "PAPI: A Portable Interface to Hardware Performance Counters",
+  booktitle     = "Proceedings of the Department of Defense HPCMP Users Group Conference",
+  year          = "1999",
+  pages         = "7--10"
 }
 
-@inproceedings { Weaver:2008:PCTrusted,
-    author = {Vincent M. Weaver and Sally A. Mckee},
-    title = {Can Hardware Performance Counters be Trusted?},
-    booktitle = {Proceedings of the IEEE International Symposium on Workload Characterization, IISWC},
-    year = {2008},
-    month = {Sept}, 
-    pages = {141--150},
-    doi = {10.1109/IISWC.2008.4636099}
+@inproceedings{Weaver:2008:PCTrusted,
+  author        = "Vincent M. Weaver and Sally A. Mckee",
+  title         = "Can Hardware Performance Counters be Trusted?",
+  booktitle     = "Proceedings of the IEEE International Symposium on Workload Characterization, IISWC",
+  year          = "2008",
+  month         = sep, 
+  pages         = "141--150",
+  doi           = "10.1109/IISWC.2008.4636099"
 }
 
-@inproceedings { Wiplove:ImproveEstimation,
-    author= {Wiplove Mathur and Jeanine Cook},
-    title = {Improved Estimation for Software Multiplexing of Performance Counters},
-    booktitle = {13th International Symposium on Modeling, Analysis, and Simulation of Computer and Telecommunication Systems (MASCOTS 2005), 27-29 September 2005, Atlanta, GA, USA},
-    year = {2005},
-    pages = {23-34},
-    doi = {10.1109/MASCOTS.2005.34},
-    publisher = {IEEE Computer Society}
+@inproceedings{Wiplove:ImproveEstimation,
+  author        = "Wiplove Mathur and Jeanine Cook",
+  title         = "Improved Estimation for Software Multiplexing of Performance Counters",
+  booktitle     = "13th International Symposium on Modeling, Analysis, and Simulation of Computer and Telecommunication Systems (MASCOTS 2005), 27-29 September 2005, Atlanta, GA, USA",
+  year          = "2005",
+  pages         = "23-34",
+  doi           = "10.1109/MASCOTS.2005.34",
+  publisher     = "IEEE Computer Society"
 }
 
-@inproceedings { Yoo:ADD,
-    author = {Yoo, Wucherl and Larson, Kevin and Baugh, Lee and Kim, Sangkyum and Campbell, Roy H.},
-    title = {ADP: Automated Diagnosis of Performance Pathologies Using Hardware Events},
-    booktitle = {Proceedings of the 12th ACM SIGMETRICS/PERFORMANCE Joint International Conference on Measurement and Modeling of Computer Systems},
-    series = {SIGMETRICS '12},
-    year = {2012},
-    location = {London, England, UK},
-    pages = {283--294},
-    numpages = {12},
-    url = {http://doi.acm.org/10.1145/2254756.2254791},
-    doi = {10.1145/2254756.2254791},
-    acmid = {2254791},
-    publisher = {ACM},
-    address = {New York, NY, USA},
-    keywords = {fingerprint, hardware event, machine learning, micro-benchmark, performance analysis, resource bottleneck},
+@inproceedings{Yoo:ADD,
+  author        = "Yoo, Wucherl and Larson, Kevin and Baugh, Lee and Kim, Sangkyum and Campbell, Roy H.",
+  title         = "ADP: Automated Diagnosis of Performance Pathologies Using Hardware Events",
+  booktitle     = "Proceedings of the 12th ACM SIGMETRICS/PERFORMANCE Joint International Conference on Measurement and Modeling of Computer Systems",
+  series        = "SIGMETRICS '12",
+  year          = "2012",
+  location      = "London, England, UK",
+  pages         = "283--294",
+  numpages      = "12",
+  url           = "http://doi.acm.org/10.1145/2254756.2254791",
+  doi           = "10.1145/2254756.2254791",
+  acmid         = "2254791",
+  publisher     = "ACM",
+  address       = "New York, NY, USA",
+  keywords      = "fingerprint, hardware event, machine learning, micro-benchmark, performance analysis, resource bottleneck"
 } 
 
-@article { Blackford:2002:UpdatedBLAS,
-    author = {L. Susan Blackford and James Demmel and Jack Dongarra and Iain Duff and Sven Hammarling and Greg Henry and Michael Heroux and Linda Kaufman and Andrew Lumsdaine and Antoine Petitet and Roldan Pozo and Karin Remington and R. Clint Whaley},
-    title = {An updated set of basic linear algebra subprograms (BLAS)},
-    journal = {ACM Trans. Math. Softw.},
-    volume = {28},
-    number = {2},
-    year = {2002},
-    pages = {135--151},
-    numpages = {17},
-    publisher = {ACM},
-    address = {New York, NY, USA}
+@article{Blackford:2002:UpdatedBLAS,
+  author        = "L. Susan Blackford and James Demmel and Jack Dongarra and Iain Duff and Sven Hammarling and Greg Henry and Michael Heroux and Linda Kaufman and Andrew Lumsdaine and Antoine Petitet and Roldan Pozo and Karin Remington and R. Clint Whaley",
+  title         = "An updated set of basic linear algebra subprograms (BLAS)",
+  journal       = "ACM Trans. Math. Softw.",
+  volume        = "28",
+  number        = "2",
+  year          = "2002",
+  pages         = "135--151",
+  numpages      = "17",
+  publisher     = "ACM",
+  address       = "New York, NY, USA"
 }
 
-@inproceedings { Whaley:1998:ATLAS,
-    author = {Whaley, R. Clint and Dongarra, Jack J.},
-    title = {Automatically tuned linear algebra software},
-    booktitle = {Proceedings of the 1998 ACM/IEEE conference on Supercomputing (CDROM)},
-    series = {Supercomputing '98},
-    year = {1998},
-    location = {San Jose, CA},
-    pages = {1--27},
-    numpages = {27},
-    publisher = {IEEE Computer Society},
-    address = {Washington, DC, USA},
+@inproceedings{Whaley:1998:ATLAS,
+  author        = "Whaley, R. Clint and Dongarra, Jack J.",
+  title         = "Automatically tuned linear algebra software",
+  booktitle     = "Proceedings of the 1998 ACM/IEEE conference on Supercomputing (CDROM)",
+  series        = "Supercomputing '98",
+  year          = "1998",
+  location      = "San Jose, CA",
+  pages         = "1--27",
+  numpages      = "27",
+  publisher     = "IEEE Computer Society",
+  address       = "Washington, DC, USA"
 }
 
-@inproceedings { Wang:2013:OpenBLAS,
-    author = {Wang, Qian and Zhang, Xianyi and Zhang, Yunquan and Yi, Qing},
-    title = {AUGEM: Automatically Generate High Performance Dense Linear Algebra Kernels on x86 CPUs},
-    booktitle = {Proceedings of the International Conference on High Performance Computing, Networking, Storage and Analysis},
-    series = {SC '13},
-    year = {2013},
-    isbn = {978-1-4503-2378-9},
-    location = {Denver, Colorado},
-    pages = {25:1--25:12},
-    articleno = {25},
-    numpages = {12},
-    url = {http://doi.acm.org/10.1145/2503210.2503219},
-    doi = {10.1145/2503210.2503219},
-    acmid = {2503219},
-    publisher = {ACM},
-    address = {New York, NY, USA},
-    keywords = {DLA code optimization, auto-tuning, code generation},
+@inproceedings{Wang:2013:OpenBLAS,
+  author        = "Wang, Qian and Zhang, Xianyi and Zhang, Yunquan and Yi, Qing",
+  title         = "AUGEM: Automatically Generate High Performance Dense Linear Algebra Kernels on x86 CPUs",
+  booktitle     = "Proceedings of the International Conference on High Performance Computing, Networking, Storage and Analysis",
+  series        = "SC '13",
+  year          = "2013",
+  isbn          = "978-1-4503-2378-9",
+  location      = "Denver, Colorado",
+  pages         = "25:1--25:12",
+  articleno     = "25",
+  numpages      = "12",
+  url           = "http://doi.acm.org/10.1145/2503210.2503219",
+  doi           = "10.1145/2503210.2503219",
+  acmid         = "2503219",
+  publisher     = "ACM",
+  address       = "New York, NY, USA",
+  keywords      = "DLA code optimization, auto-tuning, code generation"
 } 
