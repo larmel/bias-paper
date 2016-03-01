@@ -32,7 +32,7 @@ bin/paper.pdf: paper.tex references.bib $(resources) | bin
 	dvips -q -t letter -sDEVICE=pdfwrite paper.dvi
 	ps2pdf paper.ps
 	mv paper.pdf $@
-	rm -f paper.log paper.dvi paper.ps paper.aux paper.bbl paper.blg
+	rm -f paper.log paper.dvi paper.ps paper.aux paper.bbl paper.blg paper.out
 
 
 # Gather results from analysis directory, but do some massaging to get the
