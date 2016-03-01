@@ -27,14 +27,6 @@
 
 \begin{document}
 
-\hypersetup
-{
-    pdfauthor={L. K. Melhus and R. E. Jensen},
-    pdfsubject={Identification of an underlying mechanism that causes measurement bias},
-    pdftitle={Measurement Bias from Address Aliasing},
-    pdfkeywords={4K address aliasing, BLAS, heap allocators, measurement bias, memory disambiguation, performance counters}
-}
-
 \title{Measurement Bias from Address Aliasing}
 
 \author{\IEEEauthorblockN{Lars Kirkholt Melhus}
@@ -47,8 +39,6 @@ lars.kirkholt.melhus@gmail.com}
 NTNU, Norway\\
 runeerle@idi.ntnu.no}
 }
-
-\date{10 January 2016}
 
 \maketitle
 
@@ -73,7 +63,7 @@ Our results can enable new optimization strategies to account for this phenomeno
 
 % Free to choose keywords, but must be in alphabetical order
 \begin{IEEEkeywords}
-4K address aliasing, BLAS, heap allocators, measurement bias, memory disambiguation, performance counters
+4K address aliasing; BLAS; heap allocators; measurement bias; memory disambiguation; performance counters;
 \end{IEEEkeywords}
 
 
@@ -890,7 +880,6 @@ Calling the function recursively will effectively allocate a new set of variable
 Even though this particular solution is impractical, it proves that compilers and programmers can take measures to account for aliasing.
 
 
-
 \section{Related Work}
 \label{sec:related}
 Measurement bias and observer effect in performance analysis has been studied in detail by Mytkowicz \emph{et al.}~\cite{Mytkowicz:2008:OE&MB,Mytkowicz:2008:Easy}.
@@ -905,7 +894,7 @@ Others have used machine learning to classify performance counter data, recogniz
 The authors of MAO present a framework for extending compilers to provide very low level microarchitectural assembly optimization, using rules, pattern matching, and random insertion of nop-instructions to discover optimal assembly outputs~\cite{Hundt:2011:MAO}.
 
 
-\section{Conclusions}
+\section{Conclusion}
 \label{sec:conclusions}
 We have shown how address aliasing affects program performance under different memory contexts, and how it can explain certain cases of measurement bias.
 %The effect is caused by how speculative and out-of-order memory operations are handled by the CPU, which only considers the last 12 address bits to resolve conflicts between a load and previous store operations.
@@ -927,7 +916,8 @@ For heap address aliasing especially, we find that manual intervention can be re
 Our results can inspire more clever optimizations and heuristics taking address aliasing effects into account, as the potential performance improvements can be substantial.
 
 
-\section{Acknowledgments}
+% According to template, this is supposed to be \section*
+\section*{Acknowledgment}
 This work is forked from a Master's thesis project under the supervision of Anne Cathrine Elster and Rune Erlend Jensen, looking at sources of measurement bias on the Intel ``Ivy Bridge'' microarchitecture~\cite{MasterThesis}.
 
 
