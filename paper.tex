@@ -612,7 +612,7 @@ In addition, performance counter measurements are averaged over 10 samples using
         ylabel=Event count,
         cycle list name=black white,
         width=\textwidth/2.05, % Make it fit to text width side by side
-        height=6.0cm,
+        height=5.6cm,
         skip coords between index={20}{32} % Limit level of detail to fit page width nicely
       ]
       \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convtabletwohaswell ;
@@ -630,7 +630,7 @@ In addition, performance counter measurements are averaged over 10 samples using
         ylabel=Event count,
         cycle list name=black white,
         width=\textwidth/2.05,
-        height=6.0cm,
+        height=5.6cm,
         skip coords between index={20}{32}
       ]
       \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convtablethreehaswell ;
@@ -822,7 +822,9 @@ The amount of \emph{bias} this creates with respect to number of cycles executed
 Performance penalties caused by address aliasing can be significant, creating bias towards certain memory layouts.
 However, with an understanding of the underlying mechanism that causes bias, the effects can be predicted, and to some extent eliminated in software.
 %The most relevant scenario to consider is probably code that can hit the aliasing \texttt{mmap} scenario, where performance impact can be consistently bad over all environments.
-We identify some relevant optimization techniques:
+In addition to controlling bias in experimental setups, avoiding alias issues is also necessary for achieving optimal performance.
+This opens up new avenues to explore, for example in making more intelligent architecture aware compiler optimizations, or use of automatic performance tuning to avoid suboptimal memory layouts.
+Some principles are also more directly applicable, and we identify the following relevant optimization techniques:
 
 \subsection{Mark buffers with \texttt{restrict}}
 In our convolution kernel implementation, the compiler has to account for the fact that input and output pointers might alias, or that the buffers partially overlap.
@@ -882,8 +884,9 @@ It is also possible to manipulate addresses of automatic (stack allocated) varia
 A proof of concept of how alias-free code could be generated for the program discussed in Section~\ref{sec:microkernel} is shown in Figure \ref{lst:loopfixed}.
 If the addresses do alias, a branch to an alternative but semantically equivalent code path is performed.
 Calling the function recursively will effectively allocate a new set of variables further down the stack, and the alias condition is avoided.
-Even though this particular solution is impractical, it proves that compilers and programmers can take measures to account for aliasing.
-A complier can generate the same solution automatically by using data access relevant pointer identification
+
+Even though this particular solution is impractical, it proves the possibility for compilers, as well as programmers, to take measures to account for address aliasing.
+% A complier can generate the same solution automatically by using data access relevant pointer identification
 %While this example uses C code to address the problem it is possible to perform the same directly by a compiler extension.
 %In general we need automated searches for both relevant pointer addresses, offset rules and good offsets.
 %For general code one need to use automated searches for both relevant pointer identification and offset generator rules.
@@ -914,10 +917,12 @@ This effect is observed on Intel platforms, ranging from ``Core'' to ``Haswell''
 In general, any change to how data is laid out in memory can potentially introduce bias effects from address aliasing.
 Analyzing an example with bias to environment size, we determined that collisions between automatic variables and static data resulted in aliasing for certain stack positions.
 Aliasing conditions were triggered because variations in environment size offset the virtual addresses of stack allocated variables.
+
 Dynamically allocated data is controlled by heap allocators, which we show is another source of bias.
 Comparing four different libraries, we show that most implementations tend to favor page alignment for larger requests.
 This means that structures such as vectors and matrices are likely to alias by default, which can be worst case scenarios for many algorithms.
 %Address aliasing can have significant performance impact for algorithms operating on heap allocated buffers, which 
+
 We analyze an example with up to $2x$ variation in cycle count between different heap alignments, showing that address aliasing can have a significant performance impact.
 We are able to identify instances of alias issues in matrix-vector multiplication routines for different BLAS libraries, showing that this effect also appears in real, performance critical code.
 %We have shown a method of performance search with hardware performance counters that can identify unknown performance issues inside modern CPUs, and how to deal with the issue.
