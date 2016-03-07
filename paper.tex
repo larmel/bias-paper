@@ -724,7 +724,7 @@ By manually adjusting the address alignment of one of these buffers, cycle count
 \section{Aliasing in Real Applications}
 \label{sec:blas}
 To investigate how real world applications can be impacted by aliasing, we look at low level numerical applications.
-Basic Linear Algebra Subroutines (BLAS) is the de facto standard API for high performance linear algebra routines, with several heavily optimized implementations available~\cite{Blackford:2002:UpdatedBLAS}.
+Basic Linear Algebra Subroutines (BLAS) is the de facto standard API for high performance dense linear algebra routines, with several heavily optimized implementations available~\cite{Blackford:2002:UpdatedBLAS}.
 \pgfplotstableread{bin/libblas.dat}{\libblastable}
 \pgfplotstableread{bin/libatlas.dat}{\libatlastable}
 \pgfplotstableread{bin/libopenblas.dat}{\libopenblastable}
@@ -799,7 +799,7 @@ Each of the structures \texttt{A}, \texttt{x} and \texttt{y} represent different
 We use \texttt{mmap} with manually added offsets to control the location of each of these buffers.
 From our experiments, we found that the memory address offset of vector $\boldsymbol{y}$ compared to matrix $A$ is the most important with respect to the number of alias events.
 For the results presented here, we set $A = I$ (identity matrix) and $\boldsymbol{x} = [0, 1, 2, ..., N-1]$, with parameters $M = N = 1024$.
-Address suffix of $A$ and $\boldsymbol{x}$ is fixed to 0x000, while performance events are sampled for increasing address offset of $\boldsymbol{y}$, starting at a baseline of 0x000.
+Address suffixes of $A$ and $\boldsymbol{x}$ are fixed to 0x000, while performance events are sampled for increasing address offset of $\boldsymbol{y}$, starting at a baseline of 0x000.
 The experiment was run on the ``Haswell'' setup, with Hyper-Threading enabled.
 In an attempt to isolate the cost of a single \texttt{cblas_dgemv} invocation, we use the estimation approach described in Section~\ref{sec:heap} to subtract the constant overhead from heap allocation and initialization.
 
@@ -827,7 +827,7 @@ We identify some relevant optimization techniques:
 \subsection{Mark buffers with \texttt{restrict}}
 In our convolution kernel implementation, the compiler has to account for the fact that input and output pointers might alias, or that the buffers partially overlap.
 This limits the extent to which generated code can keep data in registers without updating the values from memory, as a write to one buffer could potentially invalidate a cached value from the other.
-The C99 keyword \emph{restrict} can be used to explicitly tell the compiler that accesses through a pointer do not alias with any other, allowing for more efficient code generation with fewer memory accesses.
+The C99 keyword \emph{restrict} can be used to explicitly tell the compiler that accesses through a pointer do not alias with any others, allowing for more efficient code generation with fewer memory accesses.
 % \begin{lstlisting}[breaklines=true]
 %     void conv(int n, const float * restrict in, float * restrict out);
 % \end{lstlisting}
