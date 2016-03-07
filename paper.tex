@@ -842,7 +842,7 @@ However, to our knowledge there are no allocators that specifically try to mitig
 One approach to achieve this could be to apply some heuristic to randomize addresses more, and in particular not always return the same 12 bit suffix for large allocations.
 The allocator could also accept hints to which buffers are going to be accessed in parallel, for example as an optional argument to a custom version of \texttt{malloc}.
 
-\subsection{Manually adjust address offsets}
+\subsection{Adjusting address offsets}
 In some cases it might help to explicitly control the memory addresses used, for example by requiring fixed relative offset between input and output pointers.
 For heap allocations, one can exploit that \texttt{mmap} is guaranteed to be page aligned, and use that directly to create specific alignments.
 % The following approach can be used to make an anonymous memory mapping with offset \texttt{d} bytes away from page alignment.
@@ -883,6 +883,11 @@ A proof of concept of how alias-free code could be generated for the program dis
 If the addresses do alias, a branch to an alternative but semantically equivalent code path is performed.
 Calling the function recursively will effectively allocate a new set of variables further down the stack, and the alias condition is avoided.
 Even though this particular solution is impractical, it proves that compilers and programmers can take measures to account for aliasing.
+A complier can generate the same solution automatically by using data access relevant pointer identification
+%While this example uses C code to address the problem it is possible to perform the same directly by a compiler extension.
+%In general we need automated searches for both relevant pointer addresses, offset rules and good offsets.
+%For general code one need to use automated searches for both relevant pointer identification and offset generator rules.
+%By utilizing hardware performance counter information this issue can be checked 
 
 
 \section{Related Work}
@@ -915,6 +920,9 @@ This means that structures such as vectors and matrices are likely to alias by d
 %Address aliasing can have significant performance impact for algorithms operating on heap allocated buffers, which 
 We analyze an example with up to $2x$ variation in cycle count between different heap alignments, showing that address aliasing can have a significant performance impact.
 We are able to identify instances of alias issues in matrix-vector multiplication routines for different BLAS libraries, showing that this effect also appears in real, performance critical code.
+%We have shown a method of performance search with hardware performance counters that can identify unknown performance issues inside modern CPUs, and how to deal with the issue.
+%This shows that other issues with address sensitive memory interactions may also be detected and addressed automatically.
+%We have shown new possibilities in the area of auto-tuning, both how to detect general issues, and outlined how to deal with a specific one.
 
 We show how techniques like padding of variables and alternative alias-free code paths can be used to avoid aliasing at runtime.
 For heap address aliasing especially, we find that manual intervention can be required in order to achieve optimal performance.
@@ -923,7 +931,7 @@ Our results can inspire more clever optimizations and heuristics taking address 
 
 % According to template, this is supposed to be \section*
 \section*{Acknowledgment}
-This work is forked from a Master's thesis project supervised by Anne Cathrine Elster and Rune Erlend Jensen, looking at sources of measurement bias on the Intel ``Ivy Bridge'' microarchitecture~\cite{MasterThesis}.
+This work is derived from a Master's thesis project supervised by Anne Cathrine Elster and Rune Erlend Jensen, looking at sources of measurement bias on the Intel ``Ivy Bridge'' microarchitecture~\cite{MasterThesis}.
 
 
 % Bibliography
