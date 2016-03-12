@@ -1,0 +1,92 @@
+\documentclass{beamer}
+
+\title{Measurement Bias from Address Aliasing}
+\subtitle{How your user name affects runtime performance}
+
+\author[Lars Kirkholt Melhus, Rune Erlend Jensen]
+{Lars Kirkholt Melhus \and Rune Erlend Jensen}
+\institute{
+  Dept. of Computer and Information Science\\
+  Norwegian University of Science and Technology \\
+  Trondheim, Norway
+}
+
+\date[2016] % (optional)
+{International Workshop on Automatic Performance Tuning, 2016}
+
+\subject{Computer Science}
+
+% Allocated to each presentation: 30 mins. Probably 20 mins + questions,
+% a couple of minutes per slide should mean around 10 slides at the most.
+
+\begin{document}
+  \frame{\titlepage}
+
+  \begin{frame}
+    \frametitle{Measurement Bias}
+
+    % Show example code and plot from Mytkowitz.
+
+    % Also an optimization problem (relevant for auto-tuning).
+
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{4K Address Aliasing}
+
+    % Image from Master's (redo in Tikz probably) showing exact address
+    % collisions. Update with addresses taken from paper.
+
+    % Maybe show disassembly with read/write false conflicts.
+
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{How to Measure Aliasing}
+    \framesubtitle{Using Hardware Performance Counters}
+
+    % Some points on hardware perf counters.
+
+    % Describe LD_BLOCKS_PARTIAL.ADDRESS_ALIAS
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Cycle Correlation}
+
+    % Correlation data for the microkernel (?)
+
+  \end{frame}
+
+  % After this, done with method for detecting alias, and answers question
+  % from old paper. Now lets see what else can be discovered.
+
+  \begin{frame}
+    \frametitle{Bias in Heap Allocation}
+
+    % Motivation for looking: Determines addresses.
+
+    % Short survay, most use mmap for large allocations.
+
+    % punchline: mmap always alias.
+
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Optimization Resistant Code}
+
+    % Convolution example code
+
+    % Plots for O2 and O3
+
+    % Manual offset code (?)
+
+  \end{frame}
+
+  \begin{frame}
+    \frametitle{Aliasing in BLAS libraries}
+
+    % Maybe mention FFTW results from Master's?
+
+  \end{frame}
+
+\end{document}

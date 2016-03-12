@@ -2,6 +2,8 @@ all: paper
 
 paper: bin/paper.pdf
 
+presentation: bin/presentation.pdf
+
 clean:
 	rm -f bin/*
 
@@ -34,6 +36,11 @@ bin/paper.pdf: paper.tex references.bib $(resources) | bin
 	mv paper.pdf $@
 	rm -f paper.log paper.dvi paper.ps paper.aux paper.bbl paper.blg paper.out
 
+bin/presentation.pdf: presentation.tex | bin
+	latex $<
+	dvipdf presentation.dvi
+	mv presentation.pdf $@
+	rm -f presentation.aux presentation.dvi presentation.log presentation.out presentation.snm presentation.toc presentation.nav
 
 # Gather results from analysis directory, but do some massaging to get the
 # correct Tikz friendly format and filter out unnecessary data.
