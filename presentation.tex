@@ -8,7 +8,7 @@
 
 \usetikzlibrary{patterns,shapes,positioning,calc}
 \setbeamertemplate{bibliography item}[text]
-\lstset{language=C, basicstyle=\ttfamily\scriptsize, columns=flexible, belowskip=0pt, aboveskip=0pt}
+\lstset{language=C, basicstyle=\ttfamily\scriptsize, columns=flexible, belowskip=0pt}
 
 \title{Measurement Bias from Address Aliasing}
 
@@ -60,7 +60,7 @@
 \end{itemize}
 
 \begin{figure}
-  \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth]
+  \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth, aboveskip=-2pt]
 static int i, j, k;
 
 int main() {
@@ -267,7 +267,7 @@ The address of the new mapping is returned as the result of the call.
 
 \end{frame}
 
-\begin{frame}[fragile]
+\begin{frame}[fragile, allowframebreaks]
   \frametitle{Optimization Resistant Code}
 
 % Image of sliding window with buffers in and out (Color variables?)
@@ -298,8 +298,44 @@ The address of the new mapping is returned as the result of the call.
   \label{lst:conv}
 \end{figure}
 
+% \begin{itemize}
+%   \item Most heap allocators will \emph{always} align arrays on the same 12 bit suffix.
+%   \item Manually adjusting addresses necessary to get good performance.
+% \end{itemize}
 
-    % Plots for O2 and O3
+Adjust address of output array by \texttt{d} bytes manually to avoid alising:
+
+%mmap(NULL, (n + d), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) + d;
+\begin{lstlisting}[belowskip=-4pt]
+out = malloc((N + d) * sizeof(float));
+...
+conv(N, in, out + d);
+\end{lstlisting}
+
+% The most awesome graph, O2 of convolution kernel
+\pgfplotstableread{bin/conv-default-o2-haswell.estimate.dat}{\convtabletwohaswell}
+\begin{figure}[t]
+  \begin{tikzpicture}
+    \begin{axis}[
+        title=Haswell -O2,
+        font=\footnotesize,
+        xlabel=Relative offset in \texttt{sizeof(float)} bytes,
+        ylabel=Event count,
+        cycle list name=black white,
+        width=\textwidth/1.5,
+        height=4.7cm,
+        skip coords between index={20}{32} % Limit level of detail to fit page width nicely
+      ]
+      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convtabletwohaswell ;
+      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \convtabletwohaswell ;
+      \addlegendentry{Cycles} ;
+      \addlegendentry{Alias} ;
+    \end{axis}
+  \end{tikzpicture}
+  \caption{\label{fig:conv-default}Cycle- and alias counts for different offsets between input and output arrays in convolution kernel, input size $n=2^{20}$.}
+  %Offset 0 means equal 12-bit address suffix, which is default behavior for \texttt{mmap} allocations. Showing results for optimization levels O2 and O3 compiled with GCC, input size $n=2^{20}$.}
+\end{figure}
+
 
     % Manual offset code (?)
 
