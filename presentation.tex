@@ -1,7 +1,16 @@
 \documentclass{beamer}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\usepackage{mathtools}
+\usepackage{tikz}
+
+\usetikzlibrary{patterns,shapes,positioning,calc}
+\setbeamertemplate{bibliography item}[text]
+\lstset{language=C, basicstyle=\ttfamily\scriptsize, columns=flexible, belowskip=0pt}
 
 \title{Measurement Bias from Address Aliasing}
-\subtitle{How your user name affects runtime performance}
 
 \author[Lars Kirkholt Melhus, Rune Erlend Jensen]
 {Lars Kirkholt Melhus \and Rune Erlend Jensen}
@@ -12,7 +21,7 @@
 }
 
 \date[2016] % (optional)
-{International Workshop on Automatic Performance Tuning, 2016}
+{International Workshop on Automatic Performance Tuning, Chicago, May 2016}
 
 \subject{Computer Science}
 
@@ -20,73 +29,432 @@
 % a couple of minutes per slide should mean around 10 slides at the most.
 
 \begin{document}
-  \frame{\titlepage}
 
-  \begin{frame}
-    \frametitle{Measurement Bias}
+\frame{\titlepage}
 
-    % Show example code and plot from Mytkowitz.
+\begin{frame}
 
-    % Also an optimization problem (relevant for auto-tuning).
+\frametitle{Outline}
 
-  \end{frame}
+\begin{itemize}
+  \item Identify address aliasing as an underlying explanation for measurement bias.
+  \item See how aliasing affects dynamic memory allocation.
+  \item Look at opportunities to optimize for aliasing.
+\end{itemize}
 
-  \begin{frame}
-    \frametitle{4K Address Aliasing}
+\end{frame}
 
-    % Image from Master's (redo in Tikz probably) showing exact address
-    % collisions. Update with addresses taken from paper.
 
-    % Maybe show disassembly with read/write false conflicts.
+\begin{frame}[fragile, allowframebreaks]
+\frametitle{Measurement Bias}
 
-  \end{frame}
+% Show example code and plot from Mytkowitz.
 
-  \begin{frame}
-    \frametitle{How to Measure Aliasing}
-    \framesubtitle{Using Hardware Performance Counters}
+\begin{itemize}
+  \item Runtime performance change from external factors
+  \begin{itemize}
+    \item Environment variables
+    \item Link ordering
+  \end{itemize}
+  \item Challenge for performance analysis
+\end{itemize}
 
-    % Some points on hardware perf counters.
+\begin{figure}
+  \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth, aboveskip=-2pt]
+static int i, j, k;
 
-    % Describe LD_BLOCKS_PARTIAL.ADDRESS_ALIAS
-  \end{frame}
+int main() {
+    int g = 0, inc = 1;
+    for (; g < 65536; g++) {
+        i += inc;
+        j += inc;
+        k += inc;
+    }
+    return 0;
+}
+  \end{lstlisting}
+  \caption{\label{fig:microkernel}Microkernel first presented by Mytkowicz \emph{et al.}\cite{Mytkowicz:2009:WrongData}, showing bias to environment size.}
+\end{figure}
 
-  \begin{frame}
-    \frametitle{Cycle Correlation}
+% Also an optimization problem (relevant for auto-tuning).
 
-    % Correlation data for the microkernel (?)
+Execute program under different environments, setting dummy variable to $K$ zero characters.
 
-  \end{frame}
+\begin{lstlisting}[breaklines=true, belowskip=-10pt, basicstyle=\ttfamily\small]
+$ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
+\end{lstlisting}
 
-  % After this, done with method for detecting alias, and answers question
-  % from old paper. Now lets see what else can be discovered.
+\pgfplotstableread{bin/microkernel-cycles-haswell.dat}{\stackoffsettable}
+\begin{figure}
+  \begin{tikzpicture}
+    \begin{axis}[
+        title = Haswell,
+        width = \textwidth,
+        height = 4.7cm,
+        font = \footnotesize,
+        xlabel=Bytes added to environment,
+        ylabel=Cycles,
+        domain = 0:8192,
+        xtick = {0,1024,...,8192},
+        xmin = 0,
+        xmax = 8192,
+        cycle list name = exotic
+      ]
+      \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \stackoffsettable ;
+    \end{axis}
+  \end{tikzpicture}
+  \caption{Measured cycle count samples for 512 different environments.}
+\end{figure}
 
-  \begin{frame}
-    \frametitle{Bias in Heap Allocation}
+% Also an optimization problem (relevant for auto-tuning).
 
-    % Motivation for looking: Determines addresses.
+\end{frame}
 
-    % Short survay, most use mmap for large allocations.
 
-    % punchline: mmap always alias.
+\begin{frame}
+\frametitle{4K Address Aliasing}
 
-  \end{frame}
+\begin{columns}[T] % align columns
+\begin{column}{.50\textwidth}
 
-  \begin{frame}
-    \frametitle{Optimization Resistant Code}
+\begin{itemize}
+  %\item Collisions between static and automatic variables, depending on alignment of stack.
+  \item Addresses of static i, j and k are fixed for all environments.
+  \item Addresses of g and inc are pushed down with size of environment variables.
+  \item Spike when address of inc is \emph{aliasing} with i in the last 12 bits.
+  \item Performance impact from \emph{false dependencies} in CPU out of order execution.
+\end{itemize}
 
-    % Convolution example code
+\end{column}
+\hfill
+\begin{column}{.50\textwidth}
 
-    % Plots for O2 and O3
+% Virtual memory/randomization illustration
+\begin{figure}
+  \begin{tikzpicture}[font=\footnotesize]
+    % See page 453 in pgf manual
+    \node [
+      rectangle split, rectangle split parts=5, 
+      rectangle split part fill={white, white, lightgray, white, lightgray},
+      draw, anchor=center, text width=2.5cm
+    ] (m) {
+      \nodepart{one}
+        \scriptsize{USER=lars;SHELL
+        =/bin/bash;X=0000
+        00000000000000...}
+      \nodepart{two}
+        .stack
+        \begin{flushright}
+        inc \\
+        g
+        \end{flushright}
+      \nodepart{four}
+        .bss
+        \begin{flushright}
+        k \\
+        j \\
+        i
+        \end{flushright}
+    };
 
-    % Manual offset code (?)
+    \node[right, yshift=0cm] at (m.two east) {
+      \scriptsize{0x7fff'ffffe{\color{red}03c}} % inc
+    };
+    \node[right, yshift=-0.4cm] at (m.two east) {
+      \scriptsize{0x7fff'ffffe038} % g
+    };
 
-  \end{frame}
+    \node[right, yshift=0cm] at (m.four east) {
+      \scriptsize{0x601044} % k
+    };
+    \node[right, yshift=-0.4cm] at (m.four east) {
+      \scriptsize{0x601040} % j
+    };
+    \node[right, yshift=-0.8cm] at (m.four east) {
+      \scriptsize{0x601{\color{red}03c}} % i
+    };
 
-  \begin{frame}
-    \frametitle{Aliasing in BLAS libraries}
+    %\draw [decorate, decoration={brace, amplitude=5pt}] (m.south west) -- (m.seven split west) 
+    %  node [black, midway, xshift=-1.5cm, text width=2.0cm] 
+    %    { Program code and static data } ;
 
-    % Maybe mention FFTW results from Master's?
+    %\node[right] at (m.north east) { \scriptsize{0x7fff'ffffffff} } ;
+    %\node[right] at (m.south east) { \scriptsize{0x400000} } ;
+  \end{tikzpicture}
+  \caption{Addresses of each variable in the first spike.}
+\end{figure}
 
-  \end{frame}
+% Note: Could have gotten more collisions if g also was colliding with something,
+%       but not noticeable effect on cycles executed.
+
+\end{column}
+\end{columns}
+
+\end{frame}
+
+
+\begin{frame}[fragile]
+  \frametitle{How to Measure Address Aliasing}
+
+  % Some points on hardware perf counters.
+  \begin{itemize}
+    \item Control execution environment (disable ASLR).
+    \item Instrument program using \emph{hardware performance counters}, sampling the following event:
+  \end{itemize}
+
+  \begin{description}
+    \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS.}] 
+    \emph{``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.''} 
+    \cite[B.3.4.4]{OptimizationManual}
+  \end{description}
+  %This event is listed in the manual for microarchitectures going back to ``Nehalem'', including ``Ivy Bridge'' and ``Haswell'' CPUs~\cite{Volume3B}.
+  %Older architectures such as Core do not have this particular event listed, but 4K aliasing is covered by a more general event:
+
+  \begin{itemize}
+    \item Older architectures, such as Core, have alias covered in a more general event:
+  \end{itemize}
+
+  \begin{description}
+    \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE.}] 
+    \emph{``Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.''} 
+    \cite[Table 19-17]{Volume3B}
+  \end{description}
+
+  % Describe LD_BLOCKS_PARTIAL.ADDRESS_ALIAS
+\end{frame}
+
+
+% After this, done with method for detecting alias, and answers question
+% from old paper. Now lets see what else can be discovered.
+
+\begin{frame}[fragile]
+\frametitle{Bias in Heap Allocation}
+
+\begin{itemize}
+  \item Alias conflicts can happen between any sections of memory.
+  \item While stack addresses depend on environment, heap addresses depend on allocators.
+\end{itemize}
+
+\begin{table}
+  \caption{Addresses returned by different heap allocators when allocating pairs of equally sized buffers. Same 12 bit suffix indicate an aliasing pair.}
+  \pgfplotstabletypeset[
+    font=\footnotesize,
+    col sep=comma,
+    string type,
+    columns={Allocation, 5120, 1048576},
+    column type=r,
+    columns/Allocation/.style={
+      string type, 
+      column type=l,
+      column type/.add={|}{}
+    },
+    every head row/.style={
+      output empty row,
+      before row={\hline
+         & 5,120 B & 1,048,576 B \\
+        },
+      after row=\hline\hline,
+    },
+    every last row/.style={after row=\hline},
+    every last column/.style={column type/.add={}{|}},
+    every odd row/.style={after row=\hline},
+  ]{bin/malloc-comparison.csv}
+\end{table}
+
+
+  % Motivation for looking: Determines addresses.
+
+  % Short survay, most use mmap for large allocations.
+
+  % punchline: mmap always alias.
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{mmap}
+
+Most allocators tend to use anonymous memory mapping for large requests.
+
+\begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth, belowskip=1cm]
+$ man mmap
+
+(...) on Linux, the mapping will be created at a nearby page boundary.
+The address of the new mapping is returned as the result of the call.
+
+\end{lstlisting}
+
+Since page size is 4 KiB, such allocations will \emph{always} alias with each other.
+
+\end{frame}
+
+\begin{frame}[fragile, allowframebreaks]
+  \frametitle{Optimization Resistant Code}
+
+% Image of sliding window with buffers in and out (Color variables?)
+
+Example program which is sensitive to aliasing between buffers, continuously generating false dependencies:
+
+\begin{tikzpicture}[
+  barstyle/.style={rectangle,fill=lightgray,draw,anchor=center,minimum width=9cm}
+]
+\node [barstyle] (in) at (0,1) { } ;
+\node [barstyle] (out) at (0,0) { } ;
+\node [rectangle,draw,minimum height=1.8cm] (bar) at (-2,0.5) { } ;
+
+\node[] (input label) [left=of in] { in } ;
+\node[] (output label) [left=of out] { out } ;
+
+\draw[->] (-2,0.5) -- (-1.5,0.5) node [right,align=center] {\scriptsize{Sliding window}} ;
+
+\end{tikzpicture}
+
+\begin{figure}[t]
+% Convolution example code
+  \lstinputlisting[
+    language=C,
+    frame=single,
+    xleftmargin=.00\textwidth,
+    xrightmargin=.00\textwidth,
+    aboveskip=-5pt
+  ]{bin/convolution-kernel.c}
+  \caption{Simplified implementation of convolution with a fixed kernel.}
+  \label{lst:conv}
+\end{figure}
+
+% \begin{itemize}
+%   \item Most heap allocators will \emph{always} align arrays on the same 12 bit suffix.
+%   \item Manually adjusting addresses necessary to get good performance.
+% \end{itemize}
+
+Adjust address of output array by \texttt{d} bytes manually to avoid alising:
+
+%mmap(NULL, (n + d), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) + d;
+\begin{lstlisting}[belowskip=-4pt, basicstyle=\ttfamily\small]
+out = malloc((N + d) * sizeof(float));
+conv(N, in, out + d);
+\end{lstlisting}
+
+% The most awesome graph, O2 of convolution kernel
+\pgfplotstableread{bin/conv-default-o2-haswell.estimate.dat}{\convtabletwohaswell}
+\pgfplotstableread{bin/conv-default-o3-haswell.estimate.dat}{\convtablethreehaswell}
+\begin{figure}[t]
+  \begin{tikzpicture}
+    \begin{axis}[
+        title=Haswell -O2,
+        font=\footnotesize,
+        cycle list name=black white,
+        width=\textwidth/1.8,
+        height=4.7cm,
+        skip coords between index={18}{32} % Limit level of detail to fit page width nicely
+      ]
+      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convtabletwohaswell ;
+      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \convtabletwohaswell ;
+      \addlegendentry{Cycles} ;
+      \addlegendentry{Alias} ;
+    \end{axis}
+  \end{tikzpicture}
+  \begin{tikzpicture}
+    \begin{axis}[
+        title=Haswell -O3,
+        font=\footnotesize,
+        cycle list name=black white,
+        width=\textwidth/1.8,
+        height=4.7cm,
+        skip coords between index={18}{32}
+      ]
+      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convtablethreehaswell ;
+      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \convtablethreehaswell ;
+      \addlegendentry{Cycles} ;
+      \addlegendentry{Alias} ;
+    \end{axis}
+  \end{tikzpicture}
+  \caption{\label{fig:conv-default}Cycle- and alias counts for different offsets between input and output arrays in convolution kernel, input size $N=2^{20}$.}
+\end{figure}
+
+\end{frame}
+
+\begin{frame}[fragile]
+\frametitle{Aliasing in BLAS libraries}
+
+% Maybe mention FFTW results from Master's?
+
+Measured matrix-vector multiplication (cblas\_dgemv) with increasing offset between buffer addresses.
+Computing $\boldsymbol{y}=A\boldsymbol{x}$.
+
+\pgfplotstableread{bin/libblas.dat}{\libblastable}
+\pgfplotstableread{bin/libatlas.dat}{\libatlastable}
+\begin{figure}
+  \begin{tikzpicture}
+    \begin{axis}[
+        title=libblas,
+        height=4.7cm,
+        font=\footnotesize,
+        xlabel=Address offset of $\boldsymbol{y}$,
+        %ylabel=Event count,
+        cycle list name=black white,
+        width=\textwidth/1.8, % Make it fit to text width side by side
+        legend style={at={(0.4,0.55)},anchor=west,draw=none}
+      ]
+      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \libblastable ;
+      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \libblastable ;
+      \addlegendentry{Cycles} ;
+      \addlegendentry{Alias} ;
+    \end{axis}
+  \end{tikzpicture}
+  \begin{tikzpicture}
+    \begin{axis}[
+        title=libatlas,
+        height=4.7cm,
+        font=\footnotesize,
+        xlabel=Address offset of $\boldsymbol{y}$,
+        %ylabel=Event count,
+        cycle list name=black white,
+        width=\textwidth/1.8,
+        legend style={at={(0.4,0.55)},anchor=west,draw=none}
+      ]
+      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \libatlastable ;
+      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \libatlastable ;
+      \addlegendentry{Cycles} ;
+      \addlegendentry{Alias} ;
+    \end{axis}
+  \end{tikzpicture}
+  \caption{\label{fig:blas}Cycles executed and address alias events for varying relative address offset between matrix $A$ and vector $\boldsymbol{y}$.}
+  % Each sample point represents an increment of 16 bytes, or 0x10.}
+\end{figure}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Optimizing for address aliasing}
+
+% Effects of address aliasing are real, these are some ideas for optimization:
+
+\begin{itemize}
+  \item Mark buffers with \texttt{restrict}.
+  \begin{itemize}
+    \item Can allow the optimizer to reduce number of memory accesses.
+  \end{itemize}
+  \item Use a special purpose allocator.
+  \begin{itemize}
+    \item Heuristics for avoiding pairwise aliasing buffers.
+    \item No known implementation with this goal in mind, to our knowledge.
+  \end{itemize}
+  \item Manually adjust address offset.
+  \begin{itemize}
+    \item Consider memory address alignment for performance tuning inner loops.
+  \end{itemize}
+\end{itemize}
+
+\end{frame}
+
+
+\begin{frame}
+
+\frametitle{References}
+
+\scriptsize{\bibliographystyle{IEEEtran}}
+\bibliography{references}
+
+\end{frame}
 
 \end{document}
