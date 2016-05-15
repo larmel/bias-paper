@@ -80,7 +80,7 @@ int main() {
 
 Execute program under different environments, setting dummy variable to $K$ zero characters.
 
-\begin{lstlisting}[breaklines=true, belowskip=-10pt]
+\begin{lstlisting}[breaklines=true, belowskip=-10pt, basicstyle=\ttfamily\small]
 $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
 \end{lstlisting}
 
@@ -121,7 +121,7 @@ $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
   %\item Collisions between static and automatic variables, depending on alignment of stack.
   \item Addresses of static i, j and k are fixed for all environments.
   \item Addresses of g and inc are pushed down with size of environment variables.
-  \item Spike when address of inc \emph{aliasing} with i in the last 12 bits.
+  \item Spike when address of inc is \emph{aliasing} with i in the last 12 bits.
   \item Performance impact from \emph{false dependencies} in CPU out of order execution.
 \end{itemize}
 
@@ -199,26 +199,25 @@ $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
   % Some points on hardware perf counters.
   \begin{itemize}
     \item Control execution environment (disable ASLR).
-    \item Sample alias occurrence using \emph{hardware performance counters}.
-      % \begin{itemize}
-      %   \item Cycles executed, branch prediction misses, instructions fetched, etc.
-      % \end{itemize}
-    %\item Intel manual lists hundreds of events.
+    \item Instrument program using \emph{hardware performance counters}, sampling the following event:
   \end{itemize}
 
   \begin{description}
     \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS.}] 
     \emph{``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.''} 
     \cite[B.3.4.4]{OptimizationManual}
-    Listed in the manual for microarchitectures going back to ``Nehalem'', including ``Ivy Bridge'' and ``Haswell'' CPUs~\cite{Volume3B}
   \end{description}
   %This event is listed in the manual for microarchitectures going back to ``Nehalem'', including ``Ivy Bridge'' and ``Haswell'' CPUs~\cite{Volume3B}.
   %Older architectures such as Core do not have this particular event listed, but 4K aliasing is covered by a more general event:
+
+  \begin{itemize}
+    \item Older architectures, such as Core, have alias covered in a more general event:
+  \end{itemize}
+
   \begin{description}
     \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE.}] 
     \emph{``Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.''} 
     \cite[Table 19-17]{Volume3B}
-    Covers 4K aliasing for older architectures, such as Core.
   \end{description}
 
   % Describe LD_BLOCKS_PARTIAL.ADDRESS_ALIAS
@@ -330,28 +329,41 @@ Example program which is sensitive to aliasing between buffers, continuously gen
 Adjust address of output array by \texttt{d} bytes manually to avoid alising:
 
 %mmap(NULL, (n + d), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0) + d;
-\begin{lstlisting}[belowskip=-4pt]
+\begin{lstlisting}[belowskip=-4pt, basicstyle=\ttfamily\small]
 out = malloc((N + d) * sizeof(float));
-...
 conv(N, in, out + d);
 \end{lstlisting}
 
 % The most awesome graph, O2 of convolution kernel
 \pgfplotstableread{bin/conv-default-o2-haswell.estimate.dat}{\convtabletwohaswell}
+\pgfplotstableread{bin/conv-default-o3-haswell.estimate.dat}{\convtablethreehaswell}
 \begin{figure}[t]
   \begin{tikzpicture}
     \begin{axis}[
         title=Haswell -O2,
         font=\footnotesize,
-        xlabel=Relative offset in \texttt{sizeof(float)} bytes,
-        ylabel=Event count,
         cycle list name=black white,
-        width=\textwidth/1.5,
+        width=\textwidth/1.8,
         height=4.7cm,
-        skip coords between index={20}{32} % Limit level of detail to fit page width nicely
+        skip coords between index={18}{32} % Limit level of detail to fit page width nicely
       ]
       \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convtabletwohaswell ;
       \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \convtabletwohaswell ;
+      \addlegendentry{Cycles} ;
+      \addlegendentry{Alias} ;
+    \end{axis}
+  \end{tikzpicture}
+  \begin{tikzpicture}
+    \begin{axis}[
+        title=Haswell -O3,
+        font=\footnotesize,
+        cycle list name=black white,
+        width=\textwidth/1.8,
+        height=4.7cm,
+        skip coords between index={18}{32}
+      ]
+      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \convtablethreehaswell ;
+      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \convtablethreehaswell ;
       \addlegendentry{Cycles} ;
       \addlegendentry{Alias} ;
     \end{axis}
