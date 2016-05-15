@@ -15,7 +15,7 @@ about:
 	gcc --version
 
 # Files that are used for plots, tables and listings in the article.
-resources_paper := \
+resources := \
 	bin/microkernel-cycles-haswell.dat bin/microkernel-comparison-haswell.csv bin/microkernel-annotated.s \
 	bin/microkernel-core.dat bin/microkernel-nehalem.dat bin/microkernel-ivybridge.dat \
 	bin/conv-default-o2-haswell.estimate.dat bin/conv-default-o2-haswell.estimate.csv \
@@ -24,12 +24,8 @@ resources_paper := \
 	bin/malloc-comparison.csv \
 	bin/libblas.dat bin/libatlas.dat bin/libopenblas.dat
 
-# Resource filed used for the presentation.
-resources_presentation := \
-	bin/microkernel-cycles-haswell.dat
-
 # Build in root to avoid trouble with pgfplots and output directories.
-bin/paper.pdf: paper.tex references.bib $(resources_paper) | bin
+bin/paper.pdf: paper.tex references.bib $(resources) | bin
 	latex paper.tex
 	bibtex paper
 	latex paper.tex
@@ -39,13 +35,13 @@ bin/paper.pdf: paper.tex references.bib $(resources_paper) | bin
 	mv paper.pdf $@
 	rm -f paper.log paper.dvi paper.ps paper.aux paper.bbl paper.blg paper.out
 
-bin/presentation.pdf: presentation.tex $(resources_presentation) | bin
+bin/presentation.pdf: presentation.tex $(resources) | bin
 	latex $<
 	bibtex presentation
 	latex $<
 	dvipdf presentation.dvi
 	mv presentation.pdf $@
-	rm -f presentation.aux presentation.dvi presentation.log presentation.out presentation.snm presentation.toc presentation.nav
+	rm -f presentation.aux presentation.dvi presentation.log presentation.out presentation.snm presentation.toc presentation.nav presentation.bbl presentation.blg presentation.vrb
 
 # Gather results from analysis directory, but do some massaging to get
 # the correct Tikz friendly format and filter out unnecessary data.
