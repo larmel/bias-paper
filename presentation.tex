@@ -37,12 +37,9 @@
 \frametitle{Outline}
 
 \begin{itemize}
-  \item Identify address aliasing as underlying explanation for measurement bias.
-  % \begin{itemize}
-  %   \item Looking at example from previous work
-  % \end{itemize}
+  \item Identify address aliasing as an underlying explanation for measurement bias.
   \item See how aliasing affects dynamic memory allocation.
-  \item Identify opportunities to optimize for aliasing.
+  \item Look at opportunities to optimize for aliasing.
 \end{itemize}
 
 \end{frame}
@@ -91,8 +88,9 @@ $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
 \begin{figure}
   \begin{tikzpicture}
     \begin{axis}[
+        title = Haswell,
         width = \textwidth,
-        height = 5.0cm,
+        height = 4.7cm,
         font = \footnotesize,
         xlabel=Bytes added to environment,
         ylabel=Cycles,
@@ -105,7 +103,7 @@ $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
       \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \stackoffsettable ;
     \end{axis}
   \end{tikzpicture}
-  \caption{Measured average of 10 cycle count samples for 512 different environments; offseting stack by multiples of 16 bytes.}
+  \caption{Measured cycle count samples for 512 different environments.}
 \end{figure}
 
 % Also an optimization problem (relevant for auto-tuning).
@@ -195,28 +193,24 @@ $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
 \end{frame}
 
 
-% More generic on methodology? Not necessary for presentation maybe..
-% Just to straight to the juice.
-\begin{frame}
+\begin{frame}[fragile]
   \frametitle{How to Measure Address Aliasing}
-  \framesubtitle{Using Hardware Performance Counters}
 
   % Some points on hardware perf counters.
   \begin{itemize}
     \item Control execution environment (disable ASLR).
-    \item Using processor-specific instrumentation, we can \emph{count} various low-level events during execution.
-      \begin{itemize}
-        \item Cycles executed, branch prediction misses, instructions fetched, etc.
-      \end{itemize}
+    \item Sample alias occurrence using \emph{hardware performance counters}.
+      % \begin{itemize}
+      %   \item Cycles executed, branch prediction misses, instructions fetched, etc.
+      % \end{itemize}
     %\item Intel manual lists hundreds of events.
   \end{itemize}
-
-  Events covering 4K aliasing:
 
   \begin{description}
     \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS.}] 
     \emph{``Counts the number of loads that have partial address match with preceding stores, causing the load to be reissued.''} 
     \cite[B.3.4.4]{OptimizationManual}
+    Listed in the manual for microarchitectures going back to ``Nehalem'', including ``Ivy Bridge'' and ``Haswell'' CPUs~\cite{Volume3B}
   \end{description}
   %This event is listed in the manual for microarchitectures going back to ``Nehalem'', including ``Ivy Bridge'' and ``Haswell'' CPUs~\cite{Volume3B}.
   %Older architectures such as Core do not have this particular event listed, but 4K aliasing is covered by a more general event:
@@ -224,6 +218,7 @@ $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
     \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE.}] 
     \emph{``Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.''} 
     \cite[Table 19-17]{Volume3B}
+    Covers 4K aliasing for older architectures, such as Core.
   \end{description}
 
   % Describe LD_BLOCKS_PARTIAL.ADDRESS_ALIAS
@@ -289,7 +284,7 @@ The address of the new mapping is returned as the result of the call.
 
 \end{lstlisting}
 
-Since page size is usually 4096 byte, such allocations will \emph{always} alias with each other.
+Since page size is 4 KiB, such allocations will \emph{always} alias with each other.
 
 \end{frame}
 
@@ -418,14 +413,24 @@ Computing $\boldsymbol{y}=A\boldsymbol{x}$.
 \end{frame}
 
 \begin{frame}
-\frametitle{Optimizing for address alias}
+\frametitle{Optimizing for address aliasing}
 
 % Effects of address aliasing are real, these are some ideas for optimization:
 
 \begin{itemize}
   \item Mark buffers with \texttt{restrict}.
+  \begin{itemize}
+    \item Can allow the optimizer to reduce number of memory accesses.
+  \end{itemize}
   \item Use a special purpose allocator.
+  \begin{itemize}
+    \item Heuristics for avoiding pairwise aliasing buffers.
+    \item No known implementation with this goal in mind, to our knowledge.
+  \end{itemize}
   \item Manually adjust address offset.
+  \begin{itemize}
+    \item Consider memory address alignment for performance tuning inner loops.
+  \end{itemize}
 \end{itemize}
 
 \end{frame}
