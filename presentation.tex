@@ -37,9 +37,12 @@
 \frametitle{Outline}
 
 \begin{itemize}
-  \item What is measurement bias?
-  \item What is address aliasing?
-  \item How does this help?
+  \item Identify address aliasing as underlying explanation for measurement bias.
+  % \begin{itemize}
+  %   \item Looking at example from previous work
+  % \end{itemize}
+  \item See how aliasing affects dynamic memory allocation.
+  \item Identify opportunities to optimize for aliasing.
 \end{itemize}
 
 \end{frame}
@@ -78,7 +81,11 @@ int main() {
 
 % Also an optimization problem (relevant for auto-tuning).
 
-What is the execution time of this function?
+Execute program under different environments, setting dummy variable to $K$ zero characters.
+
+\begin{lstlisting}[breaklines=true, belowskip=-10pt]
+$ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
+\end{lstlisting}
 
 \pgfplotstableread{bin/microkernel-cycles-haswell.dat}{\stackoffsettable}
 \begin{figure}
@@ -110,20 +117,19 @@ What is the execution time of this function?
 \frametitle{4K Address Aliasing}
 
 \begin{columns}[T] % align columns
-\begin{column}{.48\textwidth}
+\begin{column}{.50\textwidth}
 
 \begin{itemize}
   %\item Collisions between static and automatic variables, depending on alignment of stack.
-  \item Address of i, j and k are fixed for all environments.
-  \item Address of g and inc is pushed down with length of environment variables.
-  \item Spike when inc is at 0x7fffffffe03c + $ k \times $ 0x1000, \emph{aliasing} with i in the last 12 bits.
+  \item Addresses of static i, j and k are fixed for all environments.
+  \item Addresses of g and inc are pushed down with size of environment variables.
+  \item Spike when address of inc \emph{aliasing} with i in the last 12 bits.
   \item Performance impact from \emph{false dependencies} in CPU out of order execution.
-  \item Effect known as \emph{address aliasing}.
 \end{itemize}
 
 \end{column}
 \hfill
-\begin{column}{.48\textwidth}
+\begin{column}{.50\textwidth}
 
 % Virtual memory/randomization illustration
 \begin{figure}
@@ -136,8 +142,8 @@ What is the execution time of this function?
     ] (m) {
       \nodepart{one}
         \scriptsize{USER=lars;SHELL
-        =/bin/bash;PWD=
-        /home (...)}
+        =/bin/bash;X=0000
+        00000000000000...}
       \nodepart{two}
         .stack
         \begin{flushright}
@@ -173,11 +179,11 @@ What is the execution time of this function?
     %\draw [decorate, decoration={brace, amplitude=5pt}] (m.south west) -- (m.seven split west) 
     %  node [black, midway, xshift=-1.5cm, text width=2.0cm] 
     %    { Program code and static data } ;
-    
+
     %\node[right] at (m.north east) { \scriptsize{0x7fff'ffffffff} } ;
     %\node[right] at (m.south east) { \scriptsize{0x400000} } ;
   \end{tikzpicture}
-  \caption{4K address aliasing between stack and static data.}
+  \caption{Addresses of each variable in the first spike.}
 \end{figure}
 
 % Note: Could have gotten more collisions if g also was colliding with something,
@@ -224,40 +230,58 @@ What is the execution time of this function?
 \end{frame}
 
 
-  % After this, done with method for detecting alias, and answers question
-  % from old paper. Now lets see what else can be discovered.
+% After this, done with method for detecting alias, and answers question
+% from old paper. Now lets see what else can be discovered.
 
-  \begin{frame}
-    \frametitle{Bias in Heap Allocation}
+\begin{frame}[fragile]
+\frametitle{Bias in Heap Allocation}
 
-    \begin{itemize}
-      \item Alias conflicts can happen between any sections of memory.
-      \item While stack addresses depend on environment, heap addresses depend on allocators.
-    \end{itemize}
+\begin{itemize}
+  \item Alias conflicts can happen between any sections of memory.
+  \item While stack addresses depend on environment, heap addresses depend on allocators.
+\end{itemize}
 
-    Looked at several allocators:
+\begin{table}
+  \caption{Addresses returned by different heap allocators when allocating pairs of equally sized buffers. Same 12 bit suffix indicate an aliasing pair.}
+  \pgfplotstabletypeset[
+    font=\footnotesize,
+    col sep=comma,
+    string type,
+    columns={Allocation, 5120, 1048576},
+    column type=r,
+    columns/Allocation/.style={
+      string type, 
+      column type=l,
+      column type/.add={|}{}
+    },
+    every head row/.style={
+      output empty row,
+      before row={\hline
+         & 5,120 B & 1,048,576 B \\
+        },
+      after row=\hline\hline,
+    },
+    every last row/.style={after row=\hline},
+    every last column/.style={column type/.add={}{|}},
+    every odd row/.style={after row=\hline},
+  ]{bin/malloc-comparison.csv}
+\end{table}
 
-    \begin{itemize}
-      \item ptmalloc (glibc)
-      \item tcmalloc (Google)
-      \item jemalloc
-      \item Hoard
-    \end{itemize}
 
-    % Motivation for looking: Determines addresses.
+  % Motivation for looking: Determines addresses.
 
-    % Short survay, most use mmap for large allocations.
+  % Short survay, most use mmap for large allocations.
 
-    % punchline: mmap always alias.
+  % punchline: mmap always alias.
 
-  \end{frame}
+\end{frame}
 
 \begin{frame}[fragile]
   \frametitle{mmap}
 
-    Most allocators use anonymous memory mapping for large allocations.
+Most allocators use anonymous memory mapping for large allocations.
 
-\begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth]
+\begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth, belowskip=1cm]
 $ man mmap
 
 (...) on Linux, the mapping will be created at a nearby page boundary.
@@ -265,12 +289,16 @@ The address of the new mapping is returned as the result of the call.
 
 \end{lstlisting}
 
+Since page size is usually 4096 byte, such allocations will \emph{always} alias with each other.
+
 \end{frame}
 
 \begin{frame}[fragile, allowframebreaks]
   \frametitle{Optimization Resistant Code}
 
 % Image of sliding window with buffers in and out (Color variables?)
+
+Example program which is sensitive to aliasing between buffers, continuously generating false dependencies:
 
 \begin{tikzpicture}[
   barstyle/.style={rectangle,fill=lightgray,draw,anchor=center,minimum width=9cm}
@@ -286,15 +314,16 @@ The address of the new mapping is returned as the result of the call.
 
 \end{tikzpicture}
 
-% Convolution example code
 \begin{figure}[t]
+% Convolution example code
   \lstinputlisting[
     language=C,
     frame=single,
     xleftmargin=.00\textwidth,
-    xrightmargin=.00\textwidth
+    xrightmargin=.00\textwidth,
+    aboveskip=-5pt
   ]{bin/convolution-kernel.c}
-  \caption{Simplified implementation of convolution with a fixed kernel. This program is highly sensitive to aliasing between input and output arrays, continuously generating false dependencies.}
+  \caption{Simplified implementation of convolution with a fixed kernel.}
   \label{lst:conv}
 \end{figure}
 
@@ -333,20 +362,52 @@ conv(N, in, out + d);
     \end{axis}
   \end{tikzpicture}
   \caption{\label{fig:conv-default}Cycle- and alias counts for different offsets between input and output arrays in convolution kernel, input size $n=2^{20}$.}
-  %Offset 0 means equal 12-bit address suffix, which is default behavior for \texttt{mmap} allocations. Showing results for optimization levels O2 and O3 compiled with GCC, input size $n=2^{20}$.}
 \end{figure}
-
-
-    % Manual offset code (?)
 
 \end{frame}
 
-  \begin{frame}
-    \frametitle{Aliasing in BLAS libraries}
+\begin{frame}[fragile]
+\frametitle{Aliasing in BLAS libraries}
 
-    % Maybe mention FFTW results from Master's?
+% Maybe mention FFTW results from Master's?
 
-  \end{frame}
+Measured matrix-vector multiplication (cblas\_dgemv) with increasing offset between buffer addresses.
+
+\pgfplotstableread{bin/libblas.dat}{\libblastable}
+\begin{figure}
+  \begin{tikzpicture}
+    \begin{axis}[
+        title=libblas,
+        height=4.7cm,
+        font=\footnotesize,
+        xlabel=Address offset of $\boldsymbol{y}$,
+        ylabel=Event count,
+        cycle list name=black white,
+        width=\textwidth/1.5, % Make it fit to text width side by side
+        legend style={at={(0.4,0.55)},anchor=west,draw=none}
+      ]
+      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \libblastable ;
+      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \libblastable ;
+      \addlegendentry{Cycles} ;
+      \addlegendentry{Alias} ;
+    \end{axis}
+  \end{tikzpicture}
+\end{figure}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Optimizing for address alias}
+
+% Effects of address aliasing are real, these are some ideas for optimization:
+
+\begin{itemize}
+  \item Mark buffers with restrict
+  \item Use a special purpose allocator
+  \item Manually adjust address offset
+\end{itemize}
+
+\end{frame}
 
 
 \begin{frame}
