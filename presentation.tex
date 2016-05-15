@@ -279,7 +279,7 @@ $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
 \begin{frame}[fragile]
   \frametitle{mmap}
 
-Most allocators use anonymous memory mapping for large allocations.
+Most allocators tend to use anonymous memory mapping for large requests.
 
 \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth, belowskip=1cm]
 $ man mmap
@@ -361,7 +361,7 @@ conv(N, in, out + d);
       \addlegendentry{Alias} ;
     \end{axis}
   \end{tikzpicture}
-  \caption{\label{fig:conv-default}Cycle- and alias counts for different offsets between input and output arrays in convolution kernel, input size $n=2^{20}$.}
+  \caption{\label{fig:conv-default}Cycle- and alias counts for different offsets between input and output arrays in convolution kernel, input size $N=2^{20}$.}
 \end{figure}
 
 \end{frame}
@@ -372,8 +372,10 @@ conv(N, in, out + d);
 % Maybe mention FFTW results from Master's?
 
 Measured matrix-vector multiplication (cblas\_dgemv) with increasing offset between buffer addresses.
+Computing $\boldsymbol{y}=A\boldsymbol{x}$.
 
 \pgfplotstableread{bin/libblas.dat}{\libblastable}
+\pgfplotstableread{bin/libatlas.dat}{\libatlastable}
 \begin{figure}
   \begin{tikzpicture}
     \begin{axis}[
@@ -381,9 +383,9 @@ Measured matrix-vector multiplication (cblas\_dgemv) with increasing offset betw
         height=4.7cm,
         font=\footnotesize,
         xlabel=Address offset of $\boldsymbol{y}$,
-        ylabel=Event count,
+        %ylabel=Event count,
         cycle list name=black white,
-        width=\textwidth/1.5, % Make it fit to text width side by side
+        width=\textwidth/1.8, % Make it fit to text width side by side
         legend style={at={(0.4,0.55)},anchor=west,draw=none}
       ]
       \addplot table[x expr = \thisrowno{0}, y = cycles:u] \libblastable ;
@@ -392,6 +394,25 @@ Measured matrix-vector multiplication (cblas\_dgemv) with increasing offset betw
       \addlegendentry{Alias} ;
     \end{axis}
   \end{tikzpicture}
+  \begin{tikzpicture}
+    \begin{axis}[
+        title=libatlas,
+        height=4.7cm,
+        font=\footnotesize,
+        xlabel=Address offset of $\boldsymbol{y}$,
+        %ylabel=Event count,
+        cycle list name=black white,
+        width=\textwidth/1.8,
+        legend style={at={(0.4,0.55)},anchor=west,draw=none}
+      ]
+      \addplot table[x expr = \thisrowno{0}, y = cycles:u] \libatlastable ;
+      \addplot table[x expr = \thisrowno{0}, y = r0107:u ] \libatlastable ;
+      \addlegendentry{Cycles} ;
+      \addlegendentry{Alias} ;
+    \end{axis}
+  \end{tikzpicture}
+  \caption{\label{fig:blas}Cycles executed and address alias events for varying relative address offset between matrix $A$ and vector $\boldsymbol{y}$.}
+  % Each sample point represents an increment of 16 bytes, or 0x10.}
 \end{figure}
 
 \end{frame}
@@ -402,9 +423,9 @@ Measured matrix-vector multiplication (cblas\_dgemv) with increasing offset betw
 % Effects of address aliasing are real, these are some ideas for optimization:
 
 \begin{itemize}
-  \item Mark buffers with restrict
-  \item Use a special purpose allocator
-  \item Manually adjust address offset
+  \item Mark buffers with \texttt{restrict}.
+  \item Use a special purpose allocator.
+  \item Manually adjust address offset.
 \end{itemize}
 
 \end{frame}
