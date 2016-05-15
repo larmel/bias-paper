@@ -8,7 +8,7 @@
 
 \usetikzlibrary{patterns,shapes,positioning,calc}
 \setbeamertemplate{bibliography item}[text]
-\lstset{language=C, basicstyle=\ttfamily\scriptsize, columns=flexible, belowskip=0pt, aboveskip=-1pt}
+\lstset{language=C, basicstyle=\ttfamily\scriptsize, columns=flexible, belowskip=0pt, aboveskip=0pt}
 
 \title{Measurement Bias from Address Aliasing}
 
@@ -134,41 +134,41 @@ What is the execution time of this function?
       rectangle split part fill={white, white, lightgray, white, lightgray},
       draw, anchor=center, text width=2.5cm
     ] (m) {
-        \nodepart{one}
-          \scriptsize{USER=lars;SHELL
-          =/bin/bash;PWD=
-          /home (...)}
-        \nodepart{two}
-          .stack
-          \begin{flushright}
-          inc \\
-          g
-          \end{flushright}
-        \nodepart{four}
-          .bss
-          \begin{flushright}
-          k \\
-          j \\
-          i
-          \end{flushright}
-      };
+      \nodepart{one}
+        \scriptsize{USER=lars;SHELL
+        =/bin/bash;PWD=
+        /home (...)}
+      \nodepart{two}
+        .stack
+        \begin{flushright}
+        inc \\
+        g
+        \end{flushright}
+      \nodepart{four}
+        .bss
+        \begin{flushright}
+        k \\
+        j \\
+        i
+        \end{flushright}
+    };
 
-      \node[right, yshift=0cm] at (m.two east) {
-        \scriptsize{0x7fff'ffffe{\color{red}03c}} % inc
-      };
-      \node[right, yshift=-0.4cm] at (m.two east) {
-        \scriptsize{0x7fff'ffffe038} % g
-      };
+    \node[right, yshift=0cm] at (m.two east) {
+      \scriptsize{0x7fff'ffffe{\color{red}03c}} % inc
+    };
+    \node[right, yshift=-0.4cm] at (m.two east) {
+      \scriptsize{0x7fff'ffffe038} % g
+    };
 
-      \node[right, yshift=0cm] at (m.four east) {
-        \scriptsize{0x601044} % k
-      };
-      \node[right, yshift=-0.4cm] at (m.four east) {
-        \scriptsize{0x601040} % j
-      };
-      \node[right, yshift=-0.8cm] at (m.four east) {
-        \scriptsize{0x601{\color{red}03c}} % i
-      };
+    \node[right, yshift=0cm] at (m.four east) {
+      \scriptsize{0x601044} % k
+    };
+    \node[right, yshift=-0.4cm] at (m.four east) {
+      \scriptsize{0x601040} % j
+    };
+    \node[right, yshift=-0.8cm] at (m.four east) {
+      \scriptsize{0x601{\color{red}03c}} % i
+    };
 
     %\draw [decorate, decoration={brace, amplitude=5pt}] (m.south west) -- (m.seven split west) 
     %  node [black, midway, xshift=-1.5cm, text width=2.0cm] 
@@ -189,17 +189,23 @@ What is the execution time of this function?
 \end{frame}
 
 
-
-
+% More generic on methodology? Not necessary for presentation maybe..
+% Just to straight to the juice.
 \begin{frame}
-  \frametitle{How to Measure Aliasing}
+  \frametitle{How to Measure Address Aliasing}
   \framesubtitle{Using Hardware Performance Counters}
 
   % Some points on hardware perf counters.
   \begin{itemize}
+    \item Control execution environment (disable ASLR).
     \item Using processor-specific instrumentation, we can \emph{count} various low-level events during execution.
-    \item Intel manual lists hundreds of events.
+      \begin{itemize}
+        \item Cycles executed, branch prediction misses, instructions fetched, etc.
+      \end{itemize}
+    %\item Intel manual lists hundreds of events.
   \end{itemize}
+
+  Events covering 4K aliasing:
 
   \begin{description}
     \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS.}] 
@@ -218,18 +224,25 @@ What is the execution time of this function?
 \end{frame}
 
 
-  \begin{frame}
-    \frametitle{Cycle Correlation}
-
-    % Correlation data for the microkernel (?)
-
-  \end{frame}
-
   % After this, done with method for detecting alias, and answers question
   % from old paper. Now lets see what else can be discovered.
 
   \begin{frame}
     \frametitle{Bias in Heap Allocation}
+
+    \begin{itemize}
+      \item Alias conflicts can happen between any sections of memory.
+      \item While stack addresses depend on environment, heap addresses depend on allocators.
+    \end{itemize}
+
+    Looked at several allocators:
+
+    \begin{itemize}
+      \item ptmalloc (glibc)
+      \item tcmalloc (Google)
+      \item jemalloc
+      \item Hoard
+    \end{itemize}
 
     % Motivation for looking: Determines addresses.
 
@@ -239,16 +252,58 @@ What is the execution time of this function?
 
   \end{frame}
 
-  \begin{frame}
-    \frametitle{Optimization Resistant Code}
+\begin{frame}[fragile]
+  \frametitle{mmap}
 
-    % Convolution example code
+    Most allocators use anonymous memory mapping for large allocations.
+
+\begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth]
+$ man mmap
+
+(...) on Linux, the mapping will be created at a nearby page boundary.
+The address of the new mapping is returned as the result of the call.
+
+\end{lstlisting}
+
+\end{frame}
+
+\begin{frame}[fragile]
+  \frametitle{Optimization Resistant Code}
+
+% Image of sliding window with buffers in and out (Color variables?)
+
+\begin{tikzpicture}[
+  barstyle/.style={rectangle,fill=lightgray,draw,anchor=center,minimum width=9cm}
+]
+\node [barstyle] (in) at (0,1) { } ;
+\node [barstyle] (out) at (0,0) { } ;
+\node [rectangle,draw,minimum height=1.8cm] (bar) at (-2,0.5) { } ;
+
+\node[] (input label) [left=of in] { in } ;
+\node[] (output label) [left=of out] { out } ;
+
+\draw[->] (-2,0.5) -- (-1.5,0.5) node [right,align=center] {\scriptsize{Sliding window}} ;
+
+\end{tikzpicture}
+
+% Convolution example code
+\begin{figure}[t]
+  \lstinputlisting[
+    language=C,
+    frame=single,
+    xleftmargin=.00\textwidth,
+    xrightmargin=.00\textwidth
+  ]{bin/convolution-kernel.c}
+  \caption{Simplified implementation of convolution with a fixed kernel. This program is highly sensitive to aliasing between input and output arrays, continuously generating false dependencies.}
+  \label{lst:conv}
+\end{figure}
+
 
     % Plots for O2 and O3
 
     % Manual offset code (?)
 
-  \end{frame}
+\end{frame}
 
   \begin{frame}
     \frametitle{Aliasing in BLAS libraries}
