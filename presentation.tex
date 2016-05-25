@@ -45,7 +45,7 @@
 \end{frame}
 
 
-\begin{frame}[fragile, allowframebreaks]
+\begin{frame}
 \frametitle{Measurement Bias}
 
 % Show example code and plot from Mytkowitz.
@@ -57,7 +57,31 @@
     \item Link ordering
   \end{itemize}
   \item Challenge for performance analysis
+  \item Effects can invalidate perceived speedup\cite{Mytkowicz:2009:WrongData}
 \end{itemize}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Methodology}
+
+
+  % Some points on hardware perf counters.
+  \begin{itemize}
+    \item Control execution environment (disable ASLR).
+    \item Instrument program using \emph{hardware performance counters}
+    \item Python script to iterate over environments.
+  \end{itemize}
+
+
+%todo: Memory layout.
+
+\end{frame}
+
+
+\begin{frame}[fragile, allowframebreaks]
+\frametitle{Bias from Environment Size}
 
 \begin{figure}
   \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth, aboveskip=-2pt]
@@ -195,12 +219,6 @@ $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
 
 \begin{frame}[fragile]
   \frametitle{How to Measure Address Aliasing}
-
-  % Some points on hardware perf counters.
-  \begin{itemize}
-    \item Control execution environment (disable ASLR).
-    \item Instrument program using \emph{hardware performance counters}, sampling the following event:
-  \end{itemize}
 
   \begin{description}
     \item[{\small LD\_BLOCKS\_PARTIAL.ADDRESS\_ALIAS.}] 
@@ -342,7 +360,7 @@ conv(N, in, out + d);
     \begin{axis}[
         title=Haswell -O2,
         font=\footnotesize,
-        cycle list name=black white,
+        cycle list name=exotic,
         width=\textwidth/1.8,
         height=4.7cm,
         skip coords between index={18}{32} % Limit level of detail to fit page width nicely
@@ -357,7 +375,7 @@ conv(N, in, out + d);
     \begin{axis}[
         title=Haswell -O3,
         font=\footnotesize,
-        cycle list name=black white,
+        cycle list name=exotic,
         width=\textwidth/1.8,
         height=4.7cm,
         skip coords between index={18}{32}
@@ -391,7 +409,7 @@ Computing $\boldsymbol{y}=A\boldsymbol{x}$.
         font=\footnotesize,
         xlabel=Address offset of $\boldsymbol{y}$,
         %ylabel=Event count,
-        cycle list name=black white,
+        cycle list name=exotic,
         width=\textwidth/1.8, % Make it fit to text width side by side
         legend style={at={(0.4,0.55)},anchor=west,draw=none}
       ]
@@ -408,7 +426,7 @@ Computing $\boldsymbol{y}=A\boldsymbol{x}$.
         font=\footnotesize,
         xlabel=Address offset of $\boldsymbol{y}$,
         %ylabel=Event count,
-        cycle list name=black white,
+        cycle list name=exotic,
         width=\textwidth/1.8,
         legend style={at={(0.4,0.55)},anchor=west,draw=none}
       ]
@@ -442,6 +460,7 @@ Computing $\boldsymbol{y}=A\boldsymbol{x}$.
   \item Manually adjust address offset.
   \begin{itemize}
     \item Consider memory address alignment for performance tuning inner loops.
+    \item Auto-tuning?
   \end{itemize}
 \end{itemize}
 
