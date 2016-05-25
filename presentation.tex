@@ -264,15 +264,17 @@ $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
   %This event is listed in the manual for microarchitectures going back to ``Nehalem'', including ``Ivy Bridge'' and ``Haswell'' CPUs~\cite{Volume3B}.
   %Older architectures such as Core do not have this particular event listed, but 4K aliasing is covered by a more general event:
 
-  \begin{itemize}
-    \item Older architectures, such as Core, have alias covered in a more general event:
-  \end{itemize}
+  Same or similar counters found in architectures dating back through Core 2.
 
-  \begin{description}
-    \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE.}] 
-    \emph{``Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.''} 
-    \cite[Table 19-17]{Volume3B}
-  \end{description}
+  % \begin{itemize}
+  %   \item Older architectures, such as Core, have alias covered in a more general event:
+  % \end{itemize}
+
+  % \begin{description}
+  %   \item[{\small LOAD\_BLOCKS.OVERLAP\_STORE.}] 
+  %   \emph{``Loads that partially overlap an earlier store, or 4-Kbyte aliased with a previous store.''} 
+  %   \cite[Table 19-17]{Volume3B}
+  % \end{description}
 
   % Describe LD_BLOCKS_PARTIAL.ADDRESS_ALIAS
 \end{frame}
@@ -493,10 +495,10 @@ Computing $\boldsymbol{y}=A\boldsymbol{x}$.
     \item Heuristics for avoiding pairwise aliasing buffers.
     \item No known implementation with this goal in mind, to our knowledge.
   \end{itemize}
-  \item Manually adjust address offset.
+  \item Explicitly adjust address offset.
   \begin{itemize}
     \item Consider memory address alignment for performance tuning inner loops.
-    \item Auto-tuning?
+    \item Buffer addresses as candidate for automatic performance tuning
   \end{itemize}
 \end{itemize}
 
