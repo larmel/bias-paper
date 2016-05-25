@@ -37,19 +37,6 @@
 
 \frame{\titlepage}
 
-\begin{frame}
-
-\frametitle{Outline}
-
-\begin{itemize}
-  \item Identify address aliasing as an underlying explanation for measurement bias.
-  \item See how aliasing affects dynamic memory allocation.
-  \item Look at opportunities to optimize for aliasing.
-  \item Up to 2x speedup.
-\end{itemize}
-
-\end{frame}
-
 
 \begin{frame}
 \frametitle{Measurement Bias}
@@ -65,6 +52,75 @@
   \item Challenge for performance analysis.
   \item Effects can invalidate perceived speedup~\cite{Mytkowicz:2008:OE&MB}.
 \end{itemize}
+
+\end{frame}
+
+
+\begin{frame}
+
+\frametitle{Outline}
+
+\begin{itemize}
+  \item Identify address aliasing as an underlying explanation for measurement bias.
+  \item See how aliasing affects dynamic memory allocation.
+  \item Look at opportunities to optimize for aliasing.
+  \item Up to 2x speedup.
+\end{itemize}
+
+\end{frame}
+
+
+
+
+\begin{frame}[fragile, allowframebreaks]
+\frametitle{Bias from Environment Size}
+
+\begin{figure}
+  \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth, aboveskip=-2pt]
+static int i, j, k;
+
+int main() {
+    int g = 0, inc = 1;
+    for (; g < 65536; g++) {
+        i += inc;
+        j += inc;
+        k += inc;
+    }
+    return 0;
+}
+  \end{lstlisting}
+  \caption{\label{fig:microkernel}Microkernel first presented by Mytkowicz \emph{et al.}\cite{Mytkowicz:2009:WrongData}, showing bias to environment size.}
+\end{figure}
+
+% Also an optimization problem (relevant for auto-tuning).
+
+Execute program under different environments, setting dummy variable to $K$ zero characters.
+
+\begin{lstlisting}[breaklines=true, belowskip=-10pt, basicstyle=\ttfamily\small]
+$ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
+\end{lstlisting}
+
+\pgfplotstableread{bin/microkernel-cycles-haswell.dat}{\stackoffsettable}
+\begin{figure}
+  \begin{tikzpicture}
+    \begin{axis}[
+        title = Haswell,
+        width = \textwidth,
+        height = 4.7cm,
+        font = \footnotesize,
+        xlabel=Bytes added to environment,
+        ylabel=Cycles,
+        domain = 0:8192,
+        xtick = {0,1024,...,8192},
+        xmin = 0,
+        xmax = 8192,
+        cycle list name = exotic
+      ]
+      \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \stackoffsettable ;
+    \end{axis}
+  \end{tikzpicture}
+  \caption{Measured cycle count samples for 512 different environments.}
+\end{figure}
 
 \end{frame}
 
@@ -127,60 +183,8 @@
 
 
 \begin{frame}[fragile, allowframebreaks]
-\frametitle{Bias from Environment Size}
-
-\begin{figure}
-  \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth, aboveskip=-2pt]
-static int i, j, k;
-
-int main() {
-    int g = 0, inc = 1;
-    for (; g < 65536; g++) {
-        i += inc;
-        j += inc;
-        k += inc;
-    }
-    return 0;
-}
-  \end{lstlisting}
-  \caption{\label{fig:microkernel}Microkernel first presented by Mytkowicz \emph{et al.}\cite{Mytkowicz:2009:WrongData}, showing bias to environment size.}
-\end{figure}
-
-% Also an optimization problem (relevant for auto-tuning).
-
-Execute program under different environments, setting dummy variable to $K$ zero characters.
-
-\begin{lstlisting}[breaklines=true, belowskip=-10pt, basicstyle=\ttfamily\small]
-$ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
-\end{lstlisting}
-
-\pgfplotstableread{bin/microkernel-cycles-haswell.dat}{\stackoffsettable}
-\begin{figure}
-  \begin{tikzpicture}
-    \begin{axis}[
-        title = Haswell,
-        width = \textwidth,
-        height = 4.7cm,
-        font = \footnotesize,
-        xlabel=Bytes added to environment,
-        ylabel=Cycles,
-        domain = 0:8192,
-        xtick = {0,1024,...,8192},
-        xmin = 0,
-        xmax = 8192,
-        cycle list name = exotic
-      ]
-      \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \stackoffsettable ;
-    \end{axis}
-  \end{tikzpicture}
-  \caption{Measured cycle count samples for 512 different environments.}
-\end{figure}
-
-% Also an optimization problem (relevant for auto-tuning).
-
-
+\frametitle{Results}
 \begin{table}
-  %\centering
   \caption{Events with significant correlation to cycle count.\label{tab:loopcorrelation}}
   \pgfplotstabletypeset[
     int detect, % Output whole numbers for counter values
@@ -207,8 +211,6 @@ $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
     every last column/.style={column type/.add={}{|}}
   ]{bin/microkernel-comparison-haswell.csv}
 \end{table}
-
-
 \end{frame}
 
 
