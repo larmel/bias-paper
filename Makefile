@@ -39,6 +39,7 @@ bin/presentation.pdf: presentation.tex $(resources) | bin
 	latex $<
 	bibtex presentation
 	latex $<
+	latex $<
 	dvipdf presentation.dvi
 	mv presentation.pdf $@
 	rm -f presentation.aux presentation.dvi presentation.log presentation.out presentation.snm presentation.toc presentation.nav presentation.bbl presentation.blg presentation.vrb
