@@ -45,6 +45,7 @@
   \item Identify address aliasing as an underlying explanation for measurement bias.
   \item See how aliasing affects dynamic memory allocation.
   \item Look at opportunities to optimize for aliasing.
+  \item Up to 2x speedup.
 \end{itemize}
 
 \end{frame}
@@ -56,13 +57,13 @@
 % Show example code and plot from Mytkowitz.
 
 \begin{itemize}
-  \item Runtime performance change from external factors
+  \item Runtime performance change from external factors.
   \begin{itemize}
     \item Environment variables
     \item Link ordering
   \end{itemize}
-  \item Challenge for performance analysis
-  \item Effects can invalidate perceived speedup\cite{Mytkowicz:2009:WrongData}
+  \item Challenge for performance analysis.
+  \item Effects can invalidate perceived speedup~\cite{Mytkowicz:2008:OE&MB}.
 \end{itemize}
 
 \end{frame}
@@ -71,16 +72,56 @@
 \begin{frame}
 \frametitle{Methodology}
 
+\begin{columns}[T] % align columns
+\begin{column}{.40\textwidth}
 
   % Some points on hardware perf counters.
   \begin{itemize}
     \item Control execution environment (disable ASLR).
-    \item Instrument program using \emph{hardware performance counters}
-    \item Python script to iterate over environments.
+    \item Instrument program using hardware performance counters.
+    \item Measure over range of environments.
   \end{itemize}
 
+\end{column}
+\begin{column}{.60\textwidth}
 
-%todo: Memory layout.
+\begin{figure}
+  \begin{tikzpicture}[font=\footnotesize]
+    % See page 453 in pgf manual
+    \node [
+      rectangle split, rectangle split parts=10, 
+      rectangle split part fill={white, white, lightgray, white, lightgray, white, lightgray, white},
+      draw, anchor=center, text width=1.8cm
+    ] (m) {
+        \nodepart{one}
+          env. vars
+        \nodepart{two}
+          stack
+        \nodepart{four}
+          mmap area
+        \nodepart{six}
+          heap
+        \nodepart{eight}
+          bss
+        \nodepart{nine}
+          data
+        \nodepart{ten}
+          text
+      };
+    \draw [decorate, decoration={brace, amplitude=5pt}] (m.south west) -- (m.seven split west) 
+      node [black, midway, xshift=-1.5cm, text width=2.0cm] 
+        { Program code and static data } ;
+    \node[right] at (m.north east)
+      { \scriptsize{0x7fff'ffffffff} } ;
+    \node[right] at (m.south east)
+      { \scriptsize{0x400000} } ;
+  \end{tikzpicture}
+  \caption{Memory execution context, assuming a 64-bit process running on a Linux system.}
+  \label{fig:virtualmemory}
+\end{figure}
+
+\end{column}
+\end{columns}
 
 \end{frame}
 
