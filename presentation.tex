@@ -3,12 +3,17 @@
 \usepackage{listings}
 \usepackage{pgfplots}
 \usepackage{pgfplotstable}
+\usepackage{filecontents}
 \usepackage{mathtools}
+\usepackage{underscore}
 \usepackage{tikz}
 
 \usetikzlibrary{patterns,shapes,positioning,calc}
 \setbeamertemplate{bibliography item}[text]
 \lstset{language=C, basicstyle=\ttfamily\scriptsize, columns=flexible, belowskip=0pt}
+\newcommand{\perfctr}[1] {
+  {\lowercase{#1}}
+}
 
 \title{Measurement Bias from Address Aliasing}
 
@@ -131,6 +136,37 @@ $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
 \end{figure}
 
 % Also an optimization problem (relevant for auto-tuning).
+
+
+\begin{table}
+  %\centering
+  \caption{Events with significant correlation to cycle count.\label{tab:loopcorrelation}}
+  \pgfplotstabletypeset[
+    int detect, % Output whole numbers for counter values
+    col sep=comma,
+    columns={Performance counter, Median, [index]3, [index]4},
+    column type=r,
+    font=\footnotesize,
+    columns/Performance counter/.style={
+      string type, 
+      column type=l,
+      column type/.add={|}{},
+      postproc cell content/.append code={
+        \pgfkeysalso{@cell content=\perfctr{##1}}
+      }
+    },
+    every head row/.style={
+      output empty row,
+      before row={\hline
+        Performance counter & Median & Spike 1 & Spike 2 \\
+      },
+      after row=\hline\hline
+    },
+    every last row/.style={after row=\hline},
+    every last column/.style={column type/.add={}{|}}
+  ]{bin/microkernel-comparison-haswell.csv}
+\end{table}
+
 
 \end{frame}
 
