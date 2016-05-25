@@ -10,7 +10,7 @@
 
 \usetikzlibrary{patterns,shapes,positioning,calc}
 \setbeamertemplate{bibliography item}[text]
-\lstset{language=C, basicstyle=\ttfamily\scriptsize, columns=flexible, belowskip=0pt}
+\lstset{language=C, basicstyle=\ttfamily\footnotesize, columns=flexible, belowskip=0pt}
 \newcommand{\perfctr}[1] {
   {\lowercase{#1}}
 }
@@ -26,7 +26,7 @@
 }
 
 \date[2016] % (optional)
-{International Workshop on Automatic Performance Tuning, Chicago, May 2016}
+{International Workshop on Automatic Performance Tuning, Chicago, May 27. 2016}
 
 \subject{Computer Science}
 
@@ -43,13 +43,19 @@
 
 % Show example code and plot from Mytkowitz.
 
+What if changing your user name affected the execution time of your programs?
+%How changing user name can affect performance of executing programs.
+
+%Results being skewed from \"true\" value due to how measurements are performed.
+\vspace{1cm}
+
 \begin{itemize}
   \item Runtime performance change from external factors.
   \begin{itemize}
     \item Environment variables
     \item Link ordering
   \end{itemize}
-  \item Challenge for performance analysis.
+  \item Challenge for performance analysis. Comparison of algorithms on different system configurations can give misleading results.
   \item Effects can invalidate perceived speedup~\cite{Mytkowicz:2008:OE&MB}.
 \end{itemize}
 
@@ -62,21 +68,20 @@
 
 \begin{itemize}
   \item Identify address aliasing as an underlying explanation for measurement bias.
-  \item See how aliasing affects dynamic memory allocation.
-  \item Look at opportunities to optimize for aliasing.
-  \item Up to 2x speedup.
+  \item How aliasing affects dynamic memory allocation.
+  \item Benchmark results.
+  \item Opportunities to optimize for aliasing.
+  %\item Up to 2x speedup.
 \end{itemize}
 
 \end{frame}
-
-
 
 
 \begin{frame}[fragile, allowframebreaks]
 \frametitle{Bias from Environment Size}
 
 \begin{figure}
-  \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth, aboveskip=-2pt]
+  \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth]
 static int i, j, k;
 
 int main() {
@@ -93,6 +98,7 @@ int main() {
 \end{figure}
 
 % Also an optimization problem (relevant for auto-tuning).
+\framebreak
 
 Execute program under different environments, setting dummy variable to $K$ zero characters.
 
@@ -182,7 +188,7 @@ $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
 \end{frame}
 
 
-\begin{frame}[fragile, allowframebreaks]
+\begin{frame}[fragile]
 \frametitle{Results}
 \begin{table}
   \caption{Events with significant correlation to cycle count.\label{tab:loopcorrelation}}
@@ -377,8 +383,9 @@ Most allocators tend to use anonymous memory mapping for large requests.
 \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth, belowskip=1cm]
 $ man mmap
 
-(...) on Linux, the mapping will be created at a nearby page boundary.
-The address of the new mapping is returned as the result of the call.
+(...) on Linux, the mapping will be created at a nearby page
+boundary. The address of the new mapping is returned as the
+result of the call.
 
 \end{lstlisting}
 
@@ -414,7 +421,8 @@ Example program which is sensitive to aliasing between buffers, continuously gen
     frame=single,
     xleftmargin=.00\textwidth,
     xrightmargin=.00\textwidth,
-    aboveskip=-5pt
+    aboveskip=-5pt,
+    basicstyle=\ttfamily\scriptsize
   ]{bin/convolution-kernel.c}
   \caption{Simplified implementation of convolution with a fixed kernel.}
   \label{lst:conv}
