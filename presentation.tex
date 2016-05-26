@@ -43,7 +43,7 @@
 
 % Show example code and plot from Mytkowitz.
 
-What if changing your user name affected the execution time of your programs?
+What if changing your user name affected the execution time of programs?
 %How changing user name can affect performance of executing programs.
 
 %Results being skewed from \"true\" value due to how measurements are performed.
@@ -56,7 +56,7 @@ What if changing your user name affected the execution time of your programs?
     \item Link ordering
   \end{itemize}
   \item Challenge for performance analysis. Comparison of algorithms on different system configurations can give misleading results.
-  \item Effects can invalidate perceived speedup~\cite{Mytkowicz:2008:OE&MB}.
+  \item Effects can invalidate perceived speedup (Mytkowicz et al.~\cite{Mytkowicz:2008:OE&MB}).
 \end{itemize}
 
 \end{frame}
@@ -73,60 +73,6 @@ What if changing your user name affected the execution time of your programs?
   \item Opportunities to optimize for aliasing.
   %\item Up to 2x speedup.
 \end{itemize}
-
-\end{frame}
-
-
-\begin{frame}[fragile, allowframebreaks]
-\frametitle{Bias from Environment Size}
-
-\begin{figure}
-  \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth]
-static int i, j, k;
-
-int main() {
-    int g = 0, inc = 1;
-    for (; g < 65536; g++) {
-        i += inc;
-        j += inc;
-        k += inc;
-    }
-    return 0;
-}
-  \end{lstlisting}
-  \caption{\label{fig:microkernel}Microkernel first presented by Mytkowicz \emph{et al.}\cite{Mytkowicz:2009:WrongData}, showing bias to environment size.}
-\end{figure}
-
-% Also an optimization problem (relevant for auto-tuning).
-\framebreak
-
-Execute program under different environments, setting dummy variable to $K$ zero characters.
-
-\begin{lstlisting}[breaklines=true, belowskip=-10pt, basicstyle=\ttfamily\small]
-$ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
-\end{lstlisting}
-
-\pgfplotstableread{bin/microkernel-cycles-haswell.dat}{\stackoffsettable}
-\begin{figure}
-  \begin{tikzpicture}
-    \begin{axis}[
-        title = Haswell,
-        width = \textwidth,
-        height = 4.7cm,
-        font = \footnotesize,
-        xlabel=Bytes added to environment,
-        ylabel=Cycles,
-        domain = 0:8192,
-        xtick = {0,1024,...,8192},
-        xmin = 0,
-        xmax = 8192,
-        cycle list name = exotic
-      ]
-      \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \stackoffsettable ;
-    \end{axis}
-  \end{tikzpicture}
-  \caption{Measured cycle count samples for 512 different environments.}
-\end{figure}
 
 \end{frame}
 
@@ -188,8 +134,57 @@ $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
 \end{frame}
 
 
-\begin{frame}[fragile]
-\frametitle{Results}
+\begin{frame}[fragile, allowframebreaks]
+\frametitle{Bias from Environment Size}
+
+\begin{figure}
+  \begin{lstlisting}[frame=single, xleftmargin=.01\textwidth, xrightmargin=.01\textwidth]
+static int i, j, k;
+
+int main() {
+    int g = 0, inc = 1;
+    for (; g < 65536; g++) {
+        i += inc;
+        j += inc;
+        k += inc;
+    }
+    return 0;
+}
+  \end{lstlisting}
+  \caption{\label{fig:microkernel}Microkernel first presented by Mytkowicz \emph{et al.}\cite{Mytkowicz:2009:WrongData}, showing bias to environment size.}
+\end{figure}
+
+% Also an optimization problem (relevant for auto-tuning).
+\framebreak
+
+Execute program under different environments, setting dummy variable to $K$ zero characters.
+
+\begin{lstlisting}[breaklines=true, belowskip=-10pt, basicstyle=\ttfamily\small]
+$ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
+\end{lstlisting}
+
+\pgfplotstableread{bin/microkernel-cycles-haswell.dat}{\stackoffsettable}
+\begin{figure}
+  \begin{tikzpicture}
+    \begin{axis}[
+        title = Haswell,
+        width = \textwidth,
+        height = 4.7cm,
+        font = \footnotesize,
+        xlabel=Bytes added to environment,
+        ylabel=Cycles,
+        domain = 0:8192,
+        xtick = {0,1024,...,8192},
+        xmin = 0,
+        xmax = 8192,
+        cycle list name=exotic
+      ]
+      \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \stackoffsettable ;
+    \end{axis}
+  \end{tikzpicture}
+  \caption{Measured cycle count samples for 512 different environments.}
+\end{figure}
+
 \begin{table}
   \caption{Events with significant correlation to cycle count.\label{tab:loopcorrelation}}
   \pgfplotstabletypeset[
