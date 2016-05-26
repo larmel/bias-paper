@@ -45,7 +45,7 @@
 \begin{itemize}
   \item Background on measurement bias.
   \item Address aliasing in Intel CPUs.
-  \item How aliasing affects dynamic memory allocation.
+  \item Aliasing in dynamic memory allocation.
   \item Benchmark results.
   \item Opportunities to optimize by avoiding aliasing.
   %\item Up to 2x speedup.
@@ -71,6 +71,7 @@ What if changing your user name affected the execution time of programs?
     \item Environment variables
     \item Link ordering
   \end{itemize}
+  %\item Introduces \emph{bias} in measurements, offseting result from ``true'' value.
   \item Challenge for performance analysis. Comparison of algorithms on different system configurations can give misleading results.
   \item Effects can invalidate perceived speedup (Mytkowicz et al.~\cite{Mytkowicz:2008:OE&MB}).
 \end{itemize}
