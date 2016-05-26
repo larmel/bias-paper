@@ -226,6 +226,7 @@ $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
     every last column/.style={column type/.add={}{|}}
   ]{bin/microkernel-comparison-haswell.csv}
 \end{table}
+
 \end{frame}
 
 
@@ -337,6 +338,77 @@ $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
   % Describe LD_BLOCKS_PARTIAL.ADDRESS_ALIAS
 \end{frame}
 
+\begin{frame}[fragile]
+  \pgfplotstableread{bin/microkernel-core.dat}{\tblmicrokernelcore}
+  \pgfplotstableread{bin/microkernel-nehalem.dat}{\tblmicrokernelnehalem}
+  \pgfplotstableread{bin/microkernel-ivybridge.dat}{\tblmicrokernelivybridge}
+  \frametitle{Other architectures}
+  \begin{columns}[T] % align columns
+    \begin{column}{.50\textwidth}
+      \begin{tikzpicture}
+        \begin{axis}[
+            title = Core,
+            width = \textwidth/0.85,
+            height = 4.0cm,
+            font = \footnotesize,
+            domain = 0:4096,
+            xtick = {0,1024,...,4096},
+            xmin = 0,
+            xmax = 4096,
+            cycle list name = exotic
+          ]
+          \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelcore ;
+        \end{axis}
+      \end{tikzpicture}
+      \begin{tikzpicture}
+        \begin{axis}[
+            title = Nehalem (HT),
+            y tick label style={
+            /pgf/number format/.cd,
+                fixed,
+                fixed zerofill,
+                precision=1,
+            /tikz/.cd
+            },
+            width = \textwidth/0.85,
+            height = 4.0cm,
+            font = \footnotesize,
+            domain = 0:4096,
+            xtick = {0,1024,...,4096},
+            xmin = 0,
+            xmax = 4096,
+            cycle list name = exotic
+          ]
+          \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelnehalem ;
+        \end{axis}
+      \end{tikzpicture}
+    \end{column}
+    \begin{column}{.50\textwidth}
+      \begin{tikzpicture}
+        \begin{axis}[
+            title = Ivy Bridge,
+            y tick label style={
+            /pgf/number format/.cd,
+                fixed,
+                fixed zerofill,
+                precision=1,
+            /tikz/.cd
+            },
+            width = \textwidth/0.85,
+            height = 4.0cm,
+            font = \footnotesize,
+            domain = 0:4096,
+            xtick = {0,1024,...,4096},
+            xmin = 0,
+            xmax = 4096,
+            cycle list name = exotic
+          ]
+          \addplot[ycomb] table[x expr = \thisrowno{0}*16, y = cycles:u] \tblmicrokernelivybridge ;
+        \end{axis}
+      \end{tikzpicture}
+    \end{column}
+  \end{columns}
+\end{frame}
 
 % After this, done with method for detecting alias, and answers question
 % from old paper. Now lets see what else can be discovered.
