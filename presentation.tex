@@ -186,11 +186,24 @@ $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
   \caption{Measured cycle count samples for 512 different environments.}
 \end{figure}
 
+\pgfplotstableset{
+  highlightrow/.style={
+    postproc cell content/.append code={
+     \count0=\pgfplotstablerow
+      \advance\count0 by1
+      \ifnum\count0=#1
+        \pgfkeysalso{@cell content/.add={$\bf}{$}}
+      \fi
+    }
+  }
+}
+
 \begin{table}
   \caption{Events with significant correlation to cycle count.\label{tab:loopcorrelation}}
   \pgfplotstabletypeset[
     int detect, % Output whole numbers for counter values
     col sep=comma,
+    highlightrow={1},
     columns={Performance counter, Median, [index]3, [index]4},
     column type=r,
     font=\footnotesize,
@@ -309,7 +322,7 @@ $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
   %This event is listed in the manual for microarchitectures going back to ``Nehalem'', including ``Ivy Bridge'' and ``Haswell'' CPUs~\cite{Volume3B}.
   %Older architectures such as Core do not have this particular event listed, but 4K aliasing is covered by a more general event:
 
-  Same or similar counters found in architectures dating back through Core 2.
+  Same or similar counters found in architectures dating back to Core 2.
 
   % \begin{itemize}
   %   \item Older architectures, such as Core, have alias covered in a more general event:
