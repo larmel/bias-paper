@@ -43,9 +43,9 @@
 \frametitle{Outline}
 
 \begin{itemize}
-  \item Background on measurement bias in performance analysis.
-  \item Address aliasing in Intel CPUs.
-  \item Aliasing in dynamic memory allocation.
+  \item Background on measurement bias.
+  \item Address aliasing.
+  \item Bias from dynamic memory allocation.
   \item Benchmark results.
   \item Opportunities to optimize by avoiding aliasing.
   %\item Up to 2x speedup.
@@ -63,7 +63,7 @@ What if changing your user name affected the execution time of programs?
 %How changing user name can affect performance of executing programs.
 
 %Results being skewed from \"true\" value due to how measurements are performed.
-\vspace{1cm}
+\vspace{0.5cm}
 
 \pause
 
@@ -74,6 +74,7 @@ What if changing your user name affected the execution time of programs?
     \item Link ordering
   \end{itemize}
   %\item Introduces \emph{bias} in measurements, offseting result from ``true'' value.
+  \item Changes in memory layout interacting with various hardware mechanisms. Hard to predict.
   \item Challenge for performance analysis. Comparison of algorithms on different system configurations can give misleading results.
   \item Effects can invalidate perceived speedup (Mytkowicz et al.~\cite{Mytkowicz:2008:OE&MB}).
 \end{itemize}
@@ -417,7 +418,7 @@ $ env -i X=`head -c K </dev/zero | tr '\0' '0'` ./loop
 % from old paper. Now lets see what else can be discovered.
 
 \begin{frame}[fragile]
-\frametitle{Bias in Heap Allocation}
+\frametitle{Bias from Heap Allocation}
 
 \begin{itemize}
   \item Alias conflicts can happen between any sections of memory.
